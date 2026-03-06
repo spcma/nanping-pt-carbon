@@ -278,12 +278,3 @@ func fsSave(localPath, fsDir, filename string) (string, error) {
 }
 
 //  {host}/ipfs/QmWfVY9y3xjsixTgbd9AorQxH7VtMpzfx2HaWtsoUYecaX
-
-func ReadLocalFile(path string) ([]byte, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	return data, nil
-}

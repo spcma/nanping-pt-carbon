@@ -1,20 +1,41 @@
 package main
 
 import (
-	"app/rpc"
+	"flag"
 	"fmt"
+	"os"
 )
 
 func main() {
-	//以下是不需要认证身份的示例
-	//节点的地址端口是127.0.0.1:4800
-	stub := rpc.InitLApiStubByUrl("127.0.0.1:4800")
+	// 定义命令行参数
+	mode := flag.String("mode", "websocket", "运行模式：interactive(交互式) 或 websocket")
+	addr := flag.String("addr", ":19870", "WebSocket 服务器监听地址 (仅在 websocket 模式下使用)")
+	flag.Parse()
 
-	var ver string
-	err := stub.GetVarObj(&ver, "", rpc.ApiVarVersion)
-	if err != nil {
-		panic(err)
+	// 解析运行模式
+	var runMode RunMode
+	switch *mode {
+	case "interactive", "cli":
+		runMode = ModeInteractive
+	case "websocket", "ws":
+		runMode = ModeWebSocket
+	default:
+		fmt.Fprintf(os.Stderr, "错误：未知的运行模式 '%s'\n", *mode)
+		fmt.Println("可用的模式:")
+		fmt.Println("  interactive - 交互式命令行模式 (默认)")
+		fmt.Println("  websocket   - WebSocket 服务器模式")
+		os.Exit(1)
 	}
 
-	fmt.Println("cur ver:", ver)
+	// 启动服务
+	config := ServerConfig{
+		Mode: runMode,
+		Addr: *addr,
+	}
+
+	err := StartServer(config)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "错误：%v\n", err)
+		os.Exit(1)
+	}
 }
