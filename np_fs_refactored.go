@@ -51,12 +51,12 @@ func CloseNpFsService() {
 // createFsClient 创建 FS 客户端连接
 // 返回客户端实例、会话 ID 和错误信息
 func createFsClient() (*rpc.LApiStub, string, error) {
-	strPPT, err := rpc.GetLocalPassport(4800, 24)
+	strPPT, err := rpc.GetLocalPassport(4080, 24)
 	if err != nil {
 		return nil, "", err
 	}
 
-	client := rpc.InitLApiStubByUrl("127.0.0.1:4800")
+	client := rpc.InitLApiStubByUrl("127.0.0.1:4080")
 
 	loginReply, err := client.LoginWithPPT(strPPT)
 	if err != nil {
