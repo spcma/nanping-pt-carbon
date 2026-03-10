@@ -8,7 +8,7 @@ import (
 
 func main() {
 	// 定义命令行参数
-	mode := flag.String("mode", "http", "运行模式：interactive(交互式) 或 websocket 或 http")
+	mode := flag.String("mode", "websocket", "运行模式：interactive(交互式) 或 websocket 或 http")
 	addr := flag.String("addr", ":19870", "WebSocket/HTTP 服务器监听地址")
 	httpAddr := flag.String("http-addr", ":19870", "HTTP 服务器监听地址 (仅在 http 模式下使用)")
 	flag.Parse()
