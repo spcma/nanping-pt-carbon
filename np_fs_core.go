@@ -3,6 +3,7 @@ package main
 import (
 	"app/rpc"
 	"fmt"
+	"log"
 	"os"
 	"strings"
 	"sync"
@@ -79,6 +80,7 @@ func CheckDirExists(path string) (bool, error) {
 		}
 		return false, err
 	}
+
 	return true, nil
 }
 
@@ -89,12 +91,14 @@ func CheckDirExists(path string) (bool, error) {
 func CreateDirIfNotExists(path string, recursive bool) (bool, error) {
 	exists, err := CheckDirExists(path)
 	if err != nil {
+		log.Printf("err: %v", err)
 		return false, err
 	}
 
 	if !exists {
 		err = npFsClient.FilesMkdir(npSessionId, path, recursive)
 		if err != nil {
+			log.Printf("err: %v", err)
 			return false, err
 		}
 		return true, nil
@@ -115,7 +119,7 @@ func isDirNotExist(err error) bool {
 	if err == nil {
 		return false
 	}
-	return !strings.Contains(err.Error(), "no link named")
+	return !strings.Contains(err.Error(), "no linked named")
 }
 
 // ListDirectory 列出目录内容
