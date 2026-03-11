@@ -212,6 +212,9 @@ func (ws *WSServer) ServeWebSocket(ctx *fasthttp.RequestCtx) {
 
 		fmt.Printf("客户端已连接：%s\n", conn.RemoteAddr())
 
+		//	初始化NPFS服务
+		InitNpFsService()
+
 		for {
 			_, message, err := conn.ReadMessage()
 			if err != nil {
