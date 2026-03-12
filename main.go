@@ -1,6 +1,7 @@
 package main
 
 import (
+	"app/internal/service"
 	"flag"
 	"fmt"
 	"os"
@@ -8,7 +9,7 @@ import (
 
 func main() {
 	// 定义命令行参数
-	mode := flag.String("mode", "websocket", "运行模式：interactive(交互式) 或 websocket 或 http")
+	mode := flag.String("mode", "http", "运行模式：interactive(交互式) 或 websocket 或 http")
 	addr := flag.String("addr", ":19870", "WebSocket/HTTP 服务器监听地址")
 	httpAddr := flag.String("http-addr", ":19870", "HTTP 服务器监听地址 (仅在 http 模式下使用)")
 	flag.Parse()
@@ -16,7 +17,7 @@ func main() {
 	// 检查是否启动 HTTP 服务器
 	for _, arg := range os.Args {
 		if arg == "-http-server" {
-			err := StartHTTPServer(*httpAddr)
+			err := service.StartHTTPServer(*httpAddr)
 			if err != nil {
 				fmt.Fprintf(os.Stderr, "错误：%v\n", err)
 				os.Exit(1)
@@ -26,14 +27,14 @@ func main() {
 	}
 
 	// 解析运行模式
-	var runMode RunMode
+	var runMode service.RunMode
 	switch *mode {
 	case "interactive", "cli":
-		runMode = ModeInteractive
+		runMode = service.ModeInteractive
 	case "websocket", "ws":
-		runMode = ModeWebSocket
+		runMode = service.ModeWebSocket
 	case "http":
-		err := StartHTTPServer(*httpAddr)
+		err := service.StartHTTPServer(*httpAddr)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "错误：%v\n", err)
 			os.Exit(1)
@@ -49,12 +50,12 @@ func main() {
 	}
 
 	// 启动服务
-	config := ServerConfig{
+	config := service.ServerConfig{
 		Mode: runMode,
 		Addr: *addr,
 	}
 
-	err := StartServer(config)
+	err := service.StartServer(config)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "错误：%v\n", err)
 		os.Exit(1)

@@ -1,7 +1,7 @@
-package main
+package service
 
 import (
-	"app/rpc"
+	"app/internal/rpc"
 	"fmt"
 	"net/http"
 	"os"
@@ -205,6 +205,7 @@ func (h *NpFsHTTPHandler) SetupRouter() *gin.Engine {
 		api.POST("/file/upload", h.uploadFileHandler)
 		api.GET("/file/download", h.downloadFileHandler)
 		api.DELETE("/file/delete", h.deleteFileHandler)
+		api.GET("/calc", h.CalcOnceHandler)
 	}
 
 	return router
@@ -463,6 +464,8 @@ func StartHTTPServer(addr string) error {
 	}
 	defer handler.Close()
 
+	InitNpFsService()
+
 	router := handler.SetupRouter()
 
 	fmt.Println("=====================================")
@@ -483,4 +486,97 @@ func StartHTTPServer(addr string) error {
 	fmt.Println("=====================================")
 
 	return router.Run(addr)
+}
+
+// CalcOnceHandler 单次计算处理
+func (h *NpFsHTTPHandler) CalcOnceHandler(c *gin.Context) {
+	dir := "/aibk/26/03/01/19BONNcTiriywcgCUSOv82Pj-i6/"
+
+	links, err := h.ListDir(dir)
+	if err != nil {
+		Error(c, 500, "列出失败："+err.Error())
+		return
+	}
+
+	for _, link := range links {
+		if link.Type == 1 {
+			//	是目录
+		}
+		if link.Type == 0 {
+			//	是文件
+
+			if strings.Contains(link.Name, "txt") {
+
+				err = SaveFileToLocal(dir+link.Name, link.Name)
+				if err != nil {
+					return
+				}
+
+				//data, size, err := h.ReadFile(dir + "gps_20260301003555.txt")
+				//if err != nil {
+				//	Error(c, 500, "读取失败："+err.Error())
+				//	return
+				//}
+
+				//f, err := os.Create(link.Name)
+				//if err != nil {
+				//	return
+				//}
+
+				// 写入字节数组
+				//n, err := f.Write(data)
+				//if err != nil {
+				//	fmt.Println("写入文件失败:", err)
+				//	return
+				//}
+				//
+				//fmt.Println("write byte: ", n)
+
+				records, err := parseFile(link.Name)
+				if err != nil {
+					//f.Close()
+					fmt.Errorf("%v", err.Error())
+					return
+				}
+
+				//fmt.Println("filename", link.Name, "hash", link.Hash, "size:", size, "data: \n", string(data))
+				fmt.Println(records)
+
+				for i, record := range records {
+					fmt.Println("index: ", i, "record:", record)
+				}
+
+				//f.Close()
+
+				f, err := os.OpenFile(link.Name, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
+				if err != nil {
+					fmt.Errorf("%v", err)
+					return
+				}
+
+				writeString, err := f.WriteString("aaaaa")
+				if err != nil {
+					fmt.Errorf("%v", err)
+					return
+				}
+
+				fmt.Println("write n: ", writeString)
+
+				f.Close()
+
+				//	如果文件已经存在在npfs目录中，那么同名文件不会覆盖，会写入失败，需要先删除后写入，可选择将文件读取到另外的目录中，然后进行删除写入操作
+				ipfsId, err := SaveLocalFileToNpfs(link.Name, "/tmpp/", link.Name)
+				if err != nil {
+					return
+				}
+
+				fmt.Println("ipfsId:", ipfsId)
+
+				return
+			} else {
+				fmt.Println("filename", link.Name, "hash", link.Hash)
+			}
+		}
+	}
+
 }

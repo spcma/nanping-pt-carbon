@@ -1,7 +1,7 @@
 // WebSocket 客户端示例 - 用于测试 NPFS WebSocket 服务器
 // 注意：此客户端使用标准库的 websocket 包
 // 运行前需要安装：go get golang.org/x/net/websocket
-package main
+package service
 
 import (
 	"bufio"

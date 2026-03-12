@@ -1,7 +1,7 @@
-package main
+package service
 
 import (
-	"app/rpc"
+	rpc2 "app/internal/rpc"
 	"fmt"
 	"log"
 	"os"
@@ -11,7 +11,7 @@ import (
 
 // ==================== 全局变量 ====================
 
-var npFsClient *rpc.LApiStub
+var npFsClient *rpc2.LApiStub
 var npSessionId string
 
 // ==================== 数据结构 ====================
@@ -51,13 +51,13 @@ func CloseNpFsService() {
 
 // createFsClient 创建 FS 客户端连接
 // 返回客户端实例、会话 ID 和错误信息
-func createFsClient() (*rpc.LApiStub, string, error) {
-	strPPT, err := rpc.GetLocalPassport(4080, 24)
+func createFsClient() (*rpc2.LApiStub, string, error) {
+	strPPT, err := rpc2.GetLocalPassport(4080, 24)
 	if err != nil {
 		return nil, "", err
 	}
 
-	client := rpc.InitLApiStubByUrl("127.0.0.1:4080")
+	client := rpc2.InitLApiStubByUrl("127.0.0.1:4080")
 
 	loginReply, err := client.LoginWithPPT(strPPT)
 	if err != nil {
@@ -125,7 +125,7 @@ func isDirNotExist(err error) bool {
 // ListDirectory 列出目录内容
 // path: 目录路径
 // links: 目录中的链接列表，err: 错误信息
-func ListDirectory(path string) ([]rpc.LsLink, error) {
+func ListDirectory(path string) ([]rpc2.LsLink, error) {
 	fmt.Println("ListDirectory", path, "npSessionId", npSessionId)
 	links, err := npFsClient.FilesLs(npSessionId, path)
 	if err != nil {

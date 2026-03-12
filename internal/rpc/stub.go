@@ -166,7 +166,7 @@ type LsLink struct {
 	Name   string
 	Hash   string
 	Size   uint64
-	Type   int //unixfs_pb.Data_DataType
+	Type   int //type 1:dir 0:file
 	Target string
 }
 

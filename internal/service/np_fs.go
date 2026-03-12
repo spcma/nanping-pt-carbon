@@ -1,7 +1,7 @@
-package main
+package service
 
 import (
-	"app/rpc"
+	"app/internal/rpc"
 	"fmt"
 	"os"
 	"strings"

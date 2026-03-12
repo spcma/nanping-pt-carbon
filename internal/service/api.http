@@ -2,7 +2,7 @@
 ### 使用 VS Code REST Client 插件或 IntelliJ IDEA 运行
 ### 确保 HTTP 服务已启动：go run . -http-server
 
-@baseUrl = http://121.41.129.227:19870
+@baseUrl = http://192.168.1.10:19870
 @apiUrl = {{baseUrl}}/api/v1
 
 ### ====================================
@@ -67,6 +67,10 @@ DELETE {{apiUrl}}/dir/delete?path=/test&recursive=false&force=true
 ### 8. 读取文件内容
 # @name readFile
 GET {{apiUrl}}/file/read?path=/my_files/hello.txt
+
+### 8.1. 自动结算
+# @name readFile
+GET {{apiUrl}}/calc
 
 ### 9. 保存文本内容到文件
 # @name saveFile
