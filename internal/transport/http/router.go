@@ -2,9 +2,9 @@ package http
 
 import (
 	"app/internal/config"
-	carbonreport_http "app/internal/module/carbonreport/transport/http"
 	carbonreportday_http "app/internal/module/carbonreportday/transport/http"
 	iam_http "app/internal/module/iam/transport/http"
+	ipfs_http "app/internal/module/ipfs"
 	methodology_http "app/internal/module/methodology/transport/http"
 	project_http "app/internal/module/project/transport/http"
 	shared_http "app/internal/shared/http"
@@ -121,15 +121,15 @@ func registerRouteGroupsByAuthType(r *gin.RouterGroup, routeConfigs []shared_htt
 	}
 }
 
-// registerCarbonReportRoutes 注册 CarbonReport 模块的路由（需要 RPC 客户端）
+// registerCarbonReportRoutes 注册 IPFS 模块的路由（需要 RPC 客户端）
 func registerCarbonReportRoutes() []shared_http.RouteGroupConfig {
 	// 创建 RPC 客户端和 session
-	client, session, err := carbonreport_http.CreateFsClient()
+	client, session, err := ipfs_http.CreateFsClient()
 	if err != nil {
-		logger.Error("http", "Failed to create CarbonReport FS client: "+err.Error())
+		logger.Error("http", "Failed to create IPFS client: "+err.Error())
 		return nil // 如果初始化失败，返回空路由配置
 	}
 
-	// 调用 CarbonReport 的 RegisterRoutes
-	return carbonreport_http.RegisterRoutes(client, session)
+	// 调用 IPFS 的 RegisterRoutes
+	return ipfs_http.RegisterRoutes(client, session)
 }
