@@ -4,6 +4,7 @@ import (
 	"app/internal/module/iam/wire"
 	shared_http "app/internal/shared/http"
 	"app/internal/shared/token"
+
 	"gorm.io/gorm"
 )
 
@@ -37,7 +38,7 @@ func (h *Handlers) registerRoutes() []shared_http.RouteGroupConfig {
 		// 1. 公开路由（不需要认证）
 		{
 			Prefix: "/auth",
-			Handlers: []http.RouteHandler{
+			Handlers: []shared_http.RouteHandler{
 				{Method: "POST", Path: "/register", Handler: h.AuthHandler.Register},
 				{Method: "POST", Path: "/login", Handler: h.AuthHandler.Login},
 			},

@@ -1,10 +1,16 @@
 package http
 
 import (
+	"app/internal/module/carbonreport/domain"
 	"app/internal/module/carbonreport/wire"
 	"app/internal/rpc"
 	shared_http "app/internal/shared/http"
 )
+
+// CreateFsClient 创建文件系统客户端（导出函数）
+func CreateFsClient() (*rpc.LApiStub, string, error) {
+	return domain.CreateFsClient()
+}
 
 // RegisterRoutes 注册 CarbonReport 模块的所有路由
 func RegisterRoutes(client *rpc.LApiStub, session string) []shared_http.RouteGroupConfig {
