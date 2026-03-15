@@ -1,0 +1,49 @@
+server:
+  port: 19870
+  mode: debug # debug, release, test
+
+logger:
+  level: debug
+  path: "./logs"
+  development: true
+  rotation:
+    enabled: true
+    max_size: 100
+    max_backups: 5
+    max_age: 30
+    compress: true
+  other:
+    path: "./logs/other"
+    level: info
+  categories:
+    - name: http
+      level: info
+    - name: error
+      level: error
+    - name: business
+      level: info
+    - name: iam
+      level: info
+    - name: trafficresource
+      level: info
+
+database:
+  host: "121.41.129.227"
+  port: 16010
+  user: "carbonadmin"
+  password: "carbonadmin@2026"
+  dbname: "carbon"
+  searchpath: "yanping"
+
+redis:
+  host: localhost
+  port: 6379
+  password: ""
+  db: 0
+
+jwt:
+  secret: your-secret-key-here
+  expire: 7200 # seconds
+
+idgen:
+  worker_id: 1

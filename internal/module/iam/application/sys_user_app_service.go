@@ -1,0 +1,216 @@
+package application
+
+import (
+	"app/internal/module/iam/domain"
+	"app/internal/shared/crypto"
+	"app/internal/shared/token"
+	"context"
+)
+
+// SysUserAppService system user application service
+type SysUserAppService struct {
+	repo domain.SysUserRepository
+}
+
+// NewSysUserAppService creates system user application service
+func NewSysUserAppService(repo domain.SysUserRepository) *SysUserAppService {
+	return &SysUserAppService{repo: repo}
+}
+
+// CreateSysUserCommand create system user command
+type CreateSysUserCommand struct {
+	Username string `json:"username"`
+	Nickname string `json:"nickname"`
+	Password string `json:"password"`
+	UserID   int64  `json:"userId"`
+}
+
+// CreateSysUser creates a system user
+func (s *SysUserAppService) CreateSysUser(ctx context.Context, cmd CreateSysUserCommand) (int64, error) {
+	user, err := domain.NewSysUser(cmd.Username, cmd.Nickname, cmd.Password, "", cmd.UserID)
+	if err != nil {
+		return 0, err
+	}
+	err = s.repo.Create(ctx, user)
+	if err != nil {
+		return 0, err
+	}
+	return user.Id, nil
+}
+
+// UpdateSysUserCommand update system user command
+type UpdateSysUserCommand struct {
+	ID          int64  `json:"id"`
+	Nickname    string `json:"nickname"`
+	Phone       string `json:"phone"`
+	Email       string `json:"email"`
+	Description string `json:"description"`
+	Avatar      string `json:"avatar"`
+	UserID      int64  `json:"userId"`
+}
+
+// UpdateSysUser updates a system user
+func (s *SysUserAppService) UpdateSysUser(ctx context.Context, cmd UpdateSysUserCommand) error {
+	user, err := s.repo.FindByID(ctx, cmd.ID)
+	if err != nil {
+		return err
+	}
+	return user.UpdateInfo(cmd.Nickname, cmd.Phone, cmd.Email, cmd.Description, cmd.Avatar, cmd.UserID)
+}
+
+// DeleteSysUser deletes a system user (logical delete)
+func (s *SysUserAppService) DeleteSysUser(ctx context.Context, id int64, userID int64) error {
+	user, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	// 检查是否已被删除
+	if user.IsDeleted() {
+		return domain.ErrUserAlreadyDeleted
+	}
+
+	// 执行领域方法
+	if err := user.Delete(userID); err != nil {
+		return err
+	}
+
+	// 持久化
+	return s.repo.Update(ctx, user)
+}
+
+// GetSysUserByID gets system user by ID
+func (s *SysUserAppService) GetSysUserByID(ctx context.Context, id int64) (*domain.SysUser, error) {
+	return s.repo.FindByID(ctx, id)
+}
+
+// GetSysUserByUsername gets system user by username
+func (s *SysUserAppService) GetSysUserByUsername(ctx context.Context, username string) (*domain.SysUser, error) {
+	return s.repo.FindByUsername(ctx, username)
+}
+
+// GetSysUserPage queries system users with pagination
+func (s *SysUserAppService) GetSysUserPage(ctx context.Context, query *domain.SysUserPageQuery) ([]*domain.SysUser, int64, error) {
+	return s.repo.FindPage(ctx, query)
+}
+
+// ChangePasswordCommand change password command
+type ChangePasswordCommand struct {
+	Id          int64  `json:"id"` // userid
+	Password    string `json:"password"`
+	NewPassword string `json:"newPassword"`
+}
+
+// ChangePassword changes password
+func (s *SysUserAppService) ChangePassword(ctx context.Context, cmd ChangePasswordCommand) error {
+	user, err := s.repo.FindByID(ctx, cmd.Id)
+	if err != nil {
+		return err
+	}
+
+	if user.Id == 0 {
+		return domain.ErrUserNotFound
+	}
+
+	//	验证旧密码
+	newPassword := crypto.HashPassword(cmd.NewPassword, user.Salt)
+
+	if newPassword == user.Password {
+		return domain.ErrNewPasswordSameAsOldPassword
+	}
+
+	return user.ChangePassword(cmd.Password, user.Id)
+}
+
+// ChangeUserStatus changes user status
+func (s *SysUserAppService) ChangeUserStatus(ctx context.Context, id int64, status domain.UserStatus, userID int64) error {
+	user, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	return user.ChangeStatus(status, userID)
+}
+
+// RegisterCommand 注册命令
+type RegisterCommand struct {
+	Username string `json:"username" binding:"required,min=3,max=32"`
+	Password string `json:"password" binding:"required,min=6,max=32"`
+	Nickname string `json:"nickname"`
+}
+
+// Register 用户注册
+func (s *SysUserAppService) Register(ctx context.Context, cmd RegisterCommand) (int64, error) {
+	// 检查用户名是否已存在
+	existingUser, err := s.repo.FindByUsername(ctx, cmd.Username)
+	if err == nil && existingUser != nil && !existingUser.IsDeleted() {
+		return 0, domain.ErrUserAlreadyExists
+	}
+
+	// 创建用户（密码加密在 domain 层处理）
+	return s.CreateSysUser(ctx, CreateSysUserCommand{
+		Username: cmd.Username,
+		Nickname: cmd.Nickname,
+		Password: cmd.Password,
+		UserID:   0, // 注册用户没有创建者 ID
+	})
+}
+
+// LoginCommand 登录命令
+type LoginCommand struct {
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+// LoginResponse 登录响应
+type LoginResponse struct {
+	Token    string         `json:"token"`
+	UserInfo *LoginUserInfo `json:"userInfo"`
+}
+
+// LoginUserInfo 登录用户信息
+type LoginUserInfo struct {
+	ID       int64    `json:"id"`
+	Username string   `json:"username"`
+	Nickname string   `json:"nickname"`
+	Roles    []string `json:"roles"`
+}
+
+// Login 用户登录
+func (s *SysUserAppService) Login(ctx context.Context, cmd LoginCommand, jwtManager token.Manager) (*LoginResponse, error) {
+	// 查找用户
+	user, err := s.repo.FindByUsername(ctx, cmd.Username)
+	if err != nil {
+		return nil, domain.ErrUserNotFound
+	}
+
+	// 检查用户是否存在
+	if user.Id == 0 {
+		return nil, domain.ErrUserNotFound
+	}
+
+	// 检查用户状态
+	if user.Status != domain.UserStatusNormal {
+		return nil, domain.ErrUserFrozen
+	}
+
+	// 验证密码
+	if !crypto.VerifyPassword(cmd.Password, user.Password, user.Salt) {
+		return nil, domain.ErrInvalidPassword
+	}
+
+	// 生成 JWT Token（默认角色为 USER）
+	tokenString, err := jwtManager.GenerateToken(user.Id, user.Username, "USER")
+	if err != nil {
+		return nil, err
+	}
+
+	return &LoginResponse{
+		Token: tokenString,
+		UserInfo: &LoginUserInfo{
+			ID:       user.Id,
+			Username: user.Username,
+			Nickname: user.Nickname,
+			Roles:    []string{"USER"},
+		},
+	}, nil
+}
