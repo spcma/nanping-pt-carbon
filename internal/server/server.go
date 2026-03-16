@@ -4,9 +4,12 @@ import (
 	"app/internal/bootstrap"
 	"app/internal/config"
 	"app/internal/infrastructure/db"
+	"app/internal/shared/cache"
 	idgen "app/internal/shared/idgen"
+	"app/internal/shared/logger"
 	transport_http "app/internal/transport/http"
 	"fmt"
+	"github.com/spf13/cast"
 	"os"
 	"os/signal"
 	"syscall"
@@ -29,6 +32,10 @@ func Initialize() (*Server, error) {
 		return nil, fmt.Errorf("failed to initialize config: %v", err)
 	}
 
+	if err := logger.Initialize(&config.GlobalConfig.Logger); err != nil {
+		return nil, fmt.Errorf("failed to initialize logger: %v", err)
+	}
+
 	factory, err := idgen.NewIdgenGenerateFactory(1)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize idgen: %v", err)
@@ -36,18 +43,24 @@ func Initialize() (*Server, error) {
 	idgen.SetDefault(factory)
 
 	// 初始化数据库
-	dbInstance, err := initializeDatabase()
+	dbInstance, err := initDatabase()
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize database: %v", err)
 	}
 
 	// 初始化基础数据（超级管理员等）
-	if err := initializeData(dbInstance); err != nil {
+	if err := initData(dbInstance); err != nil {
 		return nil, fmt.Errorf("failed to initialize data: %v", err)
 	}
 
+	// 初始化Redis
+	redisClient, err := initRedis()
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize redis: %v", err)
+	}
+
 	// 初始化 HTTP 路由
-	router := transport_http.InitRouter(dbInstance)
+	router := transport_http.InitRouter(dbInstance, redisClient)
 
 	return &Server{
 		config: config.GlobalConfig,
@@ -56,14 +69,14 @@ func Initialize() (*Server, error) {
 	}, nil
 }
 
-// initializeData 初始化基础数据
-func initializeData(dbInstance *gorm.DB) error {
+// initData 初始化基础数据
+func initData(dbInstance *gorm.DB) error {
 	initializer := bootstrap.NewDataInitializer(dbInstance)
 	return initializer.Initialize()
 }
 
-// initializeDatabase 初始化数据库连接
-func initializeDatabase() (*gorm.DB, error) {
+// initDatabase 初始化数据库连接
+func initDatabase() (*gorm.DB, error) {
 	dbConfig := db.Config{
 		Driver:     "postgres",
 		Host:       config.GlobalConfig.Database.Host,
@@ -80,6 +93,19 @@ func initializeDatabase() (*gorm.DB, error) {
 	}
 
 	return dbInstance, nil
+}
+
+func initRedis() (*cache.RedisClient, error) {
+	redisClient, err := cache.NewRedisClient(&cache.RedisConnConfig{
+		Host:     config.GlobalConfig.Redis.Host + ":" + cast.ToString(config.GlobalConfig.Redis.Port),
+		Password: config.GlobalConfig.Redis.Password,
+		DB:       config.GlobalConfig.Redis.DB,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize redis: %v", err)
+	}
+
+	return redisClient, nil
 }
 
 // Run 启动服务器并阻塞直到收到退出信号

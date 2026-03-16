@@ -1,5 +1,20 @@
 package entity
 
+type Pagination struct {
+	PageNum  int `json:"pageNum"`
+	PageSize int `json:"pageSize"`
+}
+
+func (p *Pagination) Validate() {
+	if p.PageNum <= 0 {
+		p.PageNum = 1
+	}
+
+	if p.PageSize <= 0 {
+		p.PageSize = 10
+	}
+}
+
 // PaginationResult 分页查询结果
 type PaginationResult[T any] struct {
 	Data       []T   `json:"data"`       // 数据列表

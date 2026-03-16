@@ -65,12 +65,11 @@ func (u *UserRepository) FindByUsername(ctx context.Context, username string) (*
 		Where("username = ?", username).
 		Where(entity.FieldDeleteBy + " = 0").
 		Take(&user).Error
+
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-		return nil, err
+		return nil, db.ErrFilter(err)
 	}
+
 	return &user, nil
 }
 

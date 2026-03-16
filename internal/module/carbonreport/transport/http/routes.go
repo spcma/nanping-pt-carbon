@@ -2,7 +2,6 @@ package http
 
 import (
 	"app/internal/module/carbonreport/domain"
-	"app/internal/module/carbonreport/wire"
 	"app/internal/module/ipfs/rpc"
 	shared_http "app/internal/shared/http"
 )
@@ -15,7 +14,7 @@ func CreateFsClient() (*rpc.LApiStub, string, error) {
 // RegisterRoutes 注册 CarbonReport 模块的所有路由
 func RegisterRoutes(client *rpc.LApiStub, session string) []shared_http.RouteGroupConfig {
 	// 初始化 DDD 组件
-	carbonReportDDD := wire.InitFileDDD(client, session)
+	carbonReportDDD := InitFileDDD(client, session)
 
 	// 创建 handlers
 	handlers := &Handlers{

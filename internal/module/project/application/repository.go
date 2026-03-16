@@ -5,8 +5,8 @@ import (
 	"context"
 )
 
-// ProjectRepository 项目仓储接口
-type ProjectRepository interface {
+// ProjectRepo 项目仓储接口
+type ProjectRepo interface {
 	Create(ctx context.Context, project *domain.Project) error
 	Update(ctx context.Context, project *domain.Project) error
 	Delete(ctx context.Context, id int64, userID int64) error // 逻辑删除

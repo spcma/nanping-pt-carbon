@@ -49,6 +49,11 @@ func parseToken(tokenString string, jwtManager token.Manager) (*token.Claims, er
 	return jwtManager.ValidateToken(tokenString)
 }
 
+// parseUserInfo 解析用户信息（用于雪花 ID 模式）
+func parseUserInfo(tokenString string, jwtManager token.Manager) (*token.UserInfo, error) {
+	return jwtManager.GetUserInfo(tokenString)
+}
+
 // AuthMiddleware 认证中间件（强制要求 token）
 func AuthMiddleware(jwtManager token.Manager) gin.HandlerFunc {
 	return func(c *gin.Context) {

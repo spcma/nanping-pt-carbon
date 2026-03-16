@@ -10,21 +10,24 @@ type RedisClient struct {
 	client *redis.Client
 }
 
-func NewRedisClient(addr, password string, db, poolSize, minIdleConns int,
-	maxConnAge, timeout, idleTimeout, idleCheckFreq time.Duration) (*RedisClient, error) {
+type RedisConnConfig struct {
+	Host         string
+	Password     string
+	DB           int
+	PoolSize     int
+	MinIdleConns int
+	Timeout      time.Duration
+}
+
+func NewRedisClient(config *RedisConnConfig) (*RedisClient, error) {
 
 	client := redis.NewClient(&redis.Options{
-		Addr:         addr,
-		Password:     password,
-		DB:           db,
-		PoolSize:     poolSize,
-		MinIdleConns: minIdleConns,
-		DialTimeout:  timeout,
-		ReadTimeout:  timeout,
-		WriteTimeout: timeout,
+		Addr:     config.Host,
+		Password: config.Password,
+		DB:       config.DB,
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
 	defer cancel()
 
 	_, err := client.Ping(ctx).Result()

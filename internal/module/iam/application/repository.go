@@ -44,10 +44,6 @@ type UserRoleRepo interface {
 	FindRoleCodesByUserID(ctx context.Context, userID int64) ([]string, error)
 }
 
-type RolePermissionRepo interface {
-	HasPermission(ctx context.Context, roleCode, permissionCode string) (bool, error)
-}
-
 // SysApiRepository API repository interface
 type SysApiRepository interface {
 	Create(ctx context.Context, api *domain.SysApi) error
@@ -69,4 +65,8 @@ type SysUserRoleRepository interface {
 	FindByUserID(ctx context.Context, userId int64) ([]*domain.SysUserRole, error)
 	FindByRoleID(ctx context.Context, roleId int64) ([]*domain.SysUserRole, error)
 	FindByUserAndRole(ctx context.Context, userId, roleId int64) (*domain.SysUserRole, error)
+}
+
+type RolePermissionRepo interface {
+	HasPermission(ctx context.Context, roleCode, permissionCode string) (bool, error)
 }

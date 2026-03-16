@@ -3,6 +3,7 @@ package config
 import (
 	"app/internal/shared/logger"
 	"fmt"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -14,7 +15,7 @@ type Config struct {
 	Logger   logger.LogConfig `mapstructure:"logger"`
 	Database DatabaseConfig   `mapstructure:"database"`
 	Redis    RedisConfig      `mapstructure:"redis"`
-	JWT      JWTConfig        `mapstructure:"jwt"`
+	Token    TokenConfig      `mapstructure:"token"`
 	Idgen    IdgenConfig      `mapstructure:"idgen"`
 }
 
@@ -33,15 +34,18 @@ type DatabaseConfig struct {
 }
 
 type RedisConfig struct {
-	Host     string `mapstructure:"host"`
-	Port     int    `mapstructure:"port"`
-	Password string `mapstructure:"password"`
-	DB       int    `mapstructure:"db"`
+	Host         string        `mapstructure:"host"`
+	Port         int           `mapstructure:"port"`
+	Password     string        `mapstructure:"password"`
+	DB           int           `mapstructure:"db"`
+	PoolSize     int           `mapstructure:"pool_size"`
+	MinIdleConns int           `mapstructure:"min_idle_conns"`
+	Timeout      time.Duration `mapstructure:"timeout"`
 }
 
-type JWTConfig struct {
+type TokenConfig struct {
 	Secret string `mapstructure:"secret"`
-	Expire int    `mapstructure:"expire"` // seconds
+	Expire int    `mapstructure:"expire"`
 }
 
 type IdgenConfig struct {

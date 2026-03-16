@@ -40,13 +40,13 @@ func (s *SysUserAppService) CreateSysUser(ctx context.Context, cmd CreateSysUser
 
 // UpdateSysUserCommand update system user command
 type UpdateSysUserCommand struct {
-	ID          int64  `json:"id"`
-	Nickname    string `json:"nickname"`
-	Phone       string `json:"phone"`
-	Email       string `json:"email"`
-	Description string `json:"description"`
-	Avatar      string `json:"avatar"`
-	UserID      int64  `json:"userId"`
+	ID          int64   `json:"id"`
+	Nickname    *string `json:"nickname"`
+	Phone       *string `json:"phone"`
+	Email       *string `json:"email"`
+	Description *string `json:"description"`
+	Avatar      *string `json:"avatar"`
+	UserID      int64   `json:"userId"`
 }
 
 // UpdateSysUser updates a system user
@@ -55,7 +55,16 @@ func (s *SysUserAppService) UpdateSysUser(ctx context.Context, cmd UpdateSysUser
 	if err != nil {
 		return err
 	}
-	return user.UpdateInfo(cmd.Nickname, cmd.Phone, cmd.Email, cmd.Description, cmd.Avatar, cmd.UserID)
+
+	// 将 application 层的 Command 转换为 domain 层的 Command
+	domainCmd := domain.UpdateUserCommand{
+		Nickname:    cmd.Nickname,
+		Phone:       cmd.Phone,
+		Email:       cmd.Email,
+		Description: cmd.Description,
+		Avatar:      cmd.Avatar,
+	}
+	return user.UpdateInfo(domainCmd, cmd.UserID)
 }
 
 // DeleteSysUser deletes a system user (logical delete)
@@ -203,7 +212,7 @@ func (s *SysUserAppService) Login(ctx context.Context, cmd LoginCommand, jwtMana
 	}
 
 	// 生成 JWT Token（默认角色为 USER）
-	tokenString, err := jwtManager.GenerateToken(user.Id, user.Username, "USER")
+	tokenString, err := jwtManager.GenerateToken(user.Id, user.Username, []string{"USER"})
 	if err != nil {
 		return nil, err
 	}

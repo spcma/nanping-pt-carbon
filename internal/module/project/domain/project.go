@@ -68,10 +68,9 @@ func (p *Project) Delete(userID int64) error {
 	return nil
 }
 
-// SysUserPageQuery system user page query object
+// ProjectPageQuery system user page query object
 type ProjectPageQuery struct {
-	PageNum   int64  `json:"pageNum" binding:"required,min=1"`
-	PageSize  int64  `json:"pageSize" binding:"required,min=1,max=100"`
+	entity.Pagination
 	Name      string `json:"name"`
 	Code      string `json:"code"`
 	Status    string `json:"status"`

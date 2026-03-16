@@ -11,7 +11,6 @@ import (
 type Claims struct {
 	UserID   int64    `json:"user_id"`
 	Username string   `json:"username"`
-	Role     string   `json:"role"`
 	Roles    []string `json:"roles"`
 	jwt.RegisteredClaims
 }
@@ -27,12 +26,20 @@ type Config struct {
 
 // Manager Token 管理器接口
 type Manager interface {
-	GenerateToken(userID int64, username, role string) (string, error)
-	GenerateTokenWithRoles(userID int64, username string, roles []string) (string, error)
+	GenerateToken(userID int64, username string, roles []string) (string, error)
 	ValidateToken(tokenString string) (*Claims, error)
 	RefreshToken(refreshToken string) (string, error)
 	AddToBlacklist(tokenString string, expireTime time.Time) error
 	IsInBlacklist(tokenString string) (bool, error)
+	GetUserInfo(tokenString string) (*UserInfo, error)
+}
+
+// UserInfo 用户信息（用于缓存模式）
+type UserInfo struct {
+	UserID   int64    `json:"user_id"`
+	Username string   `json:"username"`
+	Roles    []string `json:"roles"`
+	Status   string   `json:"status"` // normal, frozen, canceled
 }
 
 // JWTManager JWT Token 管理器实现
@@ -49,7 +56,7 @@ func NewJWTManager(config Config) *JWTManager {
 		config.RefreshTime = 7 * 24 * time.Hour
 	}
 	if config.Issuer == "" {
-		config.Issuer = "anygo-iam"
+		config.Issuer = "iam"
 	}
 	if config.BlacklistTime == 0 {
 		config.BlacklistTime = 30 * 24 * time.Hour
@@ -60,21 +67,10 @@ func NewJWTManager(config Config) *JWTManager {
 	}
 }
 
-// GenerateToken 生成 Token
-func (jm *JWTManager) GenerateToken(userID int64, username, role string) (string, error) {
-	return jm.GenerateTokenWithRoles(userID, username, []string{role})
-}
-
-// GenerateTokenWithRoles 生成带角色的 Token
-func (jm *JWTManager) GenerateTokenWithRoles(userID int64, username string, roles []string) (string, error) {
-	if len(roles) == 0 {
-		roles = []string{"USER"}
-	}
-
+func (jm *JWTManager) GenerateToken(userID int64, username string, roles []string) (string, error) {
 	claims := Claims{
 		UserID:   userID,
 		Username: username,
-		Role:     roles[0],
 		Roles:    roles,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(jm.config.ExpireTime)),
@@ -120,7 +116,7 @@ func (jm *JWTManager) RefreshToken(refreshToken string) (string, error) {
 		return "", err
 	}
 
-	newToken, err := jm.GenerateToken(claims.UserID, claims.Username, claims.Role)
+	newToken, err := jm.GenerateToken(claims.UserID, claims.Username, claims.Roles)
 	if err != nil {
 		return "", err
 	}
@@ -175,10 +171,6 @@ func (jm *JWTManager) GetTokenTTL(tokenString string) (time.Duration, error) {
 
 // HasRole 检查用户是否有指定角色
 func (c *Claims) HasRole(role string) bool {
-	if len(c.Roles) == 0 {
-		return c.Role == role
-	}
-
 	for _, r := range c.Roles {
 		if r == role {
 			return true
@@ -202,8 +194,21 @@ func (c *Claims) GetRoles() []string {
 	if len(c.Roles) > 0 {
 		return c.Roles
 	}
-	if c.Role != "" {
-		return []string{c.Role}
-	}
+
 	return []string{}
+}
+
+// GetUserInfo 获取用户信息（JWT 模式下从 Claims 转换）
+func (jm *JWTManager) GetUserInfo(tokenString string) (*UserInfo, error) {
+	claims, err := jm.ValidateToken(tokenString)
+	if err != nil {
+		return nil, err
+	}
+
+	return &UserInfo{
+		UserID:   claims.UserID,
+		Username: claims.Username,
+		Roles:    claims.GetRoles(),
+		Status:   "normal",
+	}, nil
 }

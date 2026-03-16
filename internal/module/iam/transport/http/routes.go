@@ -8,7 +8,7 @@ import (
 )
 
 // RegisterRoutes 注册 IAM 模块的所有路由
-func RegisterRoutes(db *gorm.DB, jwtManager *token.JWTManager) []shared_http.RouteGroupConfig {
+func RegisterRoutes(db *gorm.DB, jwtManager token.Manager) []shared_http.RouteGroupConfig {
 	sysUserWire := InitSysUserWire(db)
 	sysRoleWire := InitSysRoleWire(db)
 

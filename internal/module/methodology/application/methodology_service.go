@@ -5,25 +5,6 @@ import (
 	"context"
 )
 
-// ===== Repository Ports（仓储端口） =====
-
-type MethodologyRepo interface {
-	Create(ctx context.Context, methodology *domain.Methodology) error
-	Update(ctx context.Context, methodology *domain.Methodology) error
-	Delete(ctx context.Context, id, uid int64) error
-	FindByID(ctx context.Context, id int64) (*domain.Methodology, error)
-	FindByCode(ctx context.Context, code string) (*domain.Methodology, error)
-	FindPage(ctx context.Context, query domain.MethodologyPageQuery) ([]*domain.Methodology, int64, error)
-	FindListByStatus(ctx context.Context, status domain.MethodologyStatus) ([]*domain.Methodology, error)
-}
-
-// ===== Service Ports（服务端口 - 给外部模块用） =====
-
-type MethodologyService interface {
-	GetMethodology(ctx context.Context, id int64) (*domain.Methodology, error)
-	GetMethodologyByCode(ctx context.Context, code string) (*domain.Methodology, error)
-}
-
 // CreateMethodologyCommand 创建方法学命令
 type CreateMethodologyCommand struct {
 	Name        string `json:"name"`
@@ -49,11 +30,11 @@ type ChangeMethodologyStatusCommand struct {
 
 // MethodologyAppService 方法学应用服务
 type MethodologyAppService struct {
-	repo domain.MethodologyRepository
+	repo MethodologyRepo
 }
 
 // NewMethodologyAppService 创建方法学应用服务
-func NewMethodologyAppService(repo domain.MethodologyRepository) *MethodologyAppService {
+func NewMethodologyAppService(repo MethodologyRepo) *MethodologyAppService {
 	return &MethodologyAppService{repo: repo}
 }
 

@@ -28,7 +28,7 @@ type SysUser struct {
 	Avatar      string     `json:"avatar" gorm:"column:avatar"`
 	Email       string     `json:"email" gorm:"column:email"`
 	Description string     `json:"description" gorm:"column:description"`
-	Type        string     `json:"type" gorm:"column:type"` // 用户类型 1 系统用户 2 项目子用户
+	Type        string     `json:"type" gorm:"column:type"`
 	ParentId    int64      `json:"parent_id" gorm:"column:parent_id"`
 }
 
@@ -66,13 +66,32 @@ func NewSysUser(username, nickname, password, salt string, createUser int64) (*S
 	return user, nil
 }
 
-// UpdateInfo updates user info
-func (u *SysUser) UpdateInfo(nickname, phone, email, description, avatar string, userID int64) error {
-	u.Nickname = nickname
-	u.Phone = phone
-	u.Email = email
-	u.Description = description
-	u.Avatar = avatar
+// UpdateUserCommand 用户更新命令
+type UpdateUserCommand struct {
+	Nickname    *string `json:"nickname" validate:"omitempty,max=100"`
+	Phone       *string `json:"phone" validate:"omitempty,max=20"`
+	Email       *string `json:"email" validate:"omitempty,email,max=100"`
+	Description *string `json:"description" validate:"omitempty,max=500"`
+	Avatar      *string `json:"avatar" validate:"omitempty,url,max=500"`
+}
+
+// UpdateInfo 更新用户信息（部分更新）
+func (u *SysUser) UpdateInfo(cmd UpdateUserCommand, userID int64) error {
+	if cmd.Nickname != nil {
+		u.Nickname = *cmd.Nickname
+	}
+	if cmd.Phone != nil {
+		u.Phone = *cmd.Phone
+	}
+	if cmd.Email != nil {
+		u.Email = *cmd.Email
+	}
+	if cmd.Description != nil {
+		u.Description = *cmd.Description
+	}
+	if cmd.Avatar != nil {
+		u.Avatar = *cmd.Avatar
+	}
 	u.UpdateBy = userID
 	u.UpdateTime = timeutil.Now()
 	return nil
@@ -100,6 +119,12 @@ func (u *SysUser) Delete(userID int64) error {
 	u.DeleteTime = timeutil.Now()
 
 	return nil
+}
+
+// StringPtr creates a string pointer from string value
+// This is a helper function for UpdateUserCommand
+func StringPtr(s string) *string {
+	return &s
 }
 
 // SysUserPageQuery system user page query object

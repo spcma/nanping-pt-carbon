@@ -8,7 +8,7 @@ import (
 )
 
 type ProjectWire struct {
-	Repo       application.ProjectRepository
+	Repo       application.ProjectRepo
 	AppService *application.ProjectAppService
 }
 

@@ -149,7 +149,7 @@ func (h *ProjectHandler) GetPage(c *gin.Context) {
 		query.PageSize = 10
 	}
 
-	projects, total, err := h.appService.GetProjectPage(http2.Ctx(c), query)
+	projects, total, err := h.appService.GetProjectPage(http2.Ctx(c), &query)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return

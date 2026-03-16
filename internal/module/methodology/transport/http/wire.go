@@ -2,14 +2,13 @@ package http
 
 import (
 	"app/internal/module/methodology/application"
-	"app/internal/module/methodology/domain"
 	"app/internal/module/methodology/infrastructure"
 
 	"gorm.io/gorm"
 )
 
 type MethodologyDDD struct {
-	Repo       domain.MethodologyRepository
+	Repo       application.MethodologyRepo
 	AppService *application.MethodologyAppService
 }
 

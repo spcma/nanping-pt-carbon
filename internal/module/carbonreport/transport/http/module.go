@@ -1,20 +1,19 @@
 package http
 
 import (
-	"app/internal/module/carbonreport/wire"
 	"app/internal/module/ipfs/rpc"
 )
 
 // Module carbonreport 模块
 type Module struct {
-	DDD      *wire.FileDDD
+	DDD      *FileDDD
 	Handlers *Handlers
 }
 
 // NewModule 创建 carbonreport 模块
 func NewModule(client *rpc.LApiStub, session string) (*Module, error) {
 	// 初始化 DDD 组件
-	ddd := wire.InitFileDDD(client, session)
+	ddd := InitFileDDD(client, session)
 
 	// 初始化 HTTP handlers
 	handlers := &Handlers{

@@ -5,18 +5,6 @@ import (
 	"context"
 )
 
-// ===== Repository Ports（仓储端口） =====
-
-type ProjectRepo interface {
-	Create(ctx context.Context, project *domain.Project) error
-	Update(ctx context.Context, project *domain.Project) error
-	Delete(ctx context.Context, id, uid int64) error
-	FindByID(ctx context.Context, id int64) (*domain.Project, error)
-	FindByCode(ctx context.Context, code string) (*domain.Project, error)
-	FindPage(ctx context.Context, query domain.ProjectPageQuery) ([]*domain.Project, int64, error)
-	FindListByStatus(ctx context.Context, status domain.ProjectStatus) ([]*domain.Project, error)
-}
-
 // ===== Service Ports（服务端口 - 给外部模块用） =====
 
 type ProjectService interface {
@@ -49,11 +37,11 @@ type ChangeProjectStatusCommand struct {
 
 // ProjectAppService 项目应用服务
 type ProjectAppService struct {
-	repo ProjectRepository
+	repo ProjectRepo
 }
 
 // NewProjectAppService 创建项目应用服务
-func NewProjectAppService(repo ProjectRepository) *ProjectAppService {
+func NewProjectAppService(repo ProjectRepo) *ProjectAppService {
 	return &ProjectAppService{repo: repo}
 }
 
@@ -106,7 +94,7 @@ func (s *ProjectAppService) GetProjectByCode(ctx context.Context, code string) (
 }
 
 // GetProjectPage 分页查询项目
-func (s *ProjectAppService) GetProjectPage(ctx context.Context, query domain.ProjectPageQuery) ([]*domain.Project, int64, error) {
+func (s *ProjectAppService) GetProjectPage(ctx context.Context, query *domain.ProjectPageQuery) ([]*domain.Project, int64, error) {
 	return s.repo.FindPage(ctx, query)
 }
 

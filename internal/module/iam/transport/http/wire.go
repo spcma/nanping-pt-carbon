@@ -2,7 +2,6 @@ package http
 
 import (
 	"app/internal/module/iam/application"
-	"app/internal/module/iam/domain"
 	"app/internal/module/iam/infrastructure"
 
 	"gorm.io/gorm"
@@ -39,7 +38,7 @@ func InitSysRoleWire(db *gorm.DB) *SysRoleWire {
 }
 
 type SysApiWire struct {
-	Repo       domain.SysApiRepository
+	Repo       application.SysApiRepository
 	AppService *application.SysApiAppService
 }
 
@@ -54,7 +53,7 @@ func InitSysApiWire(db *gorm.DB) *SysApiWire {
 }
 
 type SysUserRoleWire struct {
-	Repo       domain.SysUserRoleRepository
+	Repo       application.SysUserRoleRepository
 	AppService *application.SysUserRoleAppService
 }
 

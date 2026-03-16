@@ -1,7 +1,6 @@
 package http
 
 import (
-	"app/internal/module/carbonreportday/wire"
 	shared_http "app/internal/shared/http"
 	"gorm.io/gorm"
 )
@@ -9,7 +8,7 @@ import (
 // RegisterRoutes 注册 CarbonReportDay 模块的所有路由
 func RegisterRoutes(db *gorm.DB) []shared_http.RouteGroupConfig {
 	// 初始化 DDD 组件
-	carbonReportDayDDD := wire.InitCarbonReportDayDDD(db)
+	carbonReportDayDDD := InitCarbonReportDayDDD(db)
 
 	// 创建 handlers
 	handlers := &Handlers{

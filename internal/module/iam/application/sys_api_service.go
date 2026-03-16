@@ -27,11 +27,11 @@ type UpdateSysApiCommand struct {
 
 // SysApiAppService system API application service
 type SysApiAppService struct {
-	repo domain.SysApiRepository
+	repo SysApiRepository
 }
 
 // NewSysApiAppService creates system API application service
-func NewSysApiAppService(repo domain.SysApiRepository) *SysApiAppService {
+func NewSysApiAppService(repo SysApiRepository) *SysApiAppService {
 	return &SysApiAppService{repo: repo}
 }
 
