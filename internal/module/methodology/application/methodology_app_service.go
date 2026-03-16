@@ -5,6 +5,25 @@ import (
 	"context"
 )
 
+// ===== Repository Ports（仓储端口） =====
+
+type MethodologyRepo interface {
+	Create(ctx context.Context, methodology *domain.Methodology) error
+	Update(ctx context.Context, methodology *domain.Methodology) error
+	Delete(ctx context.Context, id, uid int64) error
+	FindByID(ctx context.Context, id int64) (*domain.Methodology, error)
+	FindByCode(ctx context.Context, code string) (*domain.Methodology, error)
+	FindPage(ctx context.Context, query domain.MethodologyPageQuery) ([]*domain.Methodology, int64, error)
+	FindListByStatus(ctx context.Context, status domain.MethodologyStatus) ([]*domain.Methodology, error)
+}
+
+// ===== Service Ports（服务端口 - 给外部模块用） =====
+
+type MethodologyService interface {
+	GetMethodology(ctx context.Context, id int64) (*domain.Methodology, error)
+	GetMethodologyByCode(ctx context.Context, code string) (*domain.Methodology, error)
+}
+
 // CreateMethodologyCommand 创建方法学命令
 type CreateMethodologyCommand struct {
 	Name        string `json:"name"`
@@ -62,7 +81,18 @@ func (s *MethodologyAppService) UpdateMethodology(ctx context.Context, cmd Updat
 
 // DeleteMethodology 删除方法学
 func (s *MethodologyAppService) DeleteMethodology(ctx context.Context, id int64, userID int64) error {
-	return s.repo.Delete(ctx, id, userID)
+	methodology, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	// 执行领域方法
+	if err := methodology.Delete(userID); err != nil {
+		return err
+	}
+
+	// 持久化
+	return s.repo.Update(ctx, methodology)
 }
 
 // GetMethodologyByID 根据 ID 获取方法学
@@ -87,4 +117,14 @@ func (s *MethodologyAppService) ChangeMethodologyStatus(ctx context.Context, cmd
 		return err
 	}
 	return methodology.ChangeStatus(cmd.Status, cmd.UserID)
+}
+
+// ===== 实现 Service Ports =====
+
+func (s *MethodologyAppService) GetMethodology(ctx context.Context, id int64) (*domain.Methodology, error) {
+	return s.GetMethodologyByID(ctx, id)
+}
+
+func (s *MethodologyAppService) GetMethodologyByCodeService(ctx context.Context, code string) (*domain.Methodology, error) {
+	return s.GetMethodologyByCode(ctx, code)
 }

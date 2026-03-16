@@ -1,7 +1,7 @@
 package service
 
 import (
-	"app/internal/rpc"
+	"app/internal/module/ipfs/rpc"
 	"fmt"
 	"net/http"
 	"os"

@@ -24,7 +24,7 @@ func NewCarbonReportDay(createUser int64) (*CarbonReportDay, error) {
 	report := &CarbonReportDay{
 		BaseEntity: entity.BaseEntity{
 			CreateBy:   createUser,
-			CreateTime: timeutil.New(),
+			CreateTime: timeutil.Now(),
 		},
 	}
 	return report, nil
@@ -33,6 +33,6 @@ func NewCarbonReportDay(createUser int64) (*CarbonReportDay, error) {
 // UpdateInfo 更新碳报告日报信息
 func (r *CarbonReportDay) UpdateInfo(userID int64) error {
 	r.UpdateBy = userID
-	r.UpdateTime = timeutil.New()
+	r.UpdateTime = timeutil.Now()
 	return nil
 }

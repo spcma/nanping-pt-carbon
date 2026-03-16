@@ -1,7 +1,7 @@
 package service
 
 import (
-	"app/internal/rpc"
+	rpc2 "app/internal/module/ipfs/rpc"
 	"fmt"
 	"os"
 	"strings"
@@ -16,7 +16,7 @@ func NpFsServ() *NpFs {
 	return _NpFs
 }
 
-var fsClient *rpc.LApiStub
+var fsClient *rpc2.LApiStub
 var sid string
 
 func InitNpFs() {
@@ -35,13 +35,13 @@ func CloseNpFs() {
 }
 
 // stubClient 获取client
-func stubClient() (*rpc.LApiStub, string, error) {
-	strPPT, err := rpc.GetLocalPassport(4080, 24)
+func stubClient() (*rpc2.LApiStub, string, error) {
+	strPPT, err := rpc2.GetLocalPassport(4080, 24)
 	if err != nil {
 		return nil, "", err
 	}
 
-	client := rpc.InitLApiStubByUrl("127.0.0.1:4080")
+	client := rpc2.InitLApiStubByUrl("127.0.0.1:4080")
 
 	loginReply, err := client.LoginWithPPT(strPPT)
 	if err != nil {

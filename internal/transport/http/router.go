@@ -18,8 +18,10 @@ import (
 
 // InitRouter 初始化路由器（主入口）
 func InitRouter(db *gorm.DB) *gin.Engine {
-	// 1. 创建基础路由引擎
-	router := createRouterEngine()
+	// 1. 创建基础路由引擎, 并配置中间件
+	router := gin.Default()
+	// 使用全局中间件
+	router.Use(CORSMiddleware(), LogMiddleware(), Recovery())
 
 	// 2. 初始化 JWT Manager
 	jwtManager := initJWTManager()
@@ -28,16 +30,6 @@ func InitRouter(db *gorm.DB) *gin.Engine {
 	registerAllRoutes(router, db, jwtManager)
 
 	logger.Info("http", "Router initialized")
-
-	return router
-}
-
-// createRouterEngine 创建路由引擎并配置中间件
-func createRouterEngine() *gin.Engine {
-	router := gin.Default()
-
-	// 使用全局中间件
-	router.Use(CORSMiddleware(), LogMiddleware(), Recovery())
 
 	return router
 }
@@ -59,28 +51,18 @@ func registerAllRoutes(router *gin.Engine, db *gorm.DB, jwtManager *token.JWTMan
 	// API 根路由组
 	apiGroup := router.Group("/api")
 
-	// 1. 完全公开路由（不需要 token，无任何认证）
-	pubRouterGroup := apiGroup.Group("")
-	registerAuthGroup(pubRouterGroup, shared_http.AuthTypeNone, db, jwtManager)
+	// 获取所有模块的路由配置
+	allConfigs := getAllRouteConfigs(db, jwtManager)
 
-	// 2. 支持可选认证的路由（有 token 返回增强信息，无 token 返回基础信息）
-	optionalAuthGroup := apiGroup.Group("")
-	optionalAuthGroup.Use(OptionalAuthMiddleware(jwtManager))
-	registerAuthGroup(optionalAuthGroup, shared_http.AuthTypeOptional, db, jwtManager)
-
-	// 3. 需要 Token 验证的路由（强制要求有效 token）
-	authenticated := apiGroup.Group("")
-	authenticated.Use(AuthMiddleware(jwtManager))
-	registerAuthGroup(authenticated, shared_http.AuthTypeRequired, db, jwtManager)
+	// 按认证类型分组并应用中间件
+	registerRoutesWithAuth(apiGroup, allConfigs, jwtManager)
 }
 
-// registerAuthGroup 注册指定认证类型的所有路由
-// authType 参数明确指定当前路由组需要的认证类型
-func registerAuthGroup(r *gin.RouterGroup, requiredAuthType shared_http.AuthType, db *gorm.DB, jwtManager *token.JWTManager) {
-	// 获取所有模块的路由配置
+// getAllRouteConfigs 获取所有模块的路由配置
+func getAllRouteConfigs(db *gorm.DB, jwtManager *token.JWTManager) []shared_http.RouteGroupConfig {
 	var allConfigs []shared_http.RouteGroupConfig
 
-	// 直接调用各模块的 RegisterRoutes 函数
+	// 收集各模块的路由配置
 	allConfigs = append(allConfigs, iam_http.RegisterRoutes(db, jwtManager)...)
 	allConfigs = append(allConfigs, project_http.RegisterRoutes(db)...)
 	allConfigs = append(allConfigs, methodology_http.RegisterRoutes(db)...)
@@ -90,31 +72,43 @@ func registerAuthGroup(r *gin.RouterGroup, requiredAuthType shared_http.AuthType
 	carbonReportConfigs := registerCarbonReportRoutes()
 	allConfigs = append(allConfigs, carbonReportConfigs...)
 
-	// 按 prefix 分组并注册路由
-	registerRouteGroupsByAuthType(r, allConfigs, requiredAuthType)
+	return allConfigs
 }
 
-// registerRouteGroupsByAuthType 根据认证类型批量注册路由组
-// requiredAuthType 指定当前路由组需要的认证类型，只注册匹配的路由
-func registerRouteGroupsByAuthType(r *gin.RouterGroup, routeConfigs []shared_http.RouteGroupConfig, requiredAuthType shared_http.AuthType) {
+// registerRoutesWithAuth 根据认证类型注册路由并应用中间件
+func registerRoutesWithAuth(apiGroup *gin.RouterGroup, routeConfigs []shared_http.RouteGroupConfig, jwtManager *token.JWTManager) {
 	// 先验证路由配置
 	if err := shared_http.ValidateRouteConfigs(routeConfigs); err != nil {
 		logger.Error("http", "Invalid route config: "+err.Error())
 		panic(err)
 	}
 
-	// 按 prefix 分组合并路由
-	prefixMap := make(map[string][]shared_http.RouteHandler)
-	for _, config := range routeConfigs {
-		// 只注册 AuthType 与当前路由组匹配的路由
-		if config.AuthType == requiredAuthType {
-			prefixMap[config.Prefix] = append(prefixMap[config.Prefix], config.Handlers...)
+	// 按认证类型和 prefix 分组
+	groupedRoutes := make(map[shared_http.AuthType]map[string][]shared_http.RouteHandler)
+
+	for _, routeConfig := range routeConfigs {
+		if groupedRoutes[routeConfig.AuthType] == nil {
+			groupedRoutes[routeConfig.AuthType] = make(map[string][]shared_http.RouteHandler)
 		}
+		groupedRoutes[routeConfig.AuthType][routeConfig.Prefix] = append(
+			groupedRoutes[routeConfig.AuthType][routeConfig.Prefix],
+			routeConfig.Handlers...,
+		)
 	}
 
-	// 批量注册路由
-	for prefix, handlers := range prefixMap {
-		group := r.Group(prefix)
+	// 注册不同认证类型的路由
+	registerAuthTypeRoutes(apiGroup, groupedRoutes[shared_http.AuthTypeNone], nil)
+	registerAuthTypeRoutes(apiGroup, groupedRoutes[shared_http.AuthTypeOptional], OptionalAuthMiddleware(jwtManager))
+	registerAuthTypeRoutes(apiGroup, groupedRoutes[shared_http.AuthTypeRequired], AuthMiddleware(jwtManager))
+}
+
+// registerAuthTypeRoutes 注册指定认证类型的路由
+func registerAuthTypeRoutes(apiGroup *gin.RouterGroup, routes map[string][]shared_http.RouteHandler, middleware gin.HandlerFunc) {
+	for prefix, handlers := range routes {
+		group := apiGroup.Group(prefix)
+		if middleware != nil {
+			group.Use(middleware)
+		}
 		for _, handler := range handlers {
 			group.Handle(handler.Method, handler.Path, handler.Handler)
 		}

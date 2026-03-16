@@ -34,7 +34,7 @@ func NewProject(name, code, description string, createUser int64) (*Project, err
 	project := &Project{
 		BaseEntity: entity.BaseEntity{
 			CreateBy:   createUser,
-			CreateTime: timeutil.New(),
+			CreateTime: timeutil.Now(),
 		},
 		Name:        name,
 		Code:        code,
@@ -49,7 +49,7 @@ func (p *Project) UpdateInfo(name, description string, userID int64) error {
 	p.Name = name
 	p.Description = description
 	p.UpdateBy = userID
-	p.UpdateTime = timeutil.New()
+	p.UpdateTime = timeutil.Now()
 	return nil
 }
 
@@ -57,6 +57,13 @@ func (p *Project) UpdateInfo(name, description string, userID int64) error {
 func (p *Project) ChangeStatus(status ProjectStatus, userID int64) error {
 	p.Status = status
 	p.UpdateBy = userID
-	p.UpdateTime = timeutil.New()
+	p.UpdateTime = timeutil.Now()
+	return nil
+}
+
+// Delete 逻辑删除项目
+func (p *Project) Delete(userID int64) error {
+	p.DeleteBy = userID
+	p.DeleteTime = timeutil.Now()
 	return nil
 }

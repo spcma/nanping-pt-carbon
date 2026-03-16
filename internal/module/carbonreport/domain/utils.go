@@ -1,19 +1,19 @@
 package domain
 
 import (
-	"app/internal/rpc"
+	rpc2 "app/internal/module/ipfs/rpc"
 	"os"
 	"strings"
 )
 
 // CreateFsClient 创建文件系统客户端
-func CreateFsClient() (*rpc.LApiStub, string, error) {
-	strPPT, err := rpc.GetLocalPassport(4080, 24)
+func CreateFsClient() (*rpc2.LApiStub, string, error) {
+	strPPT, err := rpc2.GetLocalPassport(4080, 24)
 	if err != nil {
 		return nil, "", err
 	}
 
-	client := rpc.InitLApiStubByUrl("127.0.0.1:4080")
+	client := rpc2.InitLApiStubByUrl("127.0.0.1:4080")
 
 	loginReply, err := client.LoginWithPPT(strPPT)
 	if err != nil {

@@ -5,6 +5,25 @@ import (
 	"context"
 )
 
+// ===== Repository Ports（仓储端口） =====
+
+type ProjectRepo interface {
+	Create(ctx context.Context, project *domain.Project) error
+	Update(ctx context.Context, project *domain.Project) error
+	Delete(ctx context.Context, id, uid int64) error
+	FindByID(ctx context.Context, id int64) (*domain.Project, error)
+	FindByCode(ctx context.Context, code string) (*domain.Project, error)
+	FindPage(ctx context.Context, query domain.ProjectPageQuery) ([]*domain.Project, int64, error)
+	FindListByStatus(ctx context.Context, status domain.ProjectStatus) ([]*domain.Project, error)
+}
+
+// ===== Service Ports（服务端口 - 给外部模块用） =====
+
+type ProjectService interface {
+	GetProject(ctx context.Context, id int64) (*domain.Project, error)
+	GetProjectByCode(ctx context.Context, code string) (*domain.Project, error)
+}
+
 // CreateProjectCommand 创建项目命令
 type CreateProjectCommand struct {
 	Name        string `json:"name"`
@@ -62,7 +81,18 @@ func (s *ProjectAppService) UpdateProject(ctx context.Context, cmd UpdateProject
 
 // DeleteProject 删除项目
 func (s *ProjectAppService) DeleteProject(ctx context.Context, id int64, userID int64) error {
-	return s.repo.Delete(ctx, id, userID)
+	project, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return err
+	}
+
+	// 执行领域方法
+	if err := project.Delete(userID); err != nil {
+		return err
+	}
+
+	// 持久化
+	return s.repo.Update(ctx, project)
 }
 
 // GetProjectByID 根据 ID 获取项目
@@ -87,4 +117,14 @@ func (s *ProjectAppService) ChangeProjectStatus(ctx context.Context, cmd ChangeP
 		return err
 	}
 	return project.ChangeStatus(cmd.Status, cmd.UserID)
+}
+
+// ===== 实现 Service Ports =====
+
+func (s *ProjectAppService) GetProject(ctx context.Context, id int64) (*domain.Project, error) {
+	return s.GetProjectByID(ctx, id)
+}
+
+func (s *ProjectAppService) GetProjectByCodeService(ctx context.Context, code string) (*domain.Project, error) {
+	return s.GetProjectByCode(ctx, code)
 }

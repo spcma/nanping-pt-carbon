@@ -3,7 +3,7 @@ package wire
 import (
 	"app/internal/module/carbonreportday/application"
 	"app/internal/module/carbonreportday/domain"
-	"app/internal/module/carbonreportday/persistence"
+	"app/internal/module/carbonreportday/infrastructure"
 
 	"gorm.io/gorm"
 )
@@ -15,7 +15,7 @@ type CarbonReportDayDDD struct {
 
 // InitCarbonReportDayDDD initializes carbon report day DDD components
 func InitCarbonReportDayDDD(db *gorm.DB) *CarbonReportDayDDD {
-	repo := persistence.NewCarbonReportDayRepository(db)
+	repo := infrastructure.NewCarbonReportDayRepository(db)
 	appService := application.NewCarbonReportDayAppService(repo)
 	return &CarbonReportDayDDD{
 		Repo:       repo,

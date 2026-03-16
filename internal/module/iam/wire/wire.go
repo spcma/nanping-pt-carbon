@@ -3,7 +3,7 @@ package wire
 import (
 	"app/internal/module/iam/application"
 	"app/internal/module/iam/domain"
-	"app/internal/module/iam/persistence"
+	"app/internal/module/iam/infrastructure"
 
 	"gorm.io/gorm"
 )
@@ -15,7 +15,7 @@ type SysUserDDD struct {
 
 // InitSysUserDDD initializes system user DDD components
 func InitSysUserDDD(db *gorm.DB) *SysUserDDD {
-	repo := persistence.NewSysUserRepository(db)
+	repo := infrastructure.NewUserRepository(db)
 	appService := application.NewSysUserAppService(repo)
 	return &SysUserDDD{
 		Repo:       repo,
@@ -30,7 +30,7 @@ type SysRoleDDD struct {
 
 // InitSysRoleDDD initializes system role DDD components
 func InitSysRoleDDD(db *gorm.DB) *SysRoleDDD {
-	repo := persistence.NewSysRoleRepository(db)
+	repo := infrastructure.NewRoleRepository(db)
 	appService := application.NewSysRoleAppService(repo)
 	return &SysRoleDDD{
 		Repo:       repo,
@@ -45,7 +45,7 @@ type SysApiDDD struct {
 
 // InitSysApiDDD initializes system API DDD components
 func InitSysApiDDD(db *gorm.DB) *SysApiDDD {
-	repo := persistence.NewSysApiRepository(db)
+	repo := infrastructure.NewApiRepository(db)
 	appService := application.NewSysApiAppService(repo)
 	return &SysApiDDD{
 		Repo:       repo,
@@ -60,7 +60,7 @@ type SysUserRoleDDD struct {
 
 // InitSysUserRoleDDD initializes system user role DDD components
 func InitSysUserRoleDDD(db *gorm.DB) *SysUserRoleDDD {
-	repo := persistence.NewSysUserRoleRepository(db)
+	repo := infrastructure.NewUserRoleRepository(db)
 	appService := application.NewSysUserRoleAppService(repo)
 	return &SysUserRoleDDD{
 		Repo:       repo,

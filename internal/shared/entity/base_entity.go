@@ -29,7 +29,7 @@ type BaseEntity struct {
 // Delete 逻辑删除
 func (b *BaseEntity) Delete(userID int64) error {
 	b.DeleteBy = userID
-	b.DeleteTime = timeutil.New()
+	b.DeleteTime = timeutil.Now()
 
 	return nil
 }

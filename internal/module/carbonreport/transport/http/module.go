@@ -2,7 +2,7 @@ package http
 
 import (
 	"app/internal/module/carbonreport/wire"
-	"app/internal/rpc"
+	"app/internal/module/ipfs/rpc"
 )
 
 // Module carbonreport 模块

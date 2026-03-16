@@ -28,12 +28,12 @@ logger:
       level: info
 
 database:
-  host: "47.97.154.156"
-  port: 11070
-  user: "test"
-  password: "test@2026"
-  dbname: "test"
-  searchpath: "test01"
+  host: "121.41.129.227"
+  port: 16010
+  user: "carbonadmin"
+  password: "carbonadmin@2026"
+  dbname: "carbon"
+  searchpath: "yanping"
 
 redis:
   host: localhost

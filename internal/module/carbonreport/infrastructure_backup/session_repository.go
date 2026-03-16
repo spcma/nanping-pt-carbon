@@ -2,7 +2,7 @@ package infrastructure
 
 import (
 	"app/internal/module/carbonreport/domain"
-	"app/internal/rpc"
+	"app/internal/module/ipfs/rpc"
 	"time"
 )
 

@@ -32,7 +32,7 @@ func NewMethodology(name, code, description string, createUser int64) (*Methodol
 	methodology := &Methodology{
 		BaseEntity: entity.BaseEntity{
 			CreateBy:   createUser,
-			CreateTime: timeutil.New(),
+			CreateTime: timeutil.Now(),
 		},
 		Name:        name,
 		Code:        code,
@@ -47,7 +47,7 @@ func (m *Methodology) UpdateInfo(name, description string, userID int64) error {
 	m.Name = name
 	m.Description = description
 	m.UpdateBy = userID
-	m.UpdateTime = timeutil.New()
+	m.UpdateTime = timeutil.Now()
 	return nil
 }
 
@@ -55,6 +55,13 @@ func (m *Methodology) UpdateInfo(name, description string, userID int64) error {
 func (m *Methodology) ChangeStatus(status MethodologyStatus, userID int64) error {
 	m.Status = status
 	m.UpdateBy = userID
-	m.UpdateTime = timeutil.New()
+	m.UpdateTime = timeutil.Now()
+	return nil
+}
+
+// Delete 逻辑删除方法学
+func (m *Methodology) Delete(userID int64) error {
+	m.DeleteBy = userID
+	m.DeleteTime = timeutil.Now()
 	return nil
 }

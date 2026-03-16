@@ -35,7 +35,7 @@ func NewSysApi(name, code, uri, methodType, status string, createUser int64) (*S
 	api := &SysApi{
 		BaseEntity: entity.BaseEntity{
 			CreateBy:   createUser,
-			CreateTime: timeutil.New(),
+			CreateTime: timeutil.Now(),
 		},
 		Name:       name,
 		Code:       code,
@@ -53,6 +53,19 @@ func (a *SysApi) UpdateInfo(name, uri, methodType, status string, userID int64) 
 	a.MethodType = ApiMethodType(methodType)
 	a.Status = status
 	a.UpdateBy = userID
-	a.UpdateTime = timeutil.New()
+	a.UpdateTime = timeutil.Now()
 	return nil
+}
+
+// SysApiPageQuery system API page query object
+type SysApiPageQuery struct {
+	PageNum    int64  `json:"pageNum" binding:"required,min=1"`
+	PageSize   int64  `json:"pageSize" binding:"required,min=1,max=100"`
+	Name       string `json:"name"`
+	Code       string `json:"code"`
+	Uri        string `json:"uri"`
+	MethodType string `json:"methodType"`
+	Status     string `json:"status"`
+	SortBy     string `json:"sortBy"`
+	SortOrder  string `json:"sortOrder" binding:"oneof=asc desc"` // "asc" or "desc"
 }

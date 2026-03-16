@@ -17,7 +17,7 @@ type ProjectPageQuery struct {
 type ProjectRepository interface {
 	Create(ctx context.Context, project *Project) error
 	Update(ctx context.Context, project *Project) error
-	Delete(ctx context.Context, id int64, userID int64) error
+	Delete(ctx context.Context, id int64, userID int64) error // 逻辑删除
 	FindByID(ctx context.Context, id int64) (*Project, error)
 	FindByCode(ctx context.Context, code string) (*Project, error)
 	FindPage(ctx context.Context, query ProjectPageQuery) ([]*Project, int64, error)

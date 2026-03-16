@@ -40,7 +40,7 @@ func (s *SysUserRoleAppService) AssignUserRole(ctx context.Context, cmd AssignUs
 
 // CancelUserRole cancels a role from a user
 func (s *SysUserRoleAppService) CancelUserRole(ctx context.Context, cmd CancelUserRoleCommand) error {
-	return s.repo.Delete(ctx, cmd.UserID, cmd.RoleID)
+	return s.repo.DeleteByUserRoleID(ctx, cmd.UserID, cmd.RoleID)
 }
 
 // GetUserRoles gets roles of a user

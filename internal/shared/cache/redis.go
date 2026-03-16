@@ -39,7 +39,7 @@ func (r *RedisClient) Close() error {
 	return r.client.Close()
 }
 
-func (r *RedisClient) Get(ctx context.Context, key string) (string, error) {
+func (r *RedisClient) Get(ctx context.Context, key string) (interface{}, error) {
 	return r.client.Get(ctx, key).Result()
 }
 

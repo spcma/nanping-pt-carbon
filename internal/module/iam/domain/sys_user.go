@@ -3,6 +3,7 @@ package domain
 import (
 	"app/internal/shared/crypto"
 	"app/internal/shared/entity"
+	idgen "app/internal/shared/idgen"
 	"app/internal/shared/timeutil"
 )
 
@@ -24,9 +25,11 @@ type SysUser struct {
 	Salt        string     `json:"salt" gorm:"column:salt"`
 	Status      UserStatus `json:"status" gorm:"column:status"`
 	Phone       string     `json:"phone" gorm:"column:phone"`
+	Avatar      string     `json:"avatar" gorm:"column:avatar"`
 	Email       string     `json:"email" gorm:"column:email"`
 	Description string     `json:"description" gorm:"column:description"`
-	Avatar      string     `json:"avatar" gorm:"column:avatar"`
+	Type        string     `json:"type" gorm:"column:type"` // 用户类型 1 系统用户 2 项目子用户
+	ParentId    int64      `json:"parent_id" gorm:"column:parent_id"`
 }
 
 // TableName table name
@@ -50,8 +53,9 @@ func NewSysUser(username, nickname, password, salt string, createUser int64) (*S
 
 	user := &SysUser{
 		BaseEntity: entity.BaseEntity{
+			Id:         idgen.NumID(),
 			CreateBy:   createUser,
-			CreateTime: timeutil.New(),
+			CreateTime: timeutil.Now(),
 		},
 		Username: username,
 		Nickname: nickname,
@@ -70,7 +74,7 @@ func (u *SysUser) UpdateInfo(nickname, phone, email, description, avatar string,
 	u.Description = description
 	u.Avatar = avatar
 	u.UpdateBy = userID
-	u.UpdateTime = timeutil.New()
+	u.UpdateTime = timeutil.Now()
 	return nil
 }
 
@@ -78,7 +82,7 @@ func (u *SysUser) UpdateInfo(nickname, phone, email, description, avatar string,
 func (u *SysUser) ChangeStatus(status UserStatus, userID int64) error {
 	u.Status = status
 	u.UpdateBy = userID
-	u.UpdateTime = timeutil.New()
+	u.UpdateTime = timeutil.Now()
 	return nil
 }
 
@@ -86,14 +90,14 @@ func (u *SysUser) ChangeStatus(status UserStatus, userID int64) error {
 func (u *SysUser) ChangePassword(password string, userID int64) error {
 	u.Password = password
 	u.UpdateBy = userID
-	u.UpdateTime = timeutil.New()
+	u.UpdateTime = timeutil.Now()
 	return nil
 }
 
 // Delete 逻辑删除用户
 func (u *SysUser) Delete(userID int64) error {
 	u.DeleteBy = userID
-	u.DeleteTime = timeutil.New()
+	u.DeleteTime = timeutil.Now()
 
 	return nil
 }

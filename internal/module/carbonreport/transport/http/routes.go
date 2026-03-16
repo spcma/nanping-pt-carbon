@@ -3,7 +3,7 @@ package http
 import (
 	"app/internal/module/carbonreport/domain"
 	"app/internal/module/carbonreport/wire"
-	"app/internal/rpc"
+	"app/internal/module/ipfs/rpc"
 	shared_http "app/internal/shared/http"
 )
 

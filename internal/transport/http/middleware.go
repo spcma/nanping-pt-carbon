@@ -52,14 +52,14 @@ func parseToken(tokenString string, jwtManager token.Manager) (*token.Claims, er
 // AuthMiddleware 认证中间件（强制要求 token）
 func AuthMiddleware(jwtManager token.Manager) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		token := c.GetHeader("Authorization")
-		if token == "" {
+		authToken := c.GetHeader("Authorization")
+		if authToken == "" {
 			response.Unauthorized(c, "未授权")
 			c.Abort()
 			return
 		}
 
-		claims, err := parseToken(token, jwtManager)
+		claims, err := parseToken(authToken, jwtManager)
 		if err != nil {
 			logger.Error("auth", "Token validation failed: "+err.Error())
 			response.Unauthorized(c, "令牌无效")
@@ -89,14 +89,14 @@ func AuthMiddleware(jwtManager token.Manager) gin.HandlerFunc {
 // 适用于：公开接口但希望获取当前用户信息的场景
 func OptionalAuthMiddleware(jwtManager token.Manager) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		token := c.GetHeader("Authorization")
-		if token == "" {
+		authToken := c.GetHeader("Authorization")
+		if authToken == "" {
 			// 没有 token，继续执行（不拦截）
 			c.Next()
 			return
 		}
 
-		claims, err := parseToken(token, jwtManager)
+		claims, err := parseToken(authToken, jwtManager)
 		if err != nil {
 			// token 无效，忽略错误继续执行（不拦截）
 			logger.Debug("auth", "Optional auth - invalid token ignored")

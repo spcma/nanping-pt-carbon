@@ -12,7 +12,7 @@ func TestTimeValueBehavior(t *testing.T) {
 	t.Logf("Underlying time.Time IsZero: %v", zeroTime.Time.IsZero())
 
 	// 创建一个具体的值
-	now := New()
+	now := Now()
 	t.Logf("Now Time: %+v", now)
 	t.Logf("IsZero: %v", now.IsZero())
 

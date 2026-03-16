@@ -33,7 +33,7 @@ func NewSysRole(name, code, description string, createUser int64) (*SysRole, err
 	role := &SysRole{
 		BaseEntity: entity.BaseEntity{
 			CreateBy:   createUser,
-			CreateTime: timeutil.New(),
+			CreateTime: timeutil.Now(),
 		},
 		Name:        name,
 		Code:        code,
@@ -48,7 +48,7 @@ func (r *SysRole) UpdateInfo(name, description string, userID int64) error {
 	r.Name = name
 	r.Description = description
 	r.UpdateBy = userID
-	r.UpdateTime = timeutil.New()
+	r.UpdateTime = timeutil.Now()
 	return nil
 }
 
@@ -56,6 +56,6 @@ func (r *SysRole) UpdateInfo(name, description string, userID int64) error {
 func (r *SysRole) ChangeStatus(status RoleStatus, userID int64) error {
 	r.Status = status
 	r.UpdateBy = userID
-	r.UpdateTime = timeutil.New()
+	r.UpdateTime = timeutil.Now()
 	return nil
 }

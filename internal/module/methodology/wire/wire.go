@@ -3,7 +3,7 @@ package wire
 import (
 	"app/internal/module/methodology/application"
 	"app/internal/module/methodology/domain"
-	"app/internal/module/methodology/persistence"
+	"app/internal/module/methodology/infrastructure"
 
 	"gorm.io/gorm"
 )
@@ -15,7 +15,7 @@ type MethodologyDDD struct {
 
 // InitMethodologyDDD initializes methodology DDD components
 func InitMethodologyDDD(db *gorm.DB) *MethodologyDDD {
-	repo := persistence.NewMethodologyRepository(db)
+	repo := infrastructure.NewMethodologyRepository(db)
 	appService := application.NewMethodologyAppService(repo)
 	return &MethodologyDDD{
 		Repo:       repo,

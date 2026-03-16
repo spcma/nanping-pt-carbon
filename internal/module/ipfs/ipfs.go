@@ -1,7 +1,7 @@
 package ipfs
 
 import (
-	"app/internal/rpc"
+	rpc2 "app/internal/module/ipfs/rpc"
 	"app/internal/shared/logger"
 	"net/http"
 	"os"
@@ -14,12 +14,12 @@ import (
 
 // Service IPFS 服务
 type Service struct {
-	client  *rpc.LApiStub
+	client  *rpc2.LApiStub
 	session string
 }
 
 // NewService 创建 IPFS 服务
-func NewService(client *rpc.LApiStub, session string) *Service {
+func NewService(client *rpc2.LApiStub, session string) *Service {
 	return &Service{
 		client:  client,
 		session: session,
@@ -267,13 +267,13 @@ func (s *Service) DownloadFile(c *gin.Context) {
 }
 
 // CreateFsClient 创建文件系统客户端
-func CreateFsClient() (*rpc.LApiStub, string, error) {
-	strPPT, err := rpc.GetLocalPassport(4080, 24)
+func CreateFsClient() (*rpc2.LApiStub, string, error) {
+	strPPT, err := rpc2.GetLocalPassport(4080, 24)
 	if err != nil {
 		return nil, "", err
 	}
 
-	client := rpc.InitLApiStubByUrl("127.0.0.1:4080")
+	client := rpc2.InitLApiStubByUrl("127.0.0.1:4080")
 
 	loginReply, err := client.LoginWithPPT(strPPT)
 	if err != nil {

@@ -1,7 +1,7 @@
 package ipfs
 
 import (
-	"app/internal/rpc"
+	"app/internal/module/ipfs/rpc"
 	shared_http "app/internal/shared/http"
 )
 

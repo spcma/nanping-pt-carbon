@@ -12,8 +12,8 @@ type Time struct {
 	time.Time
 }
 
-// New 创建时间, 默认为当前参数, 可接收一个参数[time.Time]创建指定时间
-func New(newTime ...time.Time) Time {
+// Now 创建时间, 默认为当前参数, 可接收一个参数[time.Time]创建指定时间
+func Now(newTime ...time.Time) Time {
 	if len(newTime) == 0 {
 		return Time{time.Now()}
 	}
