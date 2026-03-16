@@ -1,7 +1,5 @@
 package domain
 
-import "errors"
-
 // fileService 文件领域服务实现
 type fileService struct {
 	fileRepo FileRepository
@@ -17,9 +15,6 @@ func NewFileService(fileRepo FileRepository) FileService {
 func (s *fileService) CheckDirExists(path string) (bool, error) {
 	_, err := s.fileRepo.GetFile(nil, path)
 	if err != nil {
-		if errors.Is(err, ErrDirNotFound) {
-			return false, nil
-		}
 		return false, err
 	}
 	return true, nil

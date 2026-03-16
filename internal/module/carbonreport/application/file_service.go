@@ -23,9 +23,6 @@ func NewFileApplicationService(fileRepo domain.FileRepository, sessionRepo domai
 func (s *FileApplicationService) CheckDirExists(ctx context.Context, path string) (bool, error) {
 	_, err := s.fileRepo.GetFile(ctx, path)
 	if err != nil {
-		if err == domain.ErrDirNotFound {
-			return false, nil
-		}
 		return false, err
 	}
 	return true, nil
