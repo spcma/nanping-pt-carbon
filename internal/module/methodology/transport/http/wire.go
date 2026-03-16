@@ -1,4 +1,4 @@
-package wire
+package http
 
 import (
 	"app/internal/module/methodology/application"

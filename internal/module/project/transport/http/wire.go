@@ -1,15 +1,14 @@
-package wire
+package http
 
 import (
 	"app/internal/module/project/application"
-	"app/internal/module/project/domain"
 	"app/internal/module/project/infrastructure"
 
 	"gorm.io/gorm"
 )
 
 type ProjectWire struct {
-	Repo       domain.ProjectRepository
+	Repo       application.ProjectRepository
 	AppService *application.ProjectAppService
 }
 

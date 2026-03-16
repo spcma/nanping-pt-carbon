@@ -67,3 +67,14 @@ func (p *Project) Delete(userID int64) error {
 	p.DeleteTime = timeutil.Now()
 	return nil
 }
+
+// SysUserPageQuery system user page query object
+type ProjectPageQuery struct {
+	PageNum   int64  `json:"pageNum" binding:"required,min=1"`
+	PageSize  int64  `json:"pageSize" binding:"required,min=1,max=100"`
+	Name      string `json:"name"`
+	Code      string `json:"code"`
+	Status    string `json:"status"`
+	SortBy    string `json:"sortBy"`
+	SortOrder string `json:"sortOrder" binding:"oneof=asc desc"` // "asc" or "desc"
+}

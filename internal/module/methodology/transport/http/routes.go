@@ -1,15 +1,15 @@
 package http
 
 import (
-	"app/internal/module/methodology/wire"
 	shared_http "app/internal/shared/http"
+
 	"gorm.io/gorm"
 )
 
 // RegisterRoutes 注册 Methodology 模块的所有路由
 func RegisterRoutes(db *gorm.DB) []shared_http.RouteGroupConfig {
 	// 初始化 DDD 组件
-	methodologyDDD := wire.InitMethodologyDDD(db)
+	methodologyDDD := InitMethodologyDDD(db)
 
 	// 创建 handlers
 	handlers := &Handlers{

@@ -7,6 +7,7 @@ import (
 	"app/internal/shared/timeutil"
 	"context"
 	"errors"
+
 	"gorm.io/gorm"
 )
 
@@ -79,7 +80,7 @@ func (r *ProjectRepository) FindList(ctx context.Context) ([]*domain.Project, er
 	return projects, err
 }
 
-func (r *ProjectRepository) FindPage(ctx context.Context, query domain.ProjectPageQuery) ([]*domain.Project, int64, error) {
+func (r *ProjectRepository) FindPage(ctx context.Context, query *domain.ProjectPageQuery) ([]*domain.Project, int64, error) {
 	// 使用通用分页助手
 	helper := db.NewPaginationHelper[*domain.Project](r.GetDB(ctx))
 	result, err := helper.PageQuery(int(query.PageNum), int(query.PageSize), func(dq *gorm.DB) *gorm.DB {

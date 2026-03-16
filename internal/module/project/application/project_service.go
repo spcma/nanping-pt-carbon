@@ -49,11 +49,11 @@ type ChangeProjectStatusCommand struct {
 
 // ProjectAppService 项目应用服务
 type ProjectAppService struct {
-	repo domain.ProjectRepository
+	repo ProjectRepository
 }
 
 // NewProjectAppService 创建项目应用服务
-func NewProjectAppService(repo domain.ProjectRepository) *ProjectAppService {
+func NewProjectAppService(repo ProjectRepository) *ProjectAppService {
 	return &ProjectAppService{repo: repo}
 }
 
