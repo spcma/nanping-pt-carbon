@@ -3,7 +3,7 @@ package http
 import (
 	"app/internal/module/iam/application"
 	"app/internal/module/iam/domain"
-	http2 "app/internal/platform/http"
+	platform_http "app/internal/platform/http"
 	"app/internal/platform/http/response"
 	"net/http"
 	"strconv"
@@ -31,10 +31,10 @@ func (h *SysRoleHandler) Create(c *gin.Context) {
 		return
 	}
 
-	user := http2.GetCurrentUser(c)
+	user := platform_http.GetCurrentUser(c)
 	cmd.UserID = user.ID
 
-	id, err := h.appService.CreateSysRole(http2.Ctx(c), cmd)
+	id, err := h.appService.CreateSysRole(platform_http.Ctx(c), cmd)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
@@ -59,10 +59,10 @@ func (h *SysRoleHandler) Update(c *gin.Context) {
 	}
 	cmd.ID = id
 
-	user := http2.GetCurrentUser(c)
+	user := platform_http.GetCurrentUser(c)
 	cmd.UserID = user.ID
 
-	if err := h.appService.UpdateSysRole(http2.Ctx(c), cmd); err != nil {
+	if err := h.appService.UpdateSysRole(platform_http.Ctx(c), cmd); err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -79,7 +79,13 @@ func (h *SysRoleHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	if err := h.appService.DeleteSysRole(http2.Ctx(c), id); err != nil {
+	user := platform_http.GetCurrentUser(c)
+	if user == nil {
+		response.Error(c, http.StatusInternalServerError, "user not found")
+		return
+	}
+
+	if err := h.appService.DeleteSysRole(platform_http.Ctx(c), id, user.ID); err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -96,7 +102,7 @@ func (h *SysRoleHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	role, err := h.appService.GetSysRoleByID(http2.Ctx(c), id)
+	role, err := h.appService.GetSysRoleByID(platform_http.Ctx(c), id)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
@@ -120,7 +126,7 @@ func (h *SysRoleHandler) GetPage(c *gin.Context) {
 		query.PageSize = 10
 	}
 
-	roles, total, err := h.appService.GetSysRolePage(http2.Ctx(c), query)
+	roles, total, err := h.appService.GetSysRolePage(platform_http.Ctx(c), &query)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
@@ -149,8 +155,8 @@ func (h *SysRoleHandler) ChangeStatus(c *gin.Context) {
 		return
 	}
 
-	user := http2.GetCurrentUser(c)
-	if err := h.appService.ChangeRoleStatus(http2.Ctx(c), application.ChangeRoleStatusCommand{ID: id, Status: domain.RoleStatus(cmd.Status), UserID: user.ID}); err != nil {
+	user := platform_http.GetCurrentUser(c)
+	if err := h.appService.ChangeRoleStatus(platform_http.Ctx(c), application.ChangeRoleStatusCommand{ID: id, Status: domain.RoleStatus(cmd.Status), UserID: user.ID}); err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}

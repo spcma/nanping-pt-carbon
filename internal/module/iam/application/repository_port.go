@@ -16,7 +16,7 @@ type UserRepo interface {
 	FindByID(ctx context.Context, id int64) (*domain.SysUser, error)
 	FindByUsername(ctx context.Context, username string) (*domain.SysUser, error) // 添加按用户名查找
 	FindList(ctx context.Context) ([]*domain.SysUser, error)
-	FindPage(ctx context.Context, pageNum, pageSize int) (*entity.PaginationResult[*domain.SysUser], error)
+	FindPage(ctx context.Context, query *domain.SysUserPageQuery) (*entity.PaginationResult[*domain.SysUser], error)
 }
 
 type RoleRepo interface {
@@ -26,8 +26,9 @@ type RoleRepo interface {
 	Delete(ctx context.Context, id, uid int64) error
 	FindByID(ctx context.Context, id int64) (*domain.SysRole, error)
 	FindList(ctx context.Context) ([]*domain.SysRole, error)
-	FindPage(ctx context.Context, pageNum, pageSize int) (*entity.PaginationResult[*domain.SysRole], error)
+	FindPage(ctx context.Context, query *domain.SysRolePageQuery) (*entity.PaginationResult[*domain.SysRole], error)
 	FindByCode(ctx context.Context, code string) (*domain.SysRole, error)
+	FindListByCodes(ctx context.Context, codes []string) ([]*domain.SysRole, error)
 }
 
 type UserRoleRepo interface {
@@ -45,4 +46,27 @@ type UserRoleRepo interface {
 
 type RolePermissionRepo interface {
 	HasPermission(ctx context.Context, roleCode, permissionCode string) (bool, error)
+}
+
+// SysApiRepository API repository interface
+type SysApiRepository interface {
+	Create(ctx context.Context, api *domain.SysApi) error
+	Update(ctx context.Context, api *domain.SysApi) error
+	Delete(ctx context.Context, id int64) error
+	FindByID(ctx context.Context, id int64) (*domain.SysApi, error)
+	FindByCode(ctx context.Context, code string) (*domain.SysApi, error)
+	FindPage(ctx context.Context, pageNum, pageSize int64, name string) ([]*domain.SysApi, int64, error)
+	FindAll(ctx context.Context) ([]*domain.SysApi, error)
+}
+
+// SysUserRoleRepository user role repository interface
+type SysUserRoleRepository interface {
+	Create(ctx context.Context, userRole *domain.SysUserRole) error
+	Delete(ctx context.Context, userId int64) error
+	DeleteByUser(ctx context.Context, userId int64) error
+	DeleteByRole(ctx context.Context, roleId int64) error
+	DeleteByUserRoleID(ctx context.Context, userId, roleId int64) error
+	FindByUserID(ctx context.Context, userId int64) ([]*domain.SysUserRole, error)
+	FindByRoleID(ctx context.Context, roleId int64) ([]*domain.SysUserRole, error)
+	FindByUserAndRole(ctx context.Context, userId, roleId int64) (*domain.SysUserRole, error)
 }

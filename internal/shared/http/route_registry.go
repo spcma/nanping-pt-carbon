@@ -34,6 +34,10 @@ type RouteGroupConfig struct {
 	AuthType AuthType       // 认证类型
 }
 
+type RegistryRoute interface {
+	RegisterRoutes() []RouteGroupConfig
+}
+
 // ValidateRouteConfigs 验证路由配置的有效性
 func ValidateRouteConfigs(configs []RouteGroupConfig) error {
 	prefixSet := make(map[string]bool)

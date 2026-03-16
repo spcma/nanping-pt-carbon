@@ -8,17 +8,17 @@ import (
 	"gorm.io/gorm"
 )
 
-type ProjectDDD struct {
+type ProjectWire struct {
 	Repo       domain.ProjectRepository
 	AppService *application.ProjectAppService
 }
 
-// InitProjectDDD initializes project DDD components
-func InitProjectDDD(db *gorm.DB) *ProjectDDD {
-	repo := infrastructure.NewProjectRepository(db)
-	appService := application.NewProjectAppService(repo)
-	return &ProjectDDD{
-		Repo:       repo,
+// InitProjectWire initializes project DDD components
+func InitProjectWire(db *gorm.DB) *ProjectWire {
+	projectRepo := infrastructure.NewProjectRepository(db)
+	appService := application.NewProjectAppService(projectRepo)
+	return &ProjectWire{
+		Repo:       projectRepo,
 		AppService: appService,
 	}
 }

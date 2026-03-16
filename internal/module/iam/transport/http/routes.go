@@ -1,7 +1,6 @@
 package http
 
 import (
-	"app/internal/module/iam/wire"
 	shared_http "app/internal/shared/http"
 	"app/internal/shared/token"
 
@@ -10,18 +9,16 @@ import (
 
 // RegisterRoutes 注册 IAM 模块的所有路由
 func RegisterRoutes(db *gorm.DB, jwtManager *token.JWTManager) []shared_http.RouteGroupConfig {
-	// 初始化 DDD 组件
-	sysUserDDD := wire.InitSysUserDDD(db)
-	sysRoleDDD := wire.InitSysRoleDDD(db)
+	sysUserWire := InitSysUserWire(db)
+	sysRoleWire := InitSysRoleWire(db)
 
-	// 创建 handlers
 	handlers := &Handlers{
-		SysUserHandler: NewSysUserHandler(sysUserDDD.AppService),
-		SysRoleHandler: NewSysRoleHandler(sysRoleDDD.AppService),
-		AuthHandler:    NewAuthHandler(sysUserDDD.AppService, jwtManager),
+		SysUserHandler: NewSysUserHandler(sysUserWire.Service),
+		SysRoleHandler: NewSysRoleHandler(sysRoleWire.Service),
+		AuthHandler:    NewAuthHandler(sysUserWire.Service, jwtManager),
 	}
 
-	return handlers.registerRoutes()
+	return handlers.RegisterRoutes()
 }
 
 // Handlers 包含所有 HTTP 处理器
@@ -31,9 +28,8 @@ type Handlers struct {
 	AuthHandler    *AuthHandler // 认证处理器
 }
 
-// registerRoutes 注册 IAM 模块的所有路由（内部方法）
-// registerRoutes 注册 IAM 模块的所有路由（内部方法）
-func (h *Handlers) registerRoutes() []shared_http.RouteGroupConfig {
+// RegisterRoutes 注册 IAM 模块的所有路由（内部方法）
+func (h *Handlers) RegisterRoutes() []shared_http.RouteGroupConfig {
 	return []shared_http.RouteGroupConfig{
 		// 1. 公开路由（不需要认证）
 		{

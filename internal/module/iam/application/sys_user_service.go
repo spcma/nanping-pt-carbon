@@ -9,11 +9,11 @@ import (
 
 // SysUserAppService system user application service
 type SysUserAppService struct {
-	repo domain.SysUserRepository
+	repo UserRepo
 }
 
 // NewSysUserAppService creates system user application service
-func NewSysUserAppService(repo domain.SysUserRepository) *SysUserAppService {
+func NewSysUserAppService(repo UserRepo) *SysUserAppService {
 	return &SysUserAppService{repo: repo}
 }
 
@@ -91,7 +91,11 @@ func (s *SysUserAppService) GetSysUserByUsername(ctx context.Context, username s
 
 // GetSysUserPage queries system users with pagination
 func (s *SysUserAppService) GetSysUserPage(ctx context.Context, query *domain.SysUserPageQuery) ([]*domain.SysUser, int64, error) {
-	return s.repo.FindPage(ctx, query)
+	result, err := s.repo.FindPage(ctx, query)
+	if err != nil {
+		return nil, 0, err
+	}
+	return result.Data, result.Total, nil
 }
 
 // ChangePasswordCommand change password command

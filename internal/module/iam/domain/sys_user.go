@@ -101,3 +101,17 @@ func (u *SysUser) Delete(userID int64) error {
 
 	return nil
 }
+
+// SysUserPageQuery system user page query object
+type SysUserPageQuery struct {
+	PageNum   int64  `json:"pageNum" binding:"required,min=1"`
+	PageSize  int64  `json:"pageSize" binding:"required,min=1,max=100"`
+	Username  string `json:"username"`
+	Nickname  string `json:"nickname"`
+	Phone     string `json:"phone"`
+	Email     string `json:"email"`
+	Status    string `json:"status"`
+	UserType  string `json:"userType"`
+	SortBy    string `json:"sortBy"`
+	SortOrder string `json:"sortOrder" binding:"oneof=asc desc"` // "asc" or "desc"
+}

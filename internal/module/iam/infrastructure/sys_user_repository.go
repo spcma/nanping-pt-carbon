@@ -7,6 +7,7 @@ import (
 	"app/internal/shared/timeutil"
 	"context"
 	"errors"
+
 	"gorm.io/gorm"
 )
 
@@ -79,7 +80,7 @@ func (u *UserRepository) FindList(ctx context.Context) ([]*domain.SysUser, error
 	return users, err
 }
 
-func (u *UserRepository) FindPage(ctx context.Context, query *domain.SysUserPageQuery) ([]*domain.SysUser, int64, error) {
+func (u *UserRepository) FindPage(ctx context.Context, query *domain.SysUserPageQuery) (*entity.PaginationResult[*domain.SysUser], error) {
 	// 使用通用分页助手
 	helper := db.NewPaginationHelper[*domain.SysUser](u.GetDB(ctx))
 	result, err := helper.PageQuery(int(query.PageNum), int(query.PageSize), func(dq *gorm.DB) *gorm.DB {
@@ -119,7 +120,7 @@ func (u *UserRepository) FindPage(ctx context.Context, query *domain.SysUserPage
 		return dq
 	})
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	return result.Data, result.Total, nil
+	return result, nil
 }

@@ -10,7 +10,7 @@ import (
 // RegisterRoutes 注册 Project 模块的所有路由
 func RegisterRoutes(db *gorm.DB) []shared_http.RouteGroupConfig {
 	// 初始化 DDD 组件
-	projectDDD := wire.InitProjectDDD(db)
+	projectDDD := wire.InitProjectWire(db)
 
 	// 创建 handlers
 	handlers := &Handlers{

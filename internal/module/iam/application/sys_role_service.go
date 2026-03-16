@@ -30,11 +30,11 @@ type ChangeRoleStatusCommand struct {
 
 // SysRoleAppService system role application service
 type SysRoleAppService struct {
-	repo domain.SysRoleRepository
+	repo RoleRepo
 }
 
 // NewSysRoleAppService creates system role application service
-func NewSysRoleAppService(repo domain.SysRoleRepository) *SysRoleAppService {
+func NewSysRoleAppService(repo RoleRepo) *SysRoleAppService {
 	return &SysRoleAppService{repo: repo}
 }
 
@@ -61,8 +61,8 @@ func (s *SysRoleAppService) UpdateSysRole(ctx context.Context, cmd UpdateSysRole
 }
 
 // DeleteSysRole deletes a system role
-func (s *SysRoleAppService) DeleteSysRole(ctx context.Context, id int64) error {
-	return s.repo.Delete(ctx, id)
+func (s *SysRoleAppService) DeleteSysRole(ctx context.Context, id, uid int64) error {
+	return s.repo.Delete(ctx, id, uid)
 }
 
 // GetSysRoleByID gets system role by ID
@@ -76,8 +76,12 @@ func (s *SysRoleAppService) GetSysRoleByCode(ctx context.Context, code string) (
 }
 
 // GetSysRolePage queries system roles with pagination
-func (s *SysRoleAppService) GetSysRolePage(ctx context.Context, query domain.SysRolePageQuery) ([]*domain.SysRole, int64, error) {
-	return s.repo.FindPage(ctx, query)
+func (s *SysRoleAppService) GetSysRolePage(ctx context.Context, query *domain.SysRolePageQuery) ([]*domain.SysRole, int64, error) {
+	result, err := s.repo.FindPage(ctx, query)
+	if err != nil {
+		return nil, 0, err
+	}
+	return result.Data, result.Total, nil
 }
 
 // ChangeRoleStatus changes role status

@@ -21,11 +21,11 @@ type CancelUserRoleCommand struct {
 
 // SysUserRoleAppService system user role application service
 type SysUserRoleAppService struct {
-	repo domain.SysUserRoleRepository
+	repo SysUserRoleRepository
 }
 
 // NewSysUserRoleAppService creates system user role application service
-func NewSysUserRoleAppService(repo domain.SysUserRoleRepository) *SysUserRoleAppService {
+func NewSysUserRoleAppService(repo SysUserRoleRepository) *SysUserRoleAppService {
 	return &SysUserRoleAppService{repo: repo}
 }
 

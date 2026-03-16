@@ -7,6 +7,7 @@ import (
 	"app/internal/shared/timeutil"
 	"context"
 	"errors"
+
 	"gorm.io/gorm"
 )
 
@@ -32,7 +33,7 @@ func (r *RoleRepository) UpdateFields(ctx context.Context, id int64, updates map
 	return r.GetDB(ctx).WithContext(ctx).Model(&domain.SysRole{}).Where("id = ?", id).Updates(updates).Error
 }
 
-func (r *RoleRepository) Delete(ctx context.Context, id int64) error {
+func (r *RoleRepository) Delete(ctx context.Context, id, uid int64) error {
 	// 实现逻辑删除，更新状态而不是物理删除
 	updates := map[string]interface{}{
 		entity.FieldDeleteBy:   0,
@@ -65,7 +66,7 @@ func (r *RoleRepository) FindList(ctx context.Context) ([]*domain.SysRole, error
 	return SysRole, err
 }
 
-func (r *RoleRepository) FindPage(ctx context.Context, query domain.SysRolePageQuery) ([]*domain.SysRole, int64, error) {
+func (r *RoleRepository) FindPage(ctx context.Context, query *domain.SysRolePageQuery) (*entity.PaginationResult[*domain.SysRole], error) {
 	txDB := r.GetDB(ctx)
 	// 使用通用分页助手
 	helper := db.NewPaginationHelper[*domain.SysRole](txDB)
@@ -78,9 +79,10 @@ func (r *RoleRepository) FindPage(ctx context.Context, query domain.SysRolePageQ
 		return dq
 	})
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	return result.Data, result.Total, nil
+
+	return result, nil
 }
 
 func (r *RoleRepository) FindByCode(ctx context.Context, code string) (*domain.SysRole, error) {
