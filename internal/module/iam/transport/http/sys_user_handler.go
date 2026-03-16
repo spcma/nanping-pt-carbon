@@ -3,7 +3,7 @@ package http
 import (
 	"app/internal/module/iam/application"
 	"app/internal/module/iam/domain"
-	http2 "app/internal/platform/http"
+	paltform_http "app/internal/platform/http"
 	"app/internal/platform/http/response"
 	"app/internal/shared/logger"
 	"net/http"
@@ -37,10 +37,10 @@ func (h *SysUserHandler) Create(c *gin.Context) {
 		return
 	}
 
-	securityUser := http2.GetCurrentUser(c)
+	securityUser := paltform_http.GetCurrentUser(c)
 	cmd.UserID = securityUser.ID
 
-	id, err := h.appService.CreateSysUser(http2.Ctx(c), cmd)
+	id, err := h.appService.CreateSysUser(paltform_http.Ctx(c), cmd)
 	if err != nil {
 		logger.Error("iam", "create securityUser failed",
 			zap.String("username", cmd.Username),
@@ -73,10 +73,10 @@ func (h *SysUserHandler) Update(c *gin.Context) {
 	}
 	cmd.ID = id
 
-	user := http2.GetCurrentUser(c)
+	user := paltform_http.GetCurrentUser(c)
 	cmd.UserID = user.ID
 
-	if err := h.appService.UpdateSysUser(http2.Ctx(c), cmd); err != nil {
+	if err := h.appService.UpdateSysUser(paltform_http.Ctx(c), cmd); err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -93,9 +93,9 @@ func (h *SysUserHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	user := http2.GetCurrentUser(c)
+	user := paltform_http.GetCurrentUser(c)
 
-	if err := h.appService.DeleteSysUser(http2.Ctx(c), id, user.ID); err != nil {
+	if err := h.appService.DeleteSysUser(paltform_http.Ctx(c), id, user.ID); err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -112,7 +112,7 @@ func (h *SysUserHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	user, err := h.appService.GetSysUserByID(http2.Ctx(c), id)
+	user, err := h.appService.GetSysUserByID(paltform_http.Ctx(c), id)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
@@ -136,7 +136,7 @@ func (h *SysUserHandler) GetPage(c *gin.Context) {
 		query.PageSize = 10
 	}
 
-	users, total, err := h.appService.GetSysUserPage(http2.Ctx(c), &query)
+	users, total, err := h.appService.GetSysUserPage(paltform_http.Ctx(c), &query)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
@@ -165,14 +165,14 @@ func (h *SysUserHandler) GetPublicPage(c *gin.Context) {
 		query.PageSize = 10
 	}
 
-	users, total, err := h.appService.GetSysUserPage(http2.Ctx(c), &query)
+	users, total, err := h.appService.GetSysUserPage(paltform_http.Ctx(c), &query)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	// 获取当前用户信息（可能为 nil）
-	securityUser := http2.GetCurrentUser(c)
+	securityUser := paltform_http.GetCurrentUser(c)
 
 	// 根据是否登录返回不同信息
 	if securityUser != nil {
@@ -263,7 +263,7 @@ func (h *SysUserHandler) ChangePassword(c *gin.Context) {
 
 	// ChangePasswordCommand 不需要 UserID，只需要 Id 和 Password
 
-	if err := h.appService.ChangePassword(http2.Ctx(c), cmd); err != nil {
+	if err := h.appService.ChangePassword(paltform_http.Ctx(c), cmd); err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -288,8 +288,8 @@ func (h *SysUserHandler) ChangeStatus(c *gin.Context) {
 		return
 	}
 
-	user := http2.GetCurrentUser(c)
-	if err := h.appService.ChangeUserStatus(http2.Ctx(c), id, domain.UserStatus(cmd.Status), user.ID); err != nil {
+	user := paltform_http.GetCurrentUser(c)
+	if err := h.appService.ChangeUserStatus(paltform_http.Ctx(c), id, domain.UserStatus(cmd.Status), user.ID); err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
