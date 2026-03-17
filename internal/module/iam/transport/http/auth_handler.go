@@ -3,27 +3,28 @@ package http
 import (
 	"app/internal/module/iam/application"
 	"app/internal/module/iam/domain"
-	http2 "app/internal/platform/http"
+	platform_http "app/internal/platform/http"
 	"app/internal/platform/http/response"
 	"app/internal/shared/logger"
 	"app/internal/shared/token"
-	"go.uber.org/zap"
 	"net/http"
+
+	"go.uber.org/zap"
 
 	"github.com/gin-gonic/gin"
 )
 
 // AuthHandler 认证处理器
 type AuthHandler struct {
-	appService *application.SysUserAppService
-	jwtManager token.Manager
+	appService   *application.SysUserAppService
+	tokenManager token.Manager
 }
 
 // NewAuthHandler 创建认证处理器
-func NewAuthHandler(appService *application.SysUserAppService, jwtManager token.Manager) *AuthHandler {
+func NewAuthHandler(appService *application.SysUserAppService, tokenManager token.Manager) *AuthHandler {
 	return &AuthHandler{
-		appService: appService,
-		jwtManager: jwtManager,
+		appService:   appService,
+		tokenManager: tokenManager,
 	}
 }
 
@@ -38,7 +39,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	id, err := h.appService.Register(http2.Ctx(c), cmd)
+	id, err := h.appService.Register(platform_http.Ctx(c), cmd)
 	if err != nil {
 		logger.Error("iam", "register failed",
 			zap.String("username", cmd.Username),
@@ -73,7 +74,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.appService.Login(http2.Ctx(c), cmd, h.jwtManager)
+	resp, err := h.appService.Login(platform_http.Ctx(c), cmd, h.tokenManager)
 	if err != nil {
 		logger.Warn("iam", "login failed",
 			zap.String("username", cmd.Username),

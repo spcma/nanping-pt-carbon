@@ -7,15 +7,15 @@ import (
 	"gorm.io/gorm"
 )
 
-// RegisterRoutes 注册 IAM 模块的所有路由
-func RegisterRoutes(db *gorm.DB, jwtManager token.Manager) []shared_http.RouteGroupConfig {
+// RegisterIAMRoutes 注册 IAM 模块的所有路由
+func RegisterIAMRoutes(db *gorm.DB, tokenManager token.Manager) []shared_http.RouteGroupConfig {
 	sysUserWire := InitSysUserWire(db)
 	sysRoleWire := InitSysRoleWire(db)
 
 	handlers := &Handlers{
 		SysUserHandler: NewSysUserHandler(sysUserWire.Service),
 		SysRoleHandler: NewSysRoleHandler(sysRoleWire.Service),
-		AuthHandler:    NewAuthHandler(sysUserWire.Service, jwtManager),
+		AuthHandler:    NewAuthHandler(sysUserWire.Service, tokenManager),
 	}
 
 	return handlers.RegisterRoutes()

@@ -11,8 +11,9 @@ import (
 	shared_http "app/internal/shared/http"
 	"app/internal/shared/logger"
 	"app/internal/shared/token"
-	"gorm.io/gorm"
 	"time"
+
+	"gorm.io/gorm"
 
 	"github.com/gin-gonic/gin"
 )
@@ -21,6 +22,7 @@ import (
 func InitRouter(db *gorm.DB, redisClient *cache.RedisClient) *gin.Engine {
 	// 1. 创建基础路由引擎, 并配置中间件
 	router := gin.Default()
+
 	// 使用全局中间件
 	router.Use(CORSMiddleware(), LogMiddleware(), Recovery())
 
@@ -30,6 +32,7 @@ func InitRouter(db *gorm.DB, redisClient *cache.RedisClient) *gin.Engine {
 	if config.GlobalConfig.Token.Expire <= 0 {
 		config.GlobalConfig.Token.Expire = 7 * 24 * 60 * 60 // 默认7天
 	}
+
 	tokenManager, err := token.NewManager(token.ConfigEx{
 		Type:        token.TokenTypeSnowflake,
 		RedisClient: redisClient.GetClient(),
@@ -49,23 +52,23 @@ func InitRouter(db *gorm.DB, redisClient *cache.RedisClient) *gin.Engine {
 }
 
 // registerAllRoutes 注册所有路由
-func registerAllRoutes(router *gin.Engine, db *gorm.DB, jwtManager token.Manager) {
+func registerAllRoutes(router *gin.Engine, db *gorm.DB, tokenManager token.Manager) {
 	// API 根路由组
 	apiGroup := router.Group("/api")
 
 	// 获取所有模块的路由配置
-	allConfigs := getAllRouteConfigs(db, jwtManager)
+	allConfigs := getAllRouteConfigs(db, tokenManager)
 
 	// 按认证类型分组并应用中间件
-	registerRoutesWithAuth(apiGroup, allConfigs, jwtManager)
+	registerRoutesWithAuth(apiGroup, allConfigs, tokenManager)
 }
 
 // getAllRouteConfigs 获取所有模块的路由配置
-func getAllRouteConfigs(db *gorm.DB, jwtManager token.Manager) []shared_http.RouteGroupConfig {
+func getAllRouteConfigs(db *gorm.DB, tokenManager token.Manager) []shared_http.RouteGroupConfig {
 	var allConfigs []shared_http.RouteGroupConfig
 
 	// 收集各模块的路由配置
-	allConfigs = append(allConfigs, iam_http.RegisterRoutes(db, jwtManager)...)
+	allConfigs = append(allConfigs, iam_http.RegisterIAMRoutes(db, tokenManager)...)
 	allConfigs = append(allConfigs, project_http.RegisterRoutes(db)...)
 	allConfigs = append(allConfigs, methodology_http.RegisterRoutes(db)...)
 	allConfigs = append(allConfigs, carbonreportday_http.RegisterRoutes(db)...)
@@ -78,42 +81,59 @@ func getAllRouteConfigs(db *gorm.DB, jwtManager token.Manager) []shared_http.Rou
 }
 
 // registerRoutesWithAuth 根据认证类型注册路由并应用中间件
-func registerRoutesWithAuth(apiGroup *gin.RouterGroup, routeConfigs []shared_http.RouteGroupConfig, jwtManager token.Manager) {
+func registerRoutesWithAuth(apiGroup *gin.RouterGroup, routeConfigs []shared_http.RouteGroupConfig, tokenManager token.Manager) {
 	// 先验证路由配置
 	if err := shared_http.ValidateRouteConfigs(routeConfigs); err != nil {
 		logger.Error("http", "Invalid route config: "+err.Error())
 		panic(err)
 	}
 
-	// 按认证类型和 prefix 分组
-	groupedRoutes := make(map[shared_http.AuthType]map[string][]shared_http.RouteHandler)
+	// 按认证类型分组（不再按 prefix 二次分组）
+	noneRoutes := make([]shared_http.RouteHandler, 0)
+	optionalRoutes := make([]shared_http.RouteHandler, 0)
+	requiredRoutes := make([]shared_http.RouteHandler, 0)
 
+	// 遍历所有路由配置，将 prefix 拼接到 path 中，并按认证类型分组
 	for _, routeConfig := range routeConfigs {
-		if groupedRoutes[routeConfig.AuthType] == nil {
-			groupedRoutes[routeConfig.AuthType] = make(map[string][]shared_http.RouteHandler)
+		for _, handler := range routeConfig.Handlers {
+			// 拼接完整路径
+			fullPath := routeConfig.Prefix + handler.Path
+			fullHandler := shared_http.RouteHandler{
+				Method:  handler.Method,
+				Path:    fullPath,
+				Handler: handler.Handler,
+			}
+
+			// 根据认证类型添加到对应组
+			switch routeConfig.AuthType {
+			case shared_http.AuthTypeNone:
+				noneRoutes = append(noneRoutes, fullHandler)
+			case shared_http.AuthTypeOptional:
+				optionalRoutes = append(optionalRoutes, fullHandler)
+			case shared_http.AuthTypeRequired:
+				requiredRoutes = append(requiredRoutes, fullHandler)
+			}
 		}
-		groupedRoutes[routeConfig.AuthType][routeConfig.Prefix] = append(
-			groupedRoutes[routeConfig.AuthType][routeConfig.Prefix],
-			routeConfig.Handlers...,
-		)
 	}
 
-	// 注册不同认证类型的路由
-	registerAuthTypeRoutes(apiGroup, groupedRoutes[shared_http.AuthTypeNone], nil)
-	registerAuthTypeRoutes(apiGroup, groupedRoutes[shared_http.AuthTypeOptional], OptionalAuthMiddleware(jwtManager))
-	registerAuthTypeRoutes(apiGroup, groupedRoutes[shared_http.AuthTypeRequired], AuthMiddleware(jwtManager))
+	// 注册不同认证类型的路由（直接平铺注册，不再按 prefix 分组）
+	registerFlatRoutes(apiGroup, noneRoutes, nil)                                      // 无认证
+	registerFlatRoutes(apiGroup, optionalRoutes, OptionalAuthMiddleware(tokenManager)) // 可选认证
+	registerFlatRoutes(apiGroup, requiredRoutes, AuthMiddleware(tokenManager))         // 必选认证
 }
 
-// registerAuthTypeRoutes 注册指定认证类型的路由
-func registerAuthTypeRoutes(apiGroup *gin.RouterGroup, routes map[string][]shared_http.RouteHandler, middleware gin.HandlerFunc) {
-	for prefix, handlers := range routes {
-		group := apiGroup.Group(prefix)
-		if middleware != nil {
-			group.Use(middleware)
-		}
-		for _, handler := range handlers {
-			group.Handle(handler.Method, handler.Path, handler.Handler)
-		}
+// registerFlatRoutes 注册平铺的路由（不再按 prefix 分组）
+func registerFlatRoutes(apiGroup *gin.RouterGroup, routes []shared_http.RouteHandler, middleware gin.HandlerFunc) {
+	// 如果中间件不为空，先在组级别应用
+	group := apiGroup
+	if middleware != nil {
+		group = apiGroup.Group("")
+		group.Use(middleware)
+	}
+
+	// 直接注册所有路由
+	for _, handler := range routes {
+		group.Handle(handler.Method, handler.Path, handler.Handler)
 	}
 }
 
@@ -126,6 +146,6 @@ func registerCarbonReportRoutes() []shared_http.RouteGroupConfig {
 		return nil // 如果初始化失败，返回空路由配置
 	}
 
-	// 调用 IPFS 的 RegisterRoutes
+	// 调用 IPFS 的 RegisterIAMRoutes
 	return ipfs_http.RegisterRoutes(client, session)
 }

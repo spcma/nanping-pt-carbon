@@ -3,16 +3,17 @@ package server
 import (
 	"app/internal/bootstrap"
 	"app/internal/config"
-	"app/internal/infrastructure/db"
 	"app/internal/shared/cache"
+	"app/internal/shared/db"
 	idgen "app/internal/shared/idgen"
 	"app/internal/shared/logger"
 	transport_http "app/internal/transport/http"
 	"fmt"
-	"github.com/spf13/cast"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/spf13/cast"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"

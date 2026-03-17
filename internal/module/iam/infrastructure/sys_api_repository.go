@@ -1,12 +1,13 @@
 package infrastructure
 
 import (
-	"app/internal/infrastructure/db"
 	"app/internal/module/iam/domain"
+	"app/internal/shared/db"
 	"app/internal/shared/entity"
 	"app/internal/shared/timeutil"
 	"context"
 	"errors"
+
 	"gorm.io/gorm"
 )
 

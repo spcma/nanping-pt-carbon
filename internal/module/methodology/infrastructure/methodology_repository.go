@@ -1,8 +1,8 @@
 package infrastructure
 
 import (
-	"app/internal/infrastructure/db"
 	"app/internal/module/methodology/domain"
+	"app/internal/shared/db"
 	"app/internal/shared/entity"
 	"app/internal/shared/timeutil"
 	"context"

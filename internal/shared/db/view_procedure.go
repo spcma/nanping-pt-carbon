@@ -3,6 +3,7 @@ package db
 import (
 	"app/internal/shared/entity"
 	"database/sql"
+
 	"gorm.io/gorm"
 )
 

@@ -1,8 +1,8 @@
 package infrastructure
 
 import (
-	"app/internal/infrastructure/db"
 	"app/internal/module/project/domain"
+	"app/internal/shared/db"
 	"app/internal/shared/entity"
 	"app/internal/shared/timeutil"
 	"context"
@@ -83,7 +83,7 @@ func (r *ProjectRepository) FindList(ctx context.Context) ([]*domain.Project, er
 func (r *ProjectRepository) FindPage(ctx context.Context, query *domain.ProjectPageQuery) ([]*domain.Project, int64, error) {
 	// 使用通用分页助手
 	helper := db.NewPaginationHelper[*domain.Project](r.GetDB(ctx))
-	result, err := helper.PageQuery(int(query.PageNum), int(query.PageSize), func(dq *gorm.DB) *gorm.DB {
+	result, err := helper.PageQuery(query.PageNum, query.PageSize, func(dq *gorm.DB) *gorm.DB {
 		// 构建基础查询 - 使用 delete_by 条件
 		dq = dq.WithContext(ctx).
 			Table("project").
