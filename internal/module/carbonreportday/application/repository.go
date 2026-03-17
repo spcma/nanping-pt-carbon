@@ -15,5 +15,5 @@ type CarbonReportDayRepo interface {
 	Delete(ctx context.Context, id, uid int64) error
 	FindByID(ctx context.Context, id int64) (*domain.CarbonReportDay, error)
 	FindList(ctx context.Context) ([]*domain.CarbonReportDay, error)
-	FindPage(ctx context.Context, pageNum, pageSize int) (*entity.PaginationResult[*domain.CarbonReportDay], error)
+	FindPage(ctx context.Context, query *domain.CarbonReportDayPageQuery) (*entity.PaginationResult[*domain.CarbonReportDay], error)
 }

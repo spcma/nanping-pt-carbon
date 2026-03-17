@@ -64,7 +64,7 @@ func (u *CarbonReportDayRepository) FindList(ctx context.Context) ([]*domain.Car
 	return CarbonReportDays, err
 }
 
-func (u *CarbonReportDayRepository) FindPage(ctx context.Context, query domain.CarbonReportDayPageQuery) ([]*domain.CarbonReportDay, int64, error) {
+func (u *CarbonReportDayRepository) FindPage(ctx context.Context, query *domain.CarbonReportDayPageQuery) (*entity.PaginationResult[*domain.CarbonReportDay], error) {
 	// 使用通用分页助手
 	helper := db.NewPaginationHelper[*domain.CarbonReportDay](u.GetDB(ctx))
 	result, err := helper.PageQuery(int(query.PageNum), int(query.PageSize), func(dq *gorm.DB) *gorm.DB {
@@ -76,7 +76,7 @@ func (u *CarbonReportDayRepository) FindPage(ctx context.Context, query domain.C
 		return dq
 	})
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	return result.Data, result.Total, nil
+	return result, nil
 }

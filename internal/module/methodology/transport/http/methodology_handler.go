@@ -3,7 +3,7 @@ package http
 import (
 	"app/internal/module/methodology/application"
 	"app/internal/module/methodology/domain"
-	http2 "app/internal/platform/http"
+	platform_http "app/internal/platform/http"
 	"app/internal/platform/http/response"
 	"app/internal/shared/logger"
 	"net/http"
@@ -37,10 +37,10 @@ func (h *MethodologyHandler) Create(c *gin.Context) {
 		return
 	}
 
-	securityUser := http2.GetCurrentUser(c)
+	securityUser := platform_http.GetCurrentUser(c)
 	cmd.UserID = securityUser.ID
 
-	id, err := h.appService.CreateMethodology(http2.Ctx(c), cmd)
+	id, err := h.appService.CreateMethodology(platform_http.Ctx(c), cmd)
 	if err != nil {
 		logger.Error("methodology", "create methodology failed",
 			zap.String("name", cmd.Name),
@@ -73,10 +73,10 @@ func (h *MethodologyHandler) Update(c *gin.Context) {
 	}
 	cmd.ID = id
 
-	user := http2.GetCurrentUser(c)
+	user := platform_http.GetCurrentUser(c)
 	cmd.UserID = user.ID
 
-	if err := h.appService.UpdateMethodology(http2.Ctx(c), cmd); err != nil {
+	if err := h.appService.UpdateMethodology(platform_http.Ctx(c), cmd); err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -93,9 +93,9 @@ func (h *MethodologyHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	user := http2.GetCurrentUser(c)
+	user := platform_http.GetCurrentUser(c)
 
-	if err := h.appService.DeleteMethodology(http2.Ctx(c), id, user.ID); err != nil {
+	if err := h.appService.DeleteMethodology(platform_http.Ctx(c), id, user.ID); err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -112,7 +112,7 @@ func (h *MethodologyHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	methodology, err := h.appService.GetMethodologyByID(http2.Ctx(c), id)
+	methodology, err := h.appService.GetMethodologyByID(platform_http.Ctx(c), id)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
@@ -125,7 +125,7 @@ func (h *MethodologyHandler) GetByID(c *gin.Context) {
 func (h *MethodologyHandler) GetByCode(c *gin.Context) {
 	code := c.Param("code")
 
-	methodology, err := h.appService.GetMethodologyByCode(http2.Ctx(c), code)
+	methodology, err := h.appService.GetMethodologyByCode(platform_http.Ctx(c), code)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
@@ -149,7 +149,7 @@ func (h *MethodologyHandler) GetPage(c *gin.Context) {
 		query.PageSize = 10
 	}
 
-	methodologies, total, err := h.appService.GetMethodologyPage(http2.Ctx(c), query)
+	methodologies, total, err := h.appService.GetMethodologyPage(platform_http.Ctx(c), query)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
@@ -178,14 +178,14 @@ func (h *MethodologyHandler) ChangeStatus(c *gin.Context) {
 		return
 	}
 
-	user := http2.GetCurrentUser(c)
+	user := platform_http.GetCurrentUser(c)
 	changeCmd := application.ChangeMethodologyStatusCommand{
 		ID:     id,
 		Status: domain.MethodologyStatus(cmd.Status),
 		UserID: user.ID,
 	}
 
-	if err := h.appService.ChangeMethodologyStatus(http2.Ctx(c), changeCmd); err != nil {
+	if err := h.appService.ChangeMethodologyStatus(platform_http.Ctx(c), changeCmd); err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}

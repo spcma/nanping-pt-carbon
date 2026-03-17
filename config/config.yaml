@@ -2,6 +2,9 @@ server:
   port: 19870
   mode: debug # debug, release, test
 
+ipfs:
+  status: false # 是否开启ipfs服务, 运行环境中没有ipfs会导致初始化失败
+
 logger:
   level: debug
   path: "./logs"

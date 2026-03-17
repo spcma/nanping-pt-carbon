@@ -543,3 +543,12 @@ func (h *NpFsHTTPHandler) CalcOnceHandler(c *gin.Context) {
 	}
 
 }
+
+// IsDirNotExist 判断错误是否表示目录不存在
+func IsDirNotExist(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), "no link named") ||
+		strings.Contains(err.Error(), "no linked named")
+}

@@ -5,6 +5,7 @@ import (
 	"app/internal/platform/http/response"
 	"app/internal/shared/logger"
 	"fmt"
+	"gorm.io/gorm"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -17,13 +18,15 @@ import (
 
 // Service IPFS 服务
 type Service struct {
+	db      *gorm.DB
 	client  *rpc.LApiStub
 	session string
 }
 
 // NewService 创建 IPFS 服务
-func NewService(client *rpc.LApiStub, session string) *Service {
+func NewService(db *gorm.DB, client *rpc.LApiStub, session string) *Service {
 	return &Service{
+		db:      db,
 		client:  client,
 		session: session,
 	}

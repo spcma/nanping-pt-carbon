@@ -3,7 +3,7 @@ package http
 import (
 	"app/internal/module/carbonreportday/application"
 	"app/internal/module/carbonreportday/domain"
-	http2 "app/internal/platform/http"
+	platform_http "app/internal/platform/http"
 	"app/internal/platform/http/response"
 	"app/internal/shared/logger"
 	"net/http"
@@ -37,10 +37,10 @@ func (h *CarbonReportDayHandler) Create(c *gin.Context) {
 		return
 	}
 
-	securityUser := http2.GetCurrentUser(c)
+	securityUser := platform_http.GetCurrentUser(c)
 	cmd.UserID = securityUser.ID
 
-	id, err := h.appService.CreateCarbonReportDay(http2.Ctx(c), cmd)
+	id, err := h.appService.CreateCarbonReportDay(platform_http.Ctx(c), cmd)
 	if err != nil {
 		logger.Error("carbon_report_day", "create carbon report day failed",
 			zap.Error(err),
@@ -71,10 +71,10 @@ func (h *CarbonReportDayHandler) Update(c *gin.Context) {
 	}
 	cmd.ID = id
 
-	user := http2.GetCurrentUser(c)
+	user := platform_http.GetCurrentUser(c)
 	cmd.UserID = user.ID
 
-	if err := h.appService.UpdateCarbonReportDay(http2.Ctx(c), cmd); err != nil {
+	if err := h.appService.UpdateCarbonReportDay(platform_http.Ctx(c), cmd); err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -91,9 +91,9 @@ func (h *CarbonReportDayHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	user := http2.GetCurrentUser(c)
+	user := platform_http.GetCurrentUser(c)
 
-	if err := h.appService.DeleteCarbonReportDay(http2.Ctx(c), id, user.ID); err != nil {
+	if err := h.appService.DeleteCarbonReportDay(platform_http.Ctx(c), id, user.ID); err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -110,7 +110,7 @@ func (h *CarbonReportDayHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	report, err := h.appService.GetCarbonReportDayByID(http2.Ctx(c), id)
+	report, err := h.appService.GetCarbonReportDayByID(platform_http.Ctx(c), id)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
@@ -134,7 +134,7 @@ func (h *CarbonReportDayHandler) GetPage(c *gin.Context) {
 		query.PageSize = 10
 	}
 
-	reports, total, err := h.appService.GetCarbonReportDayPage(http2.Ctx(c), query)
+	reports, total, err := h.appService.GetCarbonReportDayPage(platform_http.Ctx(c), query)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return

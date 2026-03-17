@@ -8,17 +8,18 @@ import (
 	"gorm.io/gorm"
 )
 
-type CarbonReportDayDDD struct {
-	Repo       domain.CarbonReportDayRepository
-	AppService *application.CarbonReportDayAppService
+type CarbonReportDayWire struct {
+	Repo    domain.CarbonReportDayRepository
+	Service *application.CarbonReportDayAppService
 }
 
-// InitCarbonReportDayDDD initializes carbon report day DDD components
-func InitCarbonReportDayDDD(db *gorm.DB) *CarbonReportDayDDD {
+// InitCarbonReportDayWire initializes carbon report day DDD components
+func InitCarbonReportDayWire(db *gorm.DB) *CarbonReportDayWire {
 	repo := infrastructure.NewCarbonReportDayRepository(db)
-	appService := application.NewCarbonReportDayAppService(repo)
-	return &CarbonReportDayDDD{
-		Repo:       repo,
-		AppService: appService,
+	service := application.NewCarbonReportDayAppService(repo)
+
+	return &CarbonReportDayWire{
+		Repo:    repo,
+		Service: service,
 	}
 }

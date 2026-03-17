@@ -17,11 +17,16 @@ type Config struct {
 	Redis    RedisConfig      `mapstructure:"redis"`
 	Token    TokenConfig      `mapstructure:"token"`
 	Idgen    IdgenConfig      `mapstructure:"idgen"`
+	Ipfs     IpfsConfig       `mapstructure:"ipfs"`
 }
 
 type ServerConfig struct {
 	Port string `mapstructure:"port"`
 	Mode string `mapstructure:"mode"` // debug, release, test
+}
+
+type IpfsConfig struct {
+	Status bool `mapstructure:"status"` //  是否开启ipfs服务, 运行环境中没有ipfs会导致初始化失败
 }
 
 type DatabaseConfig struct {
