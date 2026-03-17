@@ -1,0 +1,80 @@
+@host = localhost:19870
+@base_url = http://{{host}}/api
+@token = 2033791386607685632
+
+### 1. 检查目录
+# @name checkDir
+POST {{base_url}}/dir/check
+Content-Type: application/json
+Authorization: {{token}}
+
+{
+  "path": "/aibk/26/03"
+}
+
+### 2. 创建目录
+# @name createDir
+POST http://localhost:8080/api/v1/dir/create
+Content-Type: application/json
+Authorization: Bearer your_token_here
+
+{
+  "path": "/test/new_folder"
+}
+
+### 3. 列出目录内容（GET 请求，参数通过 query string 传递）
+# @name listDir
+GET {{base_url}}/dir/list?path=/aibk/26/03/14/19BONNcTiriywcgCUSOv82Pj-i6/gps_20260314142635.txt
+Authorization: {{token}}
+
+### 3. 列出目录内容（GET 请求，参数通过 query string 传递）
+# @name listDir
+GET {{base_url}}/dir/handle?dir=/aibk&year=26&month=03&day=14&device_code=19BONNcTiriywcgCUSOv82Pj-i6/gps_20260314142635.txt
+Authorization: {{token}}
+
+### 4. 删除文件
+# @name deleteFile
+DELETE {{base_url}}/file/delete?path=/test/file.txt
+Authorization: {{token}}
+
+### 5. 读取文件内容
+# @name readFile
+GET {{base_url}}/file/read?path=/aibk/26/03/14/19BONNcTiriywcgCUSOv82Pj-i6/gps_20260314063002.txt
+Authorization: {{token}}
+
+### 6. 保存文件（JSON 格式内容）
+# @name saveFile
+POST {{base_url}}/file/save
+Content-Type: application/json
+Authorization: {{token}}
+
+{
+  "path": "/test/data.json",
+  "content": "{\"key\": \"value\", \"number\": 123}"
+}
+
+### 7. 上传文件（multipart/form-data）
+# @name uploadFile
+POST {{base_url}}/file/upload
+Content-Type: multipart/form-data; boundary=WebAppBoundary
+Authorization: {{token}}
+
+--WebAppBoundary
+Content-Disposition: form-data; name="file"; filename="example.txt"
+Content-Type: text/plain
+
+这是文件内容示例
+--WebAppBoundary
+Content-Disposition: form-data; name="dir"
+
+/test/uploads
+--WebAppBoundary
+Content-Disposition: form-data; name="filename"
+
+example.txt
+--WebAppBoundary--
+
+### 8. 下载文件
+# @name downloadFile
+GET {{base_url}}/file/download?path=/test/downloads/report.pdf
+Authorization: {{token}}

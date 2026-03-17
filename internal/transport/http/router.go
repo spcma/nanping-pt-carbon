@@ -39,14 +39,14 @@ func InitRouter(db *gorm.DB, redisClient *cache.RedisClient) *gin.Engine {
 		ExpireTime:  time.Duration(config.GlobalConfig.Token.Expire) * time.Second,
 	})
 	if err != nil {
-		logger.Error("http", "Failed to create token manager: "+err.Error())
+		logger.HttpLogger.Error("Failed to create token manager: " + err.Error())
 		panic(err)
 	}
 
 	// 3. 注册所有路由
 	registerAllRoutes(router, db, tokenManager)
 
-	logger.Info("http", "Router initialized")
+	logger.HttpLogger.Info("Router initialized")
 
 	return router
 }
@@ -143,7 +143,7 @@ func registerCarbonReportRoutes() []shared_http.RouteGroupConfig {
 	client, session, err := ipfs_http.CreateFsClient()
 	if err != nil {
 		logger.Error("http", "Failed to create IPFS client: "+err.Error())
-		return nil // 如果初始化失败，返回空路由配置
+		//return nil // 如果初始化失败，返回空路由配置
 	}
 
 	// 调用 IPFS 的 RegisterIAMRoutes

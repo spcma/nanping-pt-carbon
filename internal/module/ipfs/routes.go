@@ -12,12 +12,13 @@ func RegisterRoutes(client *rpc.LApiStub, session string) []shared_http.RouteGro
 
 	return []shared_http.RouteGroupConfig{
 		{
-			Prefix: "/api/v1",
+			Prefix: "",
 			Handlers: []shared_http.RouteHandler{
 				// 目录操作
 				{Method: "POST", Path: "/dir/check", Handler: service.CheckDir},
 				{Method: "POST", Path: "/dir/create", Handler: service.CreateDir},
 				{Method: "GET", Path: "/dir/list", Handler: service.ListDir},
+				{Method: "GET", Path: "/dir/handle", Handler: service.HandleWithDir},
 				{Method: "DELETE", Path: "/dir/delete", Handler: service.DeleteFile},
 				// 文件操作
 				{Method: "GET", Path: "/file/read", Handler: service.ReadFile},

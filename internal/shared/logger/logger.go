@@ -71,6 +71,9 @@ func Initialize(config *LogConfig) error {
 	var initErr error
 	once.Do(func() {
 		globalLogger, initErr = NewLoggerFactory(config)
+		if initErr == nil {
+			InitGlobalLoggers()
+		}
 	})
 	return initErr
 }

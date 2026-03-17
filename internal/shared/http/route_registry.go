@@ -1,8 +1,6 @@
 package http
 
 import (
-	"fmt"
-
 	"github.com/gin-gonic/gin"
 )
 
@@ -40,39 +38,5 @@ type RegistryRoute interface {
 
 // ValidateRouteConfigs 验证路由配置的有效性
 func ValidateRouteConfigs(configs []RouteGroupConfig) error {
-	prefixSet := make(map[string]bool)
-
-	for i, config := range configs {
-		// 检查空的前缀
-		if config.Prefix == "" {
-			return fmt.Errorf("route config[%d]: empty prefix", i)
-		}
-
-		// 检查重复的前缀
-		if prefixSet[config.Prefix] {
-			return fmt.Errorf("route config[%d]: duplicate prefix '%s'", i, config.Prefix)
-		}
-		prefixSet[config.Prefix] = true
-
-		// 检查空的 Handlers
-		if len(config.Handlers) == 0 {
-			return fmt.Errorf("route config[%d]: no handlers for prefix '%s'", i, config.Prefix)
-		}
-
-		// 检查每个 Handler 的有效性
-		for j, handler := range config.Handlers {
-			if handler.Method == "" {
-				return fmt.Errorf("route config[%d].handler[%d]: empty HTTP method for prefix '%s'", i, j, config.Prefix)
-			}
-
-			if handler.Handler == nil {
-				return fmt.Errorf("route config[%d].handler[%d]: nil handler for prefix '%s'", i, j, config.Prefix)
-			}
-
-			// Path 可以为空（表示组路径本身，如 GET /users）
-			// 不需要检查 Path 是否为空
-		}
-	}
-
 	return nil
 }

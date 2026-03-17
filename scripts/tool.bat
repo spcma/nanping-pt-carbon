@@ -4,7 +4,7 @@ rem 本地应用程序名
 set "local_file=npc"
 
 rem 上传到服务器的目录
-set "target_path=root@121.41.129.227:/home/app/nanping-carbon/tmp"
+set "target_path=root@192.168.1.10:/yanping/app/nanping/yanping-carbon/tmp"
 
 if /i "%~1"=="1" call :1
 if /i "%~1"=="build" call :build

@@ -1,25 +1,28 @@
 package ipfs
 
 import (
-	rpc2 "app/internal/module/ipfs/rpc"
+	"app/internal/module/ipfs/rpc"
+	"app/internal/platform/http/response"
 	"app/internal/shared/logger"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/spf13/cast"
 	"go.uber.org/zap"
 )
 
 // Service IPFS 服务
 type Service struct {
-	client  *rpc2.LApiStub
+	client  *rpc.LApiStub
 	session string
 }
 
 // NewService 创建 IPFS 服务
-func NewService(client *rpc2.LApiStub, session string) *Service {
+func NewService(client *rpc.LApiStub, session string) *Service {
 	return &Service{
 		client:  client,
 		session: session,
@@ -34,54 +37,15 @@ type FileResponse struct {
 	Content string `json:"content,omitempty"`
 }
 
-// DirResponse 目录项
-type DirResponse struct {
-	Path string `json:"path"`
-	Name string `json:"name"`
-	Type string `json:"type"` // file or dir
-	Size int64  `json:"size"`
-}
-
-// CheckDirRequest 检查目录请求
-type CheckDirRequest struct {
-	Path string `json:"path" form:"path"`
-}
-
-// CreateDirRequest 创建目录请求
-type CreateDirRequest struct {
-	Path string `json:"path" form:"path"`
-}
-
-// ListDirRequest 列出目录请求
-type ListDirRequest struct {
-	Path string `form:"path"`
-}
-
-// DeleteFileRequest 删除文件请求
-type DeleteFileRequest struct {
-	Path string `form:"path"`
-}
-
-// ReadFileRequest 读取文件请求
-type ReadFileRequest struct {
-	Path string `form:"path"`
-}
-
-// SaveFileRequest 保存文件请求
-type SaveFileRequest struct {
-	Path    string `json:"path"`
-	Content string `json:"content"`
-}
-
 // UploadFileCommand 上传文件命令
 type UploadFileCommand struct {
 	Dir      string
 	Filename string
 }
 
-// DownloadFileRequest 下载文件请求
-type DownloadFileRequest struct {
-	Path string `form:"path"`
+// CheckDirRequest 检查目录请求
+type CheckDirRequest struct {
+	Path string `json:"path" form:"path"`
 }
 
 // CheckDir 检查目录
@@ -92,15 +56,17 @@ func (s *Service) CheckDir(c *gin.Context) {
 		return
 	}
 
-	// TODO: 实现 IPFS 目录检查逻辑
-	logger.Info("ipfs", "check dir",
-		zap.String("path", req.Path),
-	)
+	logger.IpfsLogger.Info("check dir", zap.String("path", req.Path))
 
 	c.JSON(http.StatusOK, gin.H{
 		"exists": true,
 		"path":   req.Path,
 	})
+}
+
+// CreateDirRequest 创建目录请求
+type CreateDirRequest struct {
+	Path string `json:"path" form:"path"`
 }
 
 // CreateDir 创建目录
@@ -111,10 +77,7 @@ func (s *Service) CreateDir(c *gin.Context) {
 		return
 	}
 
-	// TODO: 实现 IPFS 创建目录逻辑
-	logger.Info("ipfs", "create dir",
-		zap.String("path", req.Path),
-	)
+	logger.IpfsLogger.Info("create dir", zap.String("path", req.Path))
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -122,22 +85,166 @@ func (s *Service) CreateDir(c *gin.Context) {
 	})
 }
 
+// ListDirRequest 列出目录请求
+type ListDirRequest struct {
+	Path string `form:"path"`
+}
+
+// DirResponse 目录项
+type DirResponse struct {
+	Name      string
+	Hash      string
+	Size      uint64
+	Type      int    // 1 dir 0 file
+	FileType  string // .jpg .txt
+	Timestamp int64  // 时间戳
+	Seq       int    // 序号
+}
+
 // ListDir 列出目录
 func (s *Service) ListDir(c *gin.Context) {
 	var req ListDirRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	// TODO: 实现 IPFS 列出目录逻辑
-	logger.Info("ipfs", "list dir",
-		zap.String("path", req.Path),
+	logger.IpfsLogger.Info("list dir", zap.String("path", req.Path))
+
+	lsLinks, err := s.client.FilesLs(s.session, req.Path)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	var list []DirResponse
+	for _, link := range lsLinks {
+
+		dir := DirResponse{
+			Name: link.Name,
+			Hash: link.Hash,
+			Size: link.Size,
+			Type: link.Type,
+		}
+
+		ext := filepath.Ext(link.Name)
+
+		newStr := strings.ReplaceAll(link.Name, "image_", "")
+		newStr = strings.ReplaceAll(link.Name, "gps_", "")
+		newStr = strings.ReplaceAll(newStr, ext, "")
+
+		if ext == ".jpg" {
+			split := strings.Split(newStr, "_")
+			if len(split) >= 2 {
+				dir.Timestamp = cast.ToInt64(split[0])
+				dir.Seq = cast.ToInt(split[1])
+			} else {
+				logger.IpfsLogger.Error("parse time error", zap.String("file", link.Name))
+			}
+		} else {
+			dir.Timestamp = cast.ToInt64(newStr)
+		}
+
+		list = append(list, dir)
+	}
+
+	response.Success(c, list)
+}
+
+func (s *Service) HandleWithDir(c *gin.Context) {
+	type Param struct {
+		Dir        string `json:"dir" form:"dir"` // 目录
+		Year       string `json:"year" form:"year"`
+		Month      string `json:"month" form:"month"`
+		Day        string `json:"day" form:"day"`
+		DeviceCode string `json:"device_code" form:"device_code"`
+	}
+
+	var req Param
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	//	开始扫描目录
+	fullDir := fmt.Sprintf("%s/%s/%s/%s/%s", req.Dir, req.Year, req.Month, req.Day, req.DeviceCode)
+
+	logger.IpfsLogger.Info("handle with dir", zap.String("dir", req.Dir),
+		zap.String("year", req.Year),
+		zap.String("month", req.Month),
+		zap.String("day", req.Day),
+		zap.String("device_code", req.DeviceCode),
+		zap.String("full_dir", fullDir),
 	)
 
-	c.JSON(http.StatusOK, gin.H{
-		"list": []DirResponse{},
-	})
+	lsLinks, err := s.client.FilesLs(s.session, fullDir)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	var list []DirResponse
+	for _, link := range lsLinks {
+
+		if link.Type == 1 {
+			logger.IpfsLogger.Info("skip dir", zap.String("dir", link.Name))
+			continue
+		}
+
+		fullPath := fmt.Sprintf("%s/%s", fullDir, link.Name)
+
+		localPath := "./tmp/" + link.Name
+		err := s.SaveFileToLocal(fullPath, localPath)
+		if err != nil {
+			response.Error(c, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		rec, err := parseFile(localPath)
+		if err != nil {
+			response.Error(c, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		logger.IpfsLogger.Info("parse file", zap.String("file", link.Name),
+			zap.Int("count", len(rec)),
+		)
+		for _, record := range rec {
+			logger.IpfsLogger.Info("parse file", zap.String("file", link.Name),
+				zap.Time("timestamp", record.Timestamp),
+				zap.Float64("lat", record.Lat),
+				zap.Float64("lon", record.Lon),
+				zap.Float64("value", record.Value),
+			)
+		}
+
+		dir := DirResponse{
+			Name: link.Name,
+			Hash: link.Hash,
+			Size: link.Size,
+			Type: link.Type,
+		}
+
+		ext := filepath.Ext(link.Name)
+
+		newStr := strings.ReplaceAll(link.Name, "image_", "")
+		newStr = strings.ReplaceAll(link.Name, "gps_", "")
+		newStr = strings.ReplaceAll(newStr, ext, "")
+
+		if ext == ".jpg" {
+			split := strings.Split(newStr, "_")
+			if len(split) >= 2 {
+				dir.Timestamp = cast.ToInt64(split[0])
+				dir.Seq = cast.ToInt(split[1])
+			} else {
+				logger.IpfsLogger.Error("parse time error", zap.String("file", link.Name))
+			}
+		} else {
+			dir.Timestamp = cast.ToInt64(newStr)
+		}
+
+		list = append(list, dir)
+	}
 }
 
 // DeleteFile 删除文件
@@ -148,10 +255,7 @@ func (s *Service) DeleteFile(c *gin.Context) {
 		return
 	}
 
-	// TODO: 实现 IPFS 删除文件逻辑
-	logger.Info("ipfs", "delete file",
-		zap.String("path", req.Path),
-	)
+	logger.IpfsLogger.Info("delete file", zap.String("path", req.Path))
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
@@ -166,15 +270,102 @@ func (s *Service) ReadFile(c *gin.Context) {
 		return
 	}
 
-	// TODO: 实现 IPFS 读取文件逻辑
-	logger.Info("ipfs", "read file",
-		zap.String("path", req.Path),
-	)
+	logger.IpfsLogger.Info("read file", zap.String("path", req.Path))
+
+	ext := filepath.Ext(req.Path)
+
+	err := s.SaveFileToLocal(req.Path, "./tmp"+ext)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	rec, err := parseFile("./tmp" + ext)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	for _, record := range rec {
+		logger.IpfsLogger.Info("read file", zap.Any("record", record))
+	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"content": "",
+		"content": rec,
 		"path":    req.Path,
 	})
+}
+
+// ==================== 文件读取相关 ====================
+
+// ReadFileFromNpfs 从 NPFS 读取文件数据
+// filePath: NPFS 文件路径（如：/np_storage/1.jpg）
+// data: 文件数据，size: 文件大小，err: 错误信息
+func (s *Service) ReadFileFromNpfs(filePath string) ([]byte, int64, error) {
+	// 打开文件 URL
+	fsid, err := s.client.MMOpenUrl(s.session, filePath)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer s.client.MMClose(fsid)
+
+	// 获取文件大小
+	size, err := s.client.MFGetSize(fsid)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// 读取文件数据
+	data, err := s.client.MFGetData(fsid, 0, int(size))
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return data, size, nil
+}
+
+// SaveFileToLocal 将 NPFS 文件保存到本地
+// filePath: NPFS 文件路径
+// localPath: 本地保存路径
+func (s *Service) SaveFileToLocal(filePath, localPath string) error {
+	data, _, err := s.ReadFileFromNpfs(filePath)
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(localPath, data, os.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// ReadFile 读取文件
+func (s *Service) readFile(filePath string) ([]byte, int64, error) {
+	fsid, err := s.client.MMOpenUrl(s.session, filePath)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer s.client.MMClose(fsid)
+
+	size, err := s.client.MFGetSize(fsid)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	data, err := s.client.MFGetData(fsid, 0, int(size))
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return data, size, nil
+}
+
+// SaveFileRequest 保存文件请求
+type SaveFileRequest struct {
+	Path    string `json:"path"`
+	Content string `json:"content"`
 }
 
 // SaveFile 保存文件
@@ -185,15 +376,22 @@ func (s *Service) SaveFile(c *gin.Context) {
 		return
 	}
 
-	// TODO: 实现 IPFS 保存文件逻辑
-	logger.Info("ipfs", "save file",
-		zap.String("path", req.Path),
-	)
+	logger.IpfsLogger.Info("save file", zap.String("path", req.Path))
 
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"path":    req.Path,
 	})
+}
+
+// DeleteFileRequest 删除文件请求
+type DeleteFileRequest struct {
+	Path string `form:"path"`
+}
+
+// ReadFileRequest 读取文件请求
+type ReadFileRequest struct {
+	Path string `form:"path"`
 }
 
 // UploadFile 上传文件
@@ -230,12 +428,7 @@ func (s *Service) UploadFile(c *gin.Context) {
 		return
 	}
 
-	// TODO: 实现 IPFS 上传文件逻辑
-	logger.Info("ipfs", "upload file",
-		zap.String("dir", dir),
-		zap.String("filename", filename),
-		zap.Int("size", len(fileData)),
-	)
+	logger.IpfsLogger.Info("upload file", zap.String("dir", dir), zap.String("filename", filename), zap.Int("size", len(fileData)))
 
 	fullPath := strings.TrimSuffix(dir, "/") + "/" + filename
 
@@ -246,6 +439,11 @@ func (s *Service) UploadFile(c *gin.Context) {
 	})
 }
 
+// DownloadFileRequest 下载文件请求
+type DownloadFileRequest struct {
+	Path string `form:"path"`
+}
+
 // DownloadFile 下载文件
 func (s *Service) DownloadFile(c *gin.Context) {
 	var req DownloadFileRequest
@@ -254,10 +452,7 @@ func (s *Service) DownloadFile(c *gin.Context) {
 		return
 	}
 
-	// TODO: 实现 IPFS 下载文件逻辑
-	logger.Info("ipfs", "download file",
-		zap.String("path", req.Path),
-	)
+	logger.IpfsLogger.Info("download file", zap.String("path", req.Path))
 
 	// 示例：返回空文件
 	filename := filepath.Base(req.Path)
@@ -267,13 +462,13 @@ func (s *Service) DownloadFile(c *gin.Context) {
 }
 
 // CreateFsClient 创建文件系统客户端
-func CreateFsClient() (*rpc2.LApiStub, string, error) {
-	strPPT, err := rpc2.GetLocalPassport(4080, 24)
+func CreateFsClient() (*rpc.LApiStub, string, error) {
+	strPPT, err := rpc.GetLocalPassport(4080, 24)
 	if err != nil {
 		return nil, "", err
 	}
 
-	client := rpc2.InitLApiStubByUrl("127.0.0.1:4080")
+	client := rpc.InitLApiStubByUrl("127.0.0.1:4080")
 
 	loginReply, err := client.LoginWithPPT(strPPT)
 	if err != nil {

@@ -121,16 +121,9 @@ func (u *SysUser) Delete(userID int64) error {
 	return nil
 }
 
-// StringPtr creates a string pointer from string value
-// This is a helper function for UpdateUserCommand
-func StringPtr(s string) *string {
-	return &s
-}
-
 // SysUserPageQuery system user page query object
 type SysUserPageQuery struct {
-	PageNum   int64  `json:"pageNum" binding:"required,min=1"`
-	PageSize  int64  `json:"pageSize" binding:"required,min=1,max=100"`
+	entity.Pagination
 	Username  string `json:"username"`
 	Nickname  string `json:"nickname"`
 	Phone     string `json:"phone"`
@@ -138,5 +131,5 @@ type SysUserPageQuery struct {
 	Status    string `json:"status"`
 	UserType  string `json:"userType"`
 	SortBy    string `json:"sortBy"`
-	SortOrder string `json:"sortOrder" binding:"oneof=asc desc"` // "asc" or "desc"
+	SortOrder string `json:"sortOrder"` // "asc" or "desc"
 }

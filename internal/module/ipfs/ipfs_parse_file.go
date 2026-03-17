@@ -1,4 +1,4 @@
-package service
+package ipfs
 
 import (
 	"bufio"
@@ -83,22 +83,4 @@ func parseFile(filename string) ([]Record, error) {
 		return nil, fmt.Errorf("读取文件出错: %v", err)
 	}
 	return records, nil
-}
-
-func main() {
-	records, err := parseFile("data.txt")
-	if err != nil {
-		fmt.Println("处理失败:", err)
-		return
-	}
-
-	fmt.Printf("成功解析 %d 条记录\n", len(records))
-	for i, rec := range records {
-		if i >= 5 { // 打印前5条
-			break
-		}
-		fmt.Printf("%v | 纬度=%.6f 经度=%.6f 值=%.2f\n",
-			rec.Timestamp.Format("2006-01-02 15:04:05"),
-			rec.Lat, rec.Lon, rec.Value)
-	}
 }

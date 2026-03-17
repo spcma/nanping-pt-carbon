@@ -1,4 +1,4 @@
-package bootstrap
+package initializer
 
 import (
 	"app/internal/module/iam/domain"
@@ -25,14 +25,14 @@ func NewDataInitializer(db *gorm.DB) *DataInitializer {
 
 // Initialize 初始化所有基础数据
 func (i *DataInitializer) Initialize() error {
-	logger.Info("bootstrap", "starting data initialization...")
+	logger.Info("initialize", "starting data initialization...")
 
 	// 初始化超级管理员用户
 	if err := i.initSuperAdminUser(); err != nil {
 		return fmt.Errorf("failed to init super admin user: %w", err)
 	}
 
-	logger.Info("bootstrap", "data initialization completed successfully")
+	logger.Info("initialize", "data initialization completed successfully")
 	return nil
 }
 
@@ -44,10 +44,9 @@ func (i *DataInitializer) initSuperAdminUser() error {
 	// 检查用户是否已存在
 	existingUser, err := userRepo.FindByUsername(ctx, "admin")
 	if err == nil && existingUser != nil {
-		logger.Info("bootstrap", "admin user already exists",
+		logger.InitLogger.Info("admin user already exists",
 			zap.String("username", existingUser.Username),
-			zap.Int64("id", existingUser.Id),
-		)
+			zap.Int64("id", existingUser.Id))
 		return nil
 	}
 
@@ -62,7 +61,7 @@ func (i *DataInitializer) initSuperAdminUser() error {
 		return fmt.Errorf("failed to save super admin user: %w", err)
 	}
 
-	logger.Info("bootstrap", "super admin user created successfully",
+	logger.InitLogger.Info("super admin user created successfully",
 		zap.Int64("user_id", user.Id),
 		zap.String("username", user.Username),
 	)

@@ -251,16 +251,16 @@ func formatDuration(d time.Duration) string {
 
 // 全局便捷函数
 var (
-	// 默认分类的日志器
-	defaultLogger Factory
+	defaultLogger Factory // 默认分类的日志器
 
-	// 按分类的便捷函数
 	RuntimeLogger         Factory
 	ErrorLogger           Factory
 	DebugLogger           Factory
 	IAMLogger             Factory
 	TrafficResourceLogger Factory
 	HttpLogger            Factory
+	InitLogger            Factory
+	IpfsLogger            Factory
 )
 
 // InitGlobalLoggers 初始化全局日志器（应在应用启动时调用）
@@ -279,7 +279,9 @@ func initGlobalLoggersInternal() {
 	ErrorLogger = NewSugarLogger("error")
 	DebugLogger = NewSugarLogger("debug")
 	IAMLogger = NewSugarLogger("iam")
-	IAMLogger = NewSugarLogger("http")
+	HttpLogger = NewSugarLogger("http")
+	InitLogger = NewSugarLogger("initializer")
+	IpfsLogger = NewSugarLogger("ipfs")
 }
 
 // WithCategory 全局 WithCategory 函数

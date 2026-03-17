@@ -1,8 +1,8 @@
 package server
 
 import (
-	"app/internal/bootstrap"
 	"app/internal/config"
+	"app/internal/initializer"
 	"app/internal/shared/cache"
 	"app/internal/shared/db"
 	idgen "app/internal/shared/idgen"
@@ -72,8 +72,8 @@ func Initialize() (*Server, error) {
 
 // initData 初始化基础数据
 func initData(dbInstance *gorm.DB) error {
-	initializer := bootstrap.NewDataInitializer(dbInstance)
-	return initializer.Initialize()
+	inita := initializer.NewDataInitializer(dbInstance)
+	return inita.Initialize()
 }
 
 // initDatabase 初始化数据库连接
