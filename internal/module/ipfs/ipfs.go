@@ -193,7 +193,7 @@ func (s *Service) HandleWithDir(c *gin.Context) {
 
 		fullPath := fmt.Sprintf("%s/%s", fullDir, link.Name)
 
-		localPath := "./tmp/" + link.Name
+		localPath := "./tempfile/" + link.Name
 		err := s.SaveFileToLocal(fullPath, localPath)
 		if err != nil {
 			response.Error(c, http.StatusInternalServerError, err.Error())
@@ -209,6 +209,30 @@ func (s *Service) HandleWithDir(c *gin.Context) {
 		logger.IpfsLogger.Info("parse file", zap.String("file", link.Name),
 			zap.Int("count", len(rec)),
 		)
+
+		// 计算里程并保存到文件
+		calculator := NewDistanceCalculator()
+		totalDistance, err := calculator.CalculateTotalDistance(rec)
+		if err == nil && len(rec) > 0 {
+			summary := calculator.CalculateSummary(rec)
+			logger.IpfsLogger.Info("distance calculation",
+				zap.String("file", link.Name),
+				zap.Float64("total_distance_m", totalDistance),
+				zap.Float64("total_distance_km", summary.TotalDistanceKm),
+				zap.Int("point_count", summary.PointCount),
+				zap.Float64("avg_speed_kmh", summary.AverageSpeed),
+			)
+
+			// 将里程结果写入新文件
+			err = s.saveDistanceResult(link.Name, summary)
+			if err != nil {
+				logger.IpfsLogger.Warn("save distance result failed",
+					zap.String("file", link.Name),
+					zap.Error(err),
+				)
+			}
+		}
+
 		for _, record := range rec {
 			logger.IpfsLogger.Info("parse file", zap.String("file", link.Name),
 				zap.Time("timestamp", record.Timestamp),
@@ -286,13 +310,19 @@ func (s *Service) ReadFile(c *gin.Context) {
 		return
 	}
 
+	// 计算里程
+	calculator := NewDistanceCalculator()
+	_, _ = calculator.CalculateTotalDistance(rec)
+	summary := calculator.CalculateSummary(rec)
+
 	for _, record := range rec {
 		logger.IpfsLogger.Info("read file", zap.Any("record", record))
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"content": rec,
-		"path":    req.Path,
+		"content":          rec,
+		"path":             req.Path,
+		"distance_summary": summary,
 	})
 }
 
@@ -476,4 +506,39 @@ func CreateFsClient() (*rpc.LApiStub, string, error) {
 	}
 
 	return client, loginReply.Sid, nil
+}
+
+// saveDistanceResult 将里程计算结果保存到文件
+// fileName: 原文件名（如：gps_20260314142635.txt）
+// summary: 里程汇总信息
+func (s *Service) saveDistanceResult(fileName string, summary DistanceSummary) error {
+	// 生成结果文件路径，例如：./distance_result/gps_20260314142635_distance.txt
+	resultDir := "./distance_result"
+
+	// 确保目录存在
+	if err := os.MkdirAll(resultDir, os.ModePerm); err != nil {
+		return err
+	}
+
+	// 生成结果文件名
+	baseName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
+	resultFileName := baseName + "_distance.txt"
+	resultPath := filepath.Join(resultDir, resultFileName)
+
+	// 格式化输出内容
+	content := fmt.Sprintf("%.6f\n", summary.TotalDistanceKm)
+
+	// 写入文件
+	err := os.WriteFile(resultPath, []byte(content), 0644)
+	if err != nil {
+		return err
+	}
+
+	logger.IpfsLogger.Info("distance result saved",
+		zap.String("source_file", fileName),
+		zap.String("result_file", resultPath),
+		zap.Float64("distance_km", summary.TotalDistanceKm),
+	)
+
+	return nil
 }

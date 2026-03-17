@@ -29,7 +29,7 @@ Authorization: {{token}}
 
 ### 3. 列出目录内容（GET 请求，参数通过 query string 传递）
 # @name listDir
-GET {{base_url}}/dir/handle?dir=/aibk&year=26&month=03&day=14&device_code=19BONNcTiriywcgCUSOv82Pj-i6/gps_20260314142635.txt
+GET {{base_url}}/dir/handle?dir=/aibk&year=26&month=03&day=14&device_code=19BONNcTiriywcgCUSOv82Pj-i6
 Authorization: {{token}}
 
 ### 4. 删除文件
@@ -78,3 +78,18 @@ example.txt
 # @name downloadFile
 GET {{base_url}}/file/download?path=/test/downloads/report.pdf
 Authorization: {{token}}
+
+### ====================
+### 里程计算功能说明
+### 
+### 当解析 GPS 文件时，系统会自动：
+### 1. 计算文件中所有 GPS 点的总里程（公里）
+### 2. 将结果保存到 ./distance_result/ 目录
+### 3. 文件名格式：原文件名_distance.txt
+### 4. 每行一个数据：里程值（公里，保留 6 位小数）
+### 
+### 示例：
+### - 输入文件：gps_20260314142635.txt
+### - 输出文件：./distance_result/gps_20260314142635_distance.txt
+### - 文件内容：12.345678
+### ====================
