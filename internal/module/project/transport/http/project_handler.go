@@ -28,8 +28,8 @@ func NewProjectHandler(appService *application.ProjectAppService) *ProjectHandle
 
 // Create creates a project
 func (h *ProjectHandler) Create(c *gin.Context) {
-	var param application.CreateProjectParam
-	if err := c.ShouldBindJSON(&param); err != nil {
+	var cmd application.CreateProjectCommand
+	if err := c.ShouldBindJSON(&cmd); err != nil {
 		logger.Warn("project", "create project - invalid request",
 			zap.String("error", err.Error()),
 		)
@@ -38,12 +38,12 @@ func (h *ProjectHandler) Create(c *gin.Context) {
 	}
 
 	securityUser := platform_http.GetCurrentUser(c)
-	param.UserID = securityUser.ID
+	cmd.UserID = securityUser.ID
 
-	id, err := h.appService.CreateProject(platform_http.Ctx(c), param)
+	id, err := h.appService.Create(platform_http.Ctx(c), cmd)
 	if err != nil {
 		logger.Error("project", "create project failed",
-			zap.String("name", param.Name),
+			zap.String("name", cmd.Name),
 			zap.Error(err),
 		)
 		response.Error(c, http.StatusInternalServerError, err.Error())
@@ -52,7 +52,7 @@ func (h *ProjectHandler) Create(c *gin.Context) {
 
 	logger.Info("project", "project created successfully",
 		zap.Int64("project_id", id),
-		zap.String("name", param.Name),
+		zap.String("name", cmd.Name),
 	)
 	response.Success(c, gin.H{"id": id})
 }
@@ -76,7 +76,7 @@ func (h *ProjectHandler) Update(c *gin.Context) {
 	user := platform_http.GetCurrentUser(c)
 	cmd.UserID = user.ID
 
-	if err := h.appService.UpdateProject(platform_http.Ctx(c), cmd); err != nil {
+	if err := h.appService.Update(platform_http.Ctx(c), cmd); err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -95,7 +95,7 @@ func (h *ProjectHandler) Delete(c *gin.Context) {
 
 	user := platform_http.GetCurrentUser(c)
 
-	if err := h.appService.DeleteProject(platform_http.Ctx(c), id, user.ID); err != nil {
+	if err := h.appService.Delete(platform_http.Ctx(c), id, user.ID); err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -103,36 +103,47 @@ func (h *ProjectHandler) Delete(c *gin.Context) {
 	response.Success(c, nil)
 }
 
-type GetByIDRequest struct {
-	ID   int64  `json:"id" form:"id"`
-	Code string `json:"code" form:"code"`
+// GetByQueryRequest 查询项目请求
+type GetByQueryRequest struct {
+	ID     int64  `json:"id" form:"id"`
+	Code   string `json:"code" form:"code"`
+	Name   string `json:"name" form:"name"`
+	Status string `json:"status" form:"status"`
 }
 
-// GetByCond gets project by ID
-func (h *ProjectHandler) GetByCond(c *gin.Context) {
-
-	var cond GetByIDRequest
-	if err := c.ShouldBindQuery(&cond); err != nil {
+func (h *ProjectHandler) GetById(c *gin.Context) {
+	var query application.ProjectQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	var project *domain.Project
-	var err error
-	if cond.ID > 0 {
-		project, err = h.appService.GetProjectByID(platform_http.Ctx(c), cond.ID)
-		if err != nil {
-			response.Error(c, http.StatusInternalServerError, err.Error())
-			return
-		}
+	if query.ID == 0 {
+		response.Error(c, http.StatusBadRequest, "invalid id")
+		return
 	}
 
-	if cond.Code != "" {
-		project, err = h.appService.GetProjectByCode(platform_http.Ctx(c), cond.Code)
-		if err != nil {
-			response.Error(c, http.StatusInternalServerError, err.Error())
-			return
-		}
+	project, err := h.appService.GetByQuery(platform_http.Ctx(c), &query)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	response.Success(c, project)
+}
+
+// GetByQuery 根据条件查询项目
+func (h *ProjectHandler) GetByQuery(c *gin.Context) {
+	var query application.ProjectQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	project, err := h.appService.GetByQuery(platform_http.Ctx(c), &query)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, err.Error())
+		return
 	}
 
 	response.Success(c, project)
@@ -158,7 +169,7 @@ func (h *ProjectHandler) GetPage(c *gin.Context) {
 
 	query.Fixed()
 
-	projects, err := h.appService.GetProjectPage(platform_http.Ctx(c), &query)
+	projects, err := h.appService.GetPage(platform_http.Ctx(c), &query)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
@@ -191,7 +202,7 @@ func (h *ProjectHandler) ChangeStatus(c *gin.Context) {
 		UserID: user.ID,
 	}
 
-	if err := h.appService.ChangeProjectStatus(platform_http.Ctx(c), changeCmd); err != nil {
+	if err := h.appService.ChangeStatus(platform_http.Ctx(c), changeCmd); err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}

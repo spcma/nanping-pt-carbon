@@ -28,8 +28,8 @@ func NewMethodologyHandler(appService *application.MethodologyAppService) *Metho
 
 // Create creates a methodology
 func (h *MethodologyHandler) Create(c *gin.Context) {
-	var param application.CreateMethodologyParam
-	if err := c.ShouldBindJSON(&param); err != nil {
+	var cmd application.CreateMethodologyCommand
+	if err := c.ShouldBindJSON(&cmd); err != nil {
 		logger.Warn("methodology", "create methodology - invalid request",
 			zap.String("error", err.Error()),
 		)
@@ -38,12 +38,12 @@ func (h *MethodologyHandler) Create(c *gin.Context) {
 	}
 
 	securityUser := platform_http.GetCurrentUser(c)
-	param.UserID = securityUser.ID
+	cmd.UserID = securityUser.ID
 
-	id, err := h.appService.CreateMethodology(platform_http.Ctx(c), param)
+	id, err := h.appService.Create(platform_http.Ctx(c), cmd)
 	if err != nil {
 		logger.Error("methodology", "create methodology failed",
-			zap.String("name", param.Name),
+			zap.String("name", cmd.Name),
 			zap.Error(err),
 		)
 		response.Error(c, http.StatusInternalServerError, err.Error())
@@ -52,21 +52,21 @@ func (h *MethodologyHandler) Create(c *gin.Context) {
 
 	logger.Info("methodology", "methodology created successfully",
 		zap.Int64("methodology_id", id),
-		zap.String("name", param.Name),
+		zap.String("name", cmd.Name),
 	)
 	response.Success(c, gin.H{"id": id})
 }
 
 // Update updates a methodology
 func (h *MethodologyHandler) Update(c *gin.Context) {
-	idStr := c.Param("id")
+	idStr := c.Query("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		response.Error(c, http.StatusBadRequest, "invalid id")
 		return
 	}
 
-	var cmd application.UpdateMethodologyParam
+	var cmd application.UpdateMethodologyCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
@@ -76,7 +76,7 @@ func (h *MethodologyHandler) Update(c *gin.Context) {
 	user := platform_http.GetCurrentUser(c)
 	cmd.UserID = user.ID
 
-	if err := h.appService.UpdateMethodology(platform_http.Ctx(c), cmd); err != nil {
+	if err := h.appService.Update(platform_http.Ctx(c), cmd); err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -86,7 +86,7 @@ func (h *MethodologyHandler) Update(c *gin.Context) {
 
 // Delete deletes a methodology
 func (h *MethodologyHandler) Delete(c *gin.Context) {
-	idStr := c.Param("id")
+	idStr := c.Query("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		response.Error(c, http.StatusBadRequest, "invalid id")
@@ -95,7 +95,7 @@ func (h *MethodologyHandler) Delete(c *gin.Context) {
 
 	user := platform_http.GetCurrentUser(c)
 
-	if err := h.appService.DeleteMethodology(platform_http.Ctx(c), id, user.ID); err != nil {
+	if err := h.appService.Delete(platform_http.Ctx(c), id, user.ID); err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -103,16 +103,20 @@ func (h *MethodologyHandler) Delete(c *gin.Context) {
 	response.Success(c, nil)
 }
 
-// GetByID gets methodology by ID
-func (h *MethodologyHandler) GetByID(c *gin.Context) {
-	idStr := c.Query("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
+// GetById gets methodology by ID
+func (h *MethodologyHandler) GetById(c *gin.Context) {
+	var query application.MethodologyQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if query.ID == 0 {
 		response.Error(c, http.StatusBadRequest, "invalid id")
 		return
 	}
 
-	methodology, err := h.appService.GetMethodologyByID(platform_http.Ctx(c), id)
+	methodology, err := h.appService.GetByQuery(platform_http.Ctx(c), &query)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
@@ -121,11 +125,15 @@ func (h *MethodologyHandler) GetByID(c *gin.Context) {
 	response.Success(c, methodology)
 }
 
-// GetByCode gets methodology by code
-func (h *MethodologyHandler) GetByCode(c *gin.Context) {
-	code := c.Param("code")
+// GetByQuery queries methodologies with conditions
+func (h *MethodologyHandler) GetByQuery(c *gin.Context) {
+	var query application.MethodologyQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
 
-	methodology, err := h.appService.GetMethodologyByCode(platform_http.Ctx(c), code)
+	methodology, err := h.appService.GetByQuery(platform_http.Ctx(c), &query)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
@@ -152,28 +160,20 @@ func (h *MethodologyHandler) GetPage(c *gin.Context) {
 		return
 	}
 
-	if query.PageNum == 0 {
-		query.PageNum = 1
-	}
-	if query.PageSize == 0 {
-		query.PageSize = 10
-	}
+	query.Fixed()
 
-	methodologies, total, err := h.appService.GetMethodologyPage(platform_http.Ctx(c), query)
+	result, err := h.appService.GetPage(platform_http.Ctx(c), &query)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	response.Success(c, gin.H{
-		"list":  methodologies,
-		"total": total,
-	})
+	response.Success(c, result)
 }
 
 // ChangeStatus changes methodology status
 func (h *MethodologyHandler) ChangeStatus(c *gin.Context) {
-	idStr := c.Param("id")
+	idStr := c.Query("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		response.Error(c, http.StatusBadRequest, "invalid id")
@@ -195,7 +195,7 @@ func (h *MethodologyHandler) ChangeStatus(c *gin.Context) {
 		UserID: user.ID,
 	}
 
-	if err := h.appService.ChangeMethodologyStatus(platform_http.Ctx(c), changeCmd); err != nil {
+	if err := h.appService.ChangeStatus(platform_http.Ctx(c), changeCmd); err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}

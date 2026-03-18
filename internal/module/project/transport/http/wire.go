@@ -8,23 +8,23 @@ import (
 )
 
 type ProjectWire struct {
-	Repo       application.ProjectRepo
-	AppService *application.ProjectAppService
+	Repo    application.ProjectRepo
+	Service *application.ProjectAppService
 }
 
 // InitProjectWire initializes project DDD components
 func InitProjectWire(db *gorm.DB) *ProjectWire {
 	projectRepo := infrastructure.NewProjectRepository(db)
-	appService := application.NewProjectAppService(projectRepo)
+	appService := application.NewProjectService(projectRepo)
 	return &ProjectWire{
-		Repo:       projectRepo,
-		AppService: appService,
+		Repo:    projectRepo,
+		Service: appService,
 	}
 }
 
 type ProjectMembersWire struct {
-	Repo       application.ProjectMembersRepo
-	AppService *application.ProjectMembersService
+	Repo    application.ProjectMembersRepo
+	Service *application.ProjectMembersService
 }
 
 // InitProjectMembersWire initializes project members DDD components
@@ -32,7 +32,7 @@ func InitProjectMembersWire(db *gorm.DB) *ProjectMembersWire {
 	projectMembersRepo := infrastructure.NewProjectMembersRepository(db)
 	appService := application.NewProjectMembersService(projectMembersRepo)
 	return &ProjectMembersWire{
-		Repo:       projectMembersRepo,
-		AppService: appService,
+		Repo:    projectMembersRepo,
+		Service: appService,
 	}
 }

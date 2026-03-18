@@ -22,42 +22,34 @@ func NewMethodologyRoutes(db *gorm.DB) shared_http.RouteRegistry {
 
 // RegisterRoutes 注册 Methodology 模块的所有路由（实现 RouteRegistry 接口）
 func (r *methodologyRoutes) RegisterRoutes(group *gin.RouterGroup, middlewares map[shared_http.AuthType]gin.HandlerFunc) {
-	// 初始化 DDD 组件
-	methodologyDDD := InitMethodologyDDD(r.db)
+	// 初始化 wire 组件
+	methodologyWire := InitMethodologyWire(r.db)
 
 	// 创建 handlers
-	handlers := &Handlers{
-		MethodologyHandler: NewMethodologyHandler(methodologyDDD.AppService),
-	}
+	methodologyHandler := NewMethodologyHandler(methodologyWire.AppService)
 
-	// 方法学管理路由 - /api/methodology/*
-	methodologyGroup := group.Group("/methodology")
+	// 统一认证中间件
+	authTypeRequiredRoute := group.Group("")
 	if mw := middlewares[shared_http.AuthTypeRequired]; mw != nil {
-		methodologyGroup.Use(mw)
+		authTypeRequiredRoute.Use(mw)
 	}
-	methodologyGroup.POST("", handlers.MethodologyHandler.Create)
-	methodologyGroup.PUT("", handlers.MethodologyHandler.Update)
-	methodologyGroup.DELETE("", handlers.MethodologyHandler.Delete)
-	methodologyGroup.GET("", handlers.MethodologyHandler.GetByID)
-	methodologyGroup.PUT("status", handlers.MethodologyHandler.ChangeStatus)
+	{
+		// 方法学管理路由 - /api/methodology/*
+		methodologyGroup := authTypeRequiredRoute.Group("/methodology")
+		{
+			methodologyGroup.POST("", methodologyHandler.Create)
+			methodologyGroup.PUT("", methodologyHandler.Update)
+			methodologyGroup.DELETE("", methodologyHandler.Delete)
+			methodologyGroup.GET("", methodologyHandler.GetById)         // 仅 ID 查询
+			methodologyGroup.GET("query", methodologyHandler.GetByQuery) // 综合查询
+			methodologyGroup.PUT("status", methodologyHandler.ChangeStatus)
+		}
 
-	// 方法学列表路由 - /api/methodologies/*
-	methodologiesGroup := group.Group("/methodologys")
-	if mw := middlewares[shared_http.AuthTypeRequired]; mw != nil {
-		methodologiesGroup.Use(mw)
+		// 方法学列表路由 - /api/methodologies/*
+		methodologiesGroup := authTypeRequiredRoute.Group("/methodologies")
+		{
+			methodologiesGroup.GET("list", methodologyHandler.GetList)
+			methodologiesGroup.GET("page", methodologyHandler.GetPage)
+		}
 	}
-	methodologiesGroup.GET("list", handlers.MethodologyHandler.GetList)
-	methodologiesGroup.GET("page", handlers.MethodologyHandler.GetPage)
-
-	// 方法学代码查询路由 - /api/methodology/code/*
-	methodologyCodeGroup := group.Group("/methodology/code")
-	if mw := middlewares[shared_http.AuthTypeRequired]; mw != nil {
-		methodologyCodeGroup.Use(mw)
-	}
-	methodologyCodeGroup.GET("/:code", handlers.MethodologyHandler.GetByCode)
-}
-
-// Handlers 包含所有 HTTP 处理器
-type Handlers struct {
-	MethodologyHandler *MethodologyHandler
 }

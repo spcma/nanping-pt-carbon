@@ -2,32 +2,10 @@ package application
 
 import (
 	"app/internal/module/methodology/domain"
+	"app/internal/shared/entity"
 	"app/internal/shared/timeutil"
 	"context"
 )
-
-// CreateMethodologyParam 创建方法学命令
-type CreateMethodologyParam struct {
-	Name        string `json:"name"`
-	Code        string `json:"code"`
-	Description string `json:"description"`
-	UserID      int64  `json:"userId"`
-}
-
-// UpdateMethodologyParam 更新方法学命令
-type UpdateMethodologyParam struct {
-	ID          int64  `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	UserID      int64  `json:"userId"`
-}
-
-// ChangeMethodologyStatusCommand 变更方法学状态命令
-type ChangeMethodologyStatusCommand struct {
-	ID     int64                    `json:"id"`
-	Status domain.MethodologyStatus `json:"status"`
-	UserID int64                    `json:"userId"`
-}
 
 // MethodologyAppService 方法学应用服务
 type MethodologyAppService struct {
@@ -39,8 +17,16 @@ func NewMethodologyAppService(repo MethodologyRepo) *MethodologyAppService {
 	return &MethodologyAppService{repo: repo}
 }
 
-// CreateMethodology 创建方法学
-func (s *MethodologyAppService) CreateMethodology(ctx context.Context, cmd CreateMethodologyParam) (int64, error) {
+// CreateMethodologyCommand 创建方法学命令
+type CreateMethodologyCommand struct {
+	Name        string `json:"name"`
+	Code        string `json:"code"`
+	Description string `json:"description"`
+	UserID      int64  `json:"userId"`
+}
+
+// Create 创建方法学
+func (s *MethodologyAppService) Create(ctx context.Context, cmd CreateMethodologyCommand) (int64, error) {
 	methodology, err := domain.NewMethodology(cmd.Name, cmd.Code, "", cmd.Description, cmd.UserID, timeutil.Now(), timeutil.Now())
 	if err != nil {
 		return 0, err
@@ -52,17 +38,26 @@ func (s *MethodologyAppService) CreateMethodology(ctx context.Context, cmd Creat
 	return methodology.Id, nil
 }
 
-// UpdateMethodology 更新方法学
-func (s *MethodologyAppService) UpdateMethodology(ctx context.Context, cmd UpdateMethodologyParam) error {
+// UpdateMethodologyCommand 更新方法学命令（使用指针字段支持部分更新）
+type UpdateMethodologyCommand struct {
+	ID          int64   `json:"id"`
+	Name        *string `json:"name"`        // 指针表示可选，nil 表示不更新
+	Description *string `json:"description"` // 指针表示可选
+	UserID      int64   `json:"userId"`
+}
+
+// Update 更新方法学（支持部分字段更新）
+func (s *MethodologyAppService) Update(ctx context.Context, cmd UpdateMethodologyCommand) error {
 	methodology, err := s.repo.FindByID(ctx, cmd.ID)
 	if err != nil {
 		return err
 	}
+	// 调用领域层的 UpdateInfo，传入指针字段
 	return methodology.UpdateInfo(cmd.Name, cmd.Description, cmd.UserID)
 }
 
-// DeleteMethodology 删除方法学
-func (s *MethodologyAppService) DeleteMethodology(ctx context.Context, id int64, userID int64) error {
+// Delete 删除方法学
+func (s *MethodologyAppService) Delete(ctx context.Context, id int64, userID int64) error {
 	methodology, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		return err
@@ -77,40 +72,53 @@ func (s *MethodologyAppService) DeleteMethodology(ctx context.Context, id int64,
 	return s.repo.Update(ctx, methodology)
 }
 
-// GetMethodologyByID 根据 ID 获取方法学
-func (s *MethodologyAppService) GetMethodologyByID(ctx context.Context, id int64) (*domain.Methodology, error) {
+// GetByID 根据 ID 获取方法学
+func (s *MethodologyAppService) GetByID(ctx context.Context, id int64) (*domain.Methodology, error) {
 	return s.repo.FindByID(ctx, id)
 }
 
-// GetMethodologyByCode 根据编码获取方法学
-func (s *MethodologyAppService) GetMethodologyByCode(ctx context.Context, code string) (*domain.Methodology, error) {
-	return s.repo.FindByCode(ctx, code)
+type MethodologyQuery struct {
+	ID     int64  `json:"id"`
+	Code   string `json:"code"`
+	Name   string `json:"name"`
+	Status string `json:"status"`
 }
 
+// GetByQuery 综合查询
+func (s *MethodologyAppService) GetByQuery(ctx context.Context, query *MethodologyQuery) (*domain.Methodology, error) {
+
+	domainQuery := &domain.MethodologyQuery{
+		ID:     query.ID,
+		Code:   query.Code,
+		Name:   query.Name,
+		Status: domain.MethodologyStatus(query.Status),
+	}
+
+	return s.repo.FindByQuery(ctx, domainQuery)
+}
+
+// GetList 获取方法学列表
 func (s *MethodologyAppService) GetList(ctx context.Context) ([]*domain.Methodology, error) {
 	return s.repo.FindList(ctx)
 }
 
-// GetMethodologyPage 分页查询方法学
-func (s *MethodologyAppService) GetMethodologyPage(ctx context.Context, query domain.MethodologyPageQuery) ([]*domain.Methodology, int64, error) {
+// GetPage 分页查询方法学
+func (s *MethodologyAppService) GetPage(ctx context.Context, query *domain.MethodologyPageQuery) (*entity.PaginationResult[*domain.Methodology], error) {
 	return s.repo.FindPage(ctx, query)
 }
 
-// ChangeMethodologyStatus 变更方法学状态
-func (s *MethodologyAppService) ChangeMethodologyStatus(ctx context.Context, cmd ChangeMethodologyStatusCommand) error {
+// ChangeMethodologyStatusCommand 变更方法学状态命令
+type ChangeMethodologyStatusCommand struct {
+	ID     int64                    `json:"id"`
+	Status domain.MethodologyStatus `json:"status"`
+	UserID int64                    `json:"userId"`
+}
+
+// ChangeStatus 变更方法学状态
+func (s *MethodologyAppService) ChangeStatus(ctx context.Context, cmd ChangeMethodologyStatusCommand) error {
 	methodology, err := s.repo.FindByID(ctx, cmd.ID)
 	if err != nil {
 		return err
 	}
 	return methodology.ChangeStatus(cmd.Status, cmd.UserID)
-}
-
-// ===== 实现 Service Ports =====
-
-func (s *MethodologyAppService) GetMethodology(ctx context.Context, id int64) (*domain.Methodology, error) {
-	return s.GetMethodologyByID(ctx, id)
-}
-
-func (s *MethodologyAppService) GetMethodologyByCodeService(ctx context.Context, code string) (*domain.Methodology, error) {
-	return s.GetMethodologyByCode(ctx, code)
 }

@@ -5,99 +5,123 @@ import (
 	"app/internal/shared/entity"
 	"app/internal/shared/timeutil"
 	"context"
+	"errors"
 )
-
-// ===== Service Ports（服务端口 - 给外部模块用） =====
-
-type ProjectService interface {
-	GetProject(ctx context.Context, id int64) (*domain.Project, error)
-	GetProjectByCode(ctx context.Context, code string) (*domain.Project, error)
-}
-
-// CreateProjectParam 创建项目命令
-type CreateProjectParam struct {
-	Name        string `json:"name"`
-	Code        string `json:"code"`
-	Description string `json:"description"`
-	UserID      int64  `json:"userId"`
-}
-
-// UpdateProjectCommand 更新项目命令
-type UpdateProjectCommand struct {
-	ID          int64  `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	UserID      int64  `json:"userId"`
-}
-
-// ChangeProjectStatusCommand 变更项目状态命令
-type ChangeProjectStatusCommand struct {
-	ID     int64                `json:"id"`
-	Status domain.ProjectStatus `json:"status"`
-	UserID int64                `json:"userId"`
-}
 
 // ProjectAppService 项目应用服务
 type ProjectAppService struct {
 	repo ProjectRepo
 }
 
-// NewProjectAppService 创建项目应用服务
-func NewProjectAppService(repo ProjectRepo) *ProjectAppService {
+// NewProjectService 创建项目应用服务
+func NewProjectService(repo ProjectRepo) *ProjectAppService {
 	return &ProjectAppService{repo: repo}
 }
 
-// CreateProject 创建项目
-func (s *ProjectAppService) CreateProject(ctx context.Context, cmd CreateProjectParam) (int64, error) {
+// CreateProjectCommand 创建项目命令
+type CreateProjectCommand struct {
+	Name        string `json:"name"`
+	Code        string `json:"code"`
+	Icon        string `json:"icon"`
+	Description string `json:"description"`
+	UserID      int64  `json:"userId"`
+	StartDate   string `json:"startDate"`
+	EndDate     string `json:"endDate"`
+}
+
+// Create 创建项目
+func (s *ProjectAppService) Create(ctx context.Context, cmd CreateProjectCommand) (int64, error) {
+	findByCode, err := s.repo.FindByCode(ctx, cmd.Code)
+	if err != nil {
+		return 0, err
+	}
+
+	if findByCode != nil {
+		return 0, errors.New("项目编码已存在")
+	}
+
 	project, err := domain.NewProject(cmd.Name, cmd.Code, "", cmd.Description, cmd.UserID, timeutil.Now(), timeutil.Now())
 	if err != nil {
 		return 0, err
 	}
+
 	err = s.repo.Create(ctx, project)
 	if err != nil {
 		return 0, err
 	}
+
 	return project.Id, nil
 }
 
-// UpdateProject 更新项目
-func (s *ProjectAppService) UpdateProject(ctx context.Context, cmd UpdateProjectCommand) error {
+// UpdateProjectCommand 更新项目命令（使用指针字段支持部分更新）
+type UpdateProjectCommand struct {
+	ID          int64   `json:"id"`
+	Name        *string `json:"name"`        // 指针表示可选，nil 表示不更新
+	Description *string `json:"description"` // 指针表示可选
+	UserID      int64   `json:"userId"`
+}
+
+// Update 更新项目（支持部分字段更新）
+func (s *ProjectAppService) Update(ctx context.Context, cmd UpdateProjectCommand) error {
 	project, err := s.repo.FindByID(ctx, cmd.ID)
 	if err != nil {
 		return err
 	}
-	return project.UpdateInfo(cmd.Name, cmd.Description, cmd.UserID)
+
+	if project == nil {
+		return errors.New("项目不存在")
+	}
+
+	// 调用领域层的 UpdateInfo，传入指针字段
+	err = project.UpdateInfo(cmd.Name, cmd.Description, cmd.UserID)
+	if err != nil {
+		return err
+	}
+
+	return s.repo.Update(ctx, project)
 }
 
-// DeleteProject 删除项目
-func (s *ProjectAppService) DeleteProject(ctx context.Context, id int64, userID int64) error {
+// Delete 删除项目
+func (s *ProjectAppService) Delete(ctx context.Context, id int64, userID int64) error {
 	project, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	// 执行领域方法
 	if err := project.Delete(userID); err != nil {
 		return err
 	}
 
-	// 持久化
 	return s.repo.Update(ctx, project)
 }
 
-// GetProjectByID 根据 ID 获取项目
-func (s *ProjectAppService) GetProjectByID(ctx context.Context, id int64) (*domain.Project, error) {
-	return s.repo.FindByID(ctx, id)
+type ProjectQuery struct {
+	ID     int64                `json:"id" form:"id"`
+	Code   string               `json:"code" form:"code"`
+	Name   string               `json:"name" form:"name"`
+	Status domain.ProjectStatus `json:"status" form:"status"`
 }
 
-// GetProjectByCode 根据编码获取项目
-func (s *ProjectAppService) GetProjectByCode(ctx context.Context, code string) (*domain.Project, error) {
-	return s.repo.FindByCode(ctx, code)
-}
+// GetByQuery 根据查询条件获取项目
+func (s *ProjectAppService) GetByQuery(ctx context.Context, query *ProjectQuery) (*domain.Project, error) {
+	if query == nil {
+		return nil, errors.New("query is nil")
+	}
 
-// GetProjectPage 分页查询项目
-func (s *ProjectAppService) GetProjectPage(ctx context.Context, query *domain.ProjectPageQuery) (*entity.PaginationResult[*domain.Project], error) {
-	return s.repo.FindPage(ctx, query)
+	if query.ID > 0 {
+		return s.repo.FindByID(ctx, query.ID)
+	}
+	if query.Code != "" {
+		return s.repo.FindByCode(ctx, query.Code)
+	}
+
+	domainQuery := domain.ProjectQuery{
+		ID:     query.ID,
+		Code:   query.Code,
+		Name:   query.Name,
+		Status: query.Status,
+	}
+	return s.repo.FindByQuery(ctx, domainQuery)
 }
 
 func (s *ProjectAppService) GetList(ctx context.Context) ([]*domain.Project, error) {
@@ -109,21 +133,37 @@ func (s *ProjectAppService) GetList(ctx context.Context) ([]*domain.Project, err
 	return list, nil
 }
 
-// ChangeProjectStatus 变更项目状态
-func (s *ProjectAppService) ChangeProjectStatus(ctx context.Context, cmd ChangeProjectStatusCommand) error {
+// GetPage 分页查询项目
+func (s *ProjectAppService) GetPage(ctx context.Context, query *domain.ProjectPageQuery) (*entity.PaginationResult[*domain.Project], error) {
+	res, err := s.repo.FindPage(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+// ChangeProjectStatusCommand 变更项目状态命令
+type ChangeProjectStatusCommand struct {
+	ID     int64                `json:"id"`
+	Status domain.ProjectStatus `json:"status"`
+	UserID int64                `json:"userId"`
+}
+
+// ChangeStatus 变更项目状态
+func (s *ProjectAppService) ChangeStatus(ctx context.Context, cmd ChangeProjectStatusCommand) error {
 	project, err := s.repo.FindByID(ctx, cmd.ID)
 	if err != nil {
 		return err
 	}
-	return project.ChangeStatus(cmd.Status, cmd.UserID)
-}
 
-// ===== 实现 Service Ports =====
+	if project == nil {
+		return errors.New("项目不存在")
+	}
 
-func (s *ProjectAppService) GetProject(ctx context.Context, id int64) (*domain.Project, error) {
-	return s.GetProjectByID(ctx, id)
-}
+	err = project.ChangeStatus(cmd.Status, cmd.UserID)
+	if err != nil {
+		return err
+	}
 
-func (s *ProjectAppService) GetProjectByCodeService(ctx context.Context, code string) (*domain.Project, error) {
-	return s.GetProjectByCode(ctx, code)
+	return s.repo.Update(ctx, project)
 }

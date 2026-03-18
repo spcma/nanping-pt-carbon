@@ -74,6 +74,37 @@ func (r *ProjectRepository) FindByCode(ctx context.Context, code string) (*domai
 	return &project, nil
 }
 
+// FindByQuery 根据条件查询项目（支持多条件组合）
+func (r *ProjectRepository) FindByQuery(ctx context.Context, query domain.ProjectQuery) (*domain.Project, error) {
+	txDB := r.GetDB(ctx).WithContext(ctx).
+		Table("project").
+		Where(entity.FieldDeleteBy + " = 0")
+
+	// 动态构建 WHERE 条件
+	if query.ID > 0 {
+		txDB = txDB.Where("id = ?", query.ID)
+	}
+	if query.Code != "" {
+		txDB = txDB.Where("code = ?", query.Code)
+	}
+	if query.Name != "" {
+		txDB = txDB.Where("name LIKE ?", "%"+query.Name+"%")
+	}
+	if query.Status != "" {
+		txDB = txDB.Where("status = ?", query.Status)
+	}
+
+	var project domain.Project
+	err := txDB.Take(&project).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &project, nil
+}
+
 func (r *ProjectRepository) FindList(ctx context.Context) ([]*domain.Project, error) {
 	var projects []*domain.Project
 	err := r.GetDB(ctx).WithContext(ctx).Find(&projects).Error

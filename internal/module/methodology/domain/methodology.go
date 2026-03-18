@@ -50,10 +50,15 @@ func NewMethodology(name, code, icon, description string, createUser int64, star
 	return methodology, nil
 }
 
-// UpdateInfo 更新方法学信息
-func (m *Methodology) UpdateInfo(name, description string, userID int64) error {
-	m.Name = name
-	m.Description = description
+// UpdateInfo 更新方法学信息（支持部分字段更新）
+func (m *Methodology) UpdateInfo(name *string, description *string, userID int64) error {
+	// 只有当指针非空时才更新对应字段
+	if name != nil {
+		m.Name = *name
+	}
+	if description != nil {
+		m.Description = *description
+	}
 	m.UpdateBy = userID
 	m.UpdateTime = timeutil.Now()
 	return nil
@@ -82,4 +87,11 @@ type MethodologyPageQuery struct {
 	Status    string `json:"status"` // 状态
 	SortBy    string `json:"sortBy"`
 	SortOrder string `json:"sortOrder"` // "asc" or "desc"
+}
+
+type MethodologyQuery struct {
+	ID     int64             `json:"id"`
+	Code   string            `json:"code"`
+	Name   string            `json:"name"`
+	Status MethodologyStatus `json:"status"`
 }

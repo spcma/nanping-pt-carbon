@@ -52,10 +52,15 @@ func NewProject(name, code, icon, description string, createUser int64, startDat
 	return project, nil
 }
 
-// UpdateInfo 更新项目信息
-func (p *Project) UpdateInfo(name, description string, userID int64) error {
-	p.Name = name
-	p.Description = description
+// UpdateInfo 更新项目信息（支持部分字段更新）
+func (p *Project) UpdateInfo(name *string, description *string, userID int64) error {
+	// 只有当指针非空时才更新对应字段
+	if name != nil {
+		p.Name = *name
+	}
+	if description != nil {
+		p.Description = *description
+	}
 	p.UpdateBy = userID
 	p.UpdateTime = timeutil.Now()
 	return nil
@@ -79,9 +84,18 @@ func (p *Project) Delete(userID int64) error {
 // ProjectPageQuery system user page query object
 type ProjectPageQuery struct {
 	entity.PaginationQuery
-	Name      string `json:"name"`
-	Code      string `json:"code"`
-	Status    string `json:"status"`
-	SortBy    string `json:"sortBy"`
-	SortOrder string `json:"sortOrder"` // "asc" or "desc"
+	ID        int64         `json:"id" form:"id"`
+	Name      string        `json:"name" form:"name"`
+	Code      string        `json:"code" form:"code"`
+	Status    ProjectStatus `json:"status" form:"status"`
+	SortBy    string        `json:"sortBy"`
+	SortOrder string        `json:"sortOrder"` // "asc" or "desc"
+}
+
+// ProjectQuery 项目查询条件（用于单条记录的多条件查询）
+type ProjectQuery struct {
+	ID     int64         `json:"id" form:"id"`
+	Code   string        `json:"code" form:"code"`
+	Name   string        `json:"name" form:"name"`
+	Status ProjectStatus `json:"status" form:"status"`
 }

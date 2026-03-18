@@ -96,8 +96,7 @@ func (h *SysUserHandler) Delete(c *gin.Context) {
 	response.Success(c, nil)
 }
 
-// GetByCond gets system user by ID
-func (h *SysUserHandler) GetByCond(c *gin.Context) {
+func (h *SysUserHandler) GetById(c *gin.Context) {
 	idStr := c.Query("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
@@ -112,6 +111,16 @@ func (h *SysUserHandler) GetByCond(c *gin.Context) {
 	}
 
 	response.Success(c, user)
+}
+
+// GetByQuery
+func (h *SysUserHandler) GetByQuery(c *gin.Context) {
+	var query application.UsersQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
 }
 
 func (h *SysUserHandler) GetList(c *gin.Context) {

@@ -100,6 +100,10 @@ func (s *UsersService) DeleteSysUser(ctx context.Context, param *DeleteSysUserPa
 	return s.repo.Update(ctx, user)
 }
 
+type UsersQuery struct {
+	Username string `json:"username"`
+}
+
 // GetSysUserByID gets system user by ID
 func (s *UsersService) GetSysUserByID(ctx context.Context, id int64) (*domain.Users, error) {
 	return s.repo.FindByID(ctx, id)

@@ -58,11 +58,11 @@ func (r *MethodologyRepository) FindByID(ctx context.Context, id int64) (*domain
 	return &methodology, nil
 }
 
-func (r *MethodologyRepository) FindByCode(ctx context.Context, code string) (*domain.Methodology, error) {
+func (r *MethodologyRepository) FindByQuery(ctx context.Context, query *domain.MethodologyQuery) (*domain.Methodology, error) {
 	var methodology domain.Methodology
 	err := r.GetDB(ctx).WithContext(ctx).
 		Table("methodology").
-		Where("code = ?", code).
+		Where("code = ?", query.Code).
 		Where(entity.FieldDeleteBy + " = 0").
 		Take(&methodology).Error
 	if err != nil {
@@ -80,7 +80,7 @@ func (r *MethodologyRepository) FindList(ctx context.Context) ([]*domain.Methodo
 	return methodologies, err
 }
 
-func (r *MethodologyRepository) FindPage(ctx context.Context, query domain.MethodologyPageQuery) ([]*domain.Methodology, int64, error) {
+func (r *MethodologyRepository) FindPage(ctx context.Context, query *domain.MethodologyPageQuery) (*entity.PaginationResult[*domain.Methodology], error) {
 	// 使用通用分页助手
 	helper := db.NewPaginationHelper[*domain.Methodology](r.GetDB(ctx))
 	result, err := helper.PageQuery(int(query.PageNum), int(query.PageSize), func(dq *gorm.DB) *gorm.DB {
@@ -111,9 +111,9 @@ func (r *MethodologyRepository) FindPage(ctx context.Context, query domain.Metho
 		return dq
 	})
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	return result.Data, result.Total, nil
+	return result, nil
 }
 
 func (r *MethodologyRepository) FindListByStatus(ctx context.Context, status domain.MethodologyStatus) ([]*domain.Methodology, error) {

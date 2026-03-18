@@ -9,5 +9,5 @@ import (
 
 type MethodologyService interface {
 	GetMethodology(ctx context.Context, id int64) (*domain.Methodology, error)
-	GetMethodologyByCode(ctx context.Context, code string) (*domain.Methodology, error)
+	GetByQuery(ctx context.Context, code string) (*domain.Methodology, error)
 }

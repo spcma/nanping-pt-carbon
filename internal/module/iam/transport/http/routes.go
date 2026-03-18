@@ -35,66 +35,66 @@ func (r *iamRoutes) RegisterRoutes(group *gin.RouterGroup, middlewares map[share
 	}
 
 	// 1. 公开路由（不需要认证） - /api/*
-	authGroup := group.Group("")
+	publicRoute := group.Group("")
 	if mw := middlewares[shared_http.AuthTypeNone]; mw != nil {
-		authGroup.Use(mw)
+		publicRoute.Use(mw)
 	}
 	{
-		authGroup.POST("/register", handlers.AuthHandler.Register)
-		authGroup.POST("/login", handlers.AuthHandler.Login)
+		publicRoute.POST("/register", handlers.AuthHandler.Register)
+		publicRoute.POST("/login", handlers.AuthHandler.Login)
 	}
 
 	// 2. 公开查询路由（支持可选认证） - /api/users/*
-	usersGroup := group.Group("/users")
+	optionalAuthRoute := group.Group("/users")
 	if mw := middlewares[shared_http.AuthTypeOptional]; mw != nil {
-		usersGroup.Use(mw)
+		optionalAuthRoute.Use(mw)
 	}
 	{
-		usersGroup.GET("/pub/page", handlers.SysUserHandler.GetPublicPage)
+		optionalAuthRoute.GET("/pub/page", handlers.SysUserHandler.GetPublicPage)
 	}
 
 	// 3. 需要认证的系统用户管理路由 - /api/user/*
-	sysUserGroup := group.Group("/user")
+	authTypeRequiredRoute := group.Group("")
 	if mw := middlewares[shared_http.AuthTypeRequired]; mw != nil {
-		sysUserGroup.Use(mw)
+		authTypeRequiredRoute.Use(mw)
 	}
 	{
-		sysUserGroup.POST("", handlers.SysUserHandler.Create)
-		sysUserGroup.PUT("", handlers.SysUserHandler.Update)
-		sysUserGroup.DELETE("", handlers.SysUserHandler.Delete)
-		sysUserGroup.GET("", handlers.SysUserHandler.GetByCond)
-		sysUserGroup.PUT("/password", handlers.SysUserHandler.ChangePassword)
-		sysUserGroup.PUT("/status", handlers.SysUserHandler.ChangeStatus)
-	}
+		// 系统用户管理 - /api/user/*
+		sysUserGroup := authTypeRequiredRoute.Group("/user")
+		{
+			sysUserGroup.POST("", handlers.SysUserHandler.Create)
+			sysUserGroup.PUT("", handlers.SysUserHandler.Update)
+			sysUserGroup.DELETE("", handlers.SysUserHandler.Delete)
+			sysUserGroup.GET("", handlers.SysUserHandler.GetById)         // 仅 ID 查询
+			sysUserGroup.GET("query", handlers.SysUserHandler.GetByQuery) // 综合查询
+			sysUserGroup.PUT("/password", handlers.SysUserHandler.ChangePassword)
+			sysUserGroup.PUT("/status", handlers.SysUserHandler.ChangeStatus)
+		}
 
-	sysUsersGroup := group.Group("/users")
-	if mw := middlewares[shared_http.AuthTypeRequired]; mw != nil {
-		sysUserGroup.Use(mw)
-	}
-	{
-		sysUsersGroup.GET("list", handlers.SysUserHandler.GetList)
-		sysUsersGroup.GET("page", handlers.SysUserHandler.GetPage)
-	}
+		// 系统用户列表 - /api/users/*
+		sysUsersGroup := authTypeRequiredRoute.Group("/users")
+		{
+			sysUsersGroup.GET("list", handlers.SysUserHandler.GetList)
+			sysUsersGroup.GET("page", handlers.SysUserHandler.GetPage)
+		}
 
-	// 5. 需要认证的系统角色管理路由 - /api/roles/*
-	sysRoleGroup := group.Group("/roles")
-	if mw := middlewares[shared_http.AuthTypeRequired]; mw != nil {
-		sysRoleGroup.Use(mw)
-	}
-	{
-		sysRoleGroup.POST("", handlers.SysRoleHandler.Create)
-		sysRoleGroup.PUT("/:id", handlers.SysRoleHandler.Update)
-		sysRoleGroup.DELETE("/:id", handlers.SysRoleHandler.Delete)
-		sysRoleGroup.GET("/:id", handlers.SysRoleHandler.GetByID)
-		sysRoleGroup.PUT("/:id/status", handlers.SysRoleHandler.ChangeStatus)
-	}
+		// 系统角色管理 - /api/roles/*
+		sysRoleGroup := authTypeRequiredRoute.Group("/roles")
+		{
+			sysRoleGroup.POST("", handlers.SysRoleHandler.Create)
+			sysRoleGroup.PUT("", handlers.SysRoleHandler.Update)
+			sysRoleGroup.DELETE("", handlers.SysRoleHandler.Delete)
+			sysRoleGroup.GET("", handlers.SysRoleHandler.GetById)         // 仅 ID 查询
+			sysRoleGroup.GET("query", handlers.SysRoleHandler.GetByQuery) // 综合查询
+			sysRoleGroup.PUT("/status", handlers.SysRoleHandler.ChangeStatus)
+		}
 
-	// 6. 系统角色列表路由 - /api/roles/*
-	sysRolesGroup := group.Group("/roles")
-	if mw := middlewares[shared_http.AuthTypeRequired]; mw != nil {
-		sysRolesGroup.Use(mw)
+		// 系统角色列表 - /api/roles/*
+		sysRolesGroup := authTypeRequiredRoute.Group("/roles")
+		{
+			sysRolesGroup.GET("page", handlers.SysRoleHandler.GetPage)
+		}
 	}
-	sysRolesGroup.GET("page", handlers.SysRoleHandler.GetPage)
 }
 
 // Handlers 包含所有 HTTP 处理器

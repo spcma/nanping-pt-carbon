@@ -29,22 +29,27 @@ func (r *carbonReportDayRoutes) RegisterRoutes(group *gin.RouterGroup, middlewar
 		CarbonReportDayHandler: NewCarbonReportDayHandler(carbonReportDayDDD.Service),
 	}
 
-	// 碳报告日报管理路由 - /api/carbon-report-day/*
-	carbonReportDayGroup := group.Group("/carbonReportDay")
+	// 统一认证中间件
+	authTypeRequiredRoute := group.Group("")
 	if mw := middlewares[shared_http.AuthTypeRequired]; mw != nil {
-		carbonReportDayGroup.Use(mw)
+		authTypeRequiredRoute.Use(mw)
 	}
-	carbonReportDayGroup.POST("", handlers.CarbonReportDayHandler.Create)
-	carbonReportDayGroup.PUT("/:id", handlers.CarbonReportDayHandler.Update)
-	carbonReportDayGroup.DELETE("/:id", handlers.CarbonReportDayHandler.Delete)
-	carbonReportDayGroup.GET("/:id", handlers.CarbonReportDayHandler.GetByID)
+	{
+		// 碳报告日报管理路由 - /api/carbon-report-day/*
+		carbonReportDayGroup := authTypeRequiredRoute.Group("/carbonReportDay")
+		{
+			carbonReportDayGroup.POST("", handlers.CarbonReportDayHandler.Create)
+			carbonReportDayGroup.PUT("", handlers.CarbonReportDayHandler.Update)
+			carbonReportDayGroup.DELETE("", handlers.CarbonReportDayHandler.Delete)
+			carbonReportDayGroup.GET("", handlers.CarbonReportDayHandler.GetById) // 仅 ID 查询
+		}
 
-	// 碳报告日报列表路由 - /api/carbon-report-days/*
-	carbonReportDaysGroup := group.Group("/carbonReportDays")
-	if mw := middlewares[shared_http.AuthTypeRequired]; mw != nil {
-		carbonReportDaysGroup.Use(mw)
+		// 碳报告日报列表路由 - /api/carbon-report-days/*
+		carbonReportDaysGroup := authTypeRequiredRoute.Group("/carbonReportDays")
+		{
+			carbonReportDaysGroup.GET("page", handlers.CarbonReportDayHandler.GetPage)
+		}
 	}
-	carbonReportDaysGroup.GET("", handlers.CarbonReportDayHandler.GetPage)
 }
 
 // Handlers 包含所有 HTTP 处理器

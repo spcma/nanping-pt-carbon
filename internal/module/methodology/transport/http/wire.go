@@ -12,8 +12,8 @@ type MethodologyDDD struct {
 	AppService *application.MethodologyAppService
 }
 
-// InitMethodologyDDD initializes methodology DDD components
-func InitMethodologyDDD(db *gorm.DB) *MethodologyDDD {
+// InitMethodologyWire initializes methodology DDD components
+func InitMethodologyWire(db *gorm.DB) *MethodologyDDD {
 	repo := infrastructure.NewMethodologyRepository(db)
 	appService := application.NewMethodologyAppService(repo)
 	return &MethodologyDDD{
