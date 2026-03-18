@@ -2,8 +2,9 @@ package cache
 
 import (
 	"context"
-	"github.com/redis/go-redis/v9"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
 type RedisClient struct {
@@ -11,18 +12,16 @@ type RedisClient struct {
 }
 
 type RedisConnConfig struct {
-	Host         string
-	Password     string
-	DB           int
-	PoolSize     int
-	MinIdleConns int
-	Timeout      time.Duration
+	Addr     string
+	Password string
+	DB       int
+	Timeout  time.Duration
 }
 
 func NewRedisClient(config *RedisConnConfig) (*RedisClient, error) {
 
 	client := redis.NewClient(&redis.Options{
-		Addr:     config.Host,
+		Addr:     config.Addr,
 		Password: config.Password,
 		DB:       config.DB,
 	})

@@ -28,8 +28,8 @@ func NewProjectHandler(appService *application.ProjectAppService) *ProjectHandle
 
 // Create creates a project
 func (h *ProjectHandler) Create(c *gin.Context) {
-	var cmd application.CreateProjectCommand
-	if err := c.ShouldBindJSON(&cmd); err != nil {
+	var param application.CreateProjectParam
+	if err := c.ShouldBindJSON(&param); err != nil {
 		logger.Warn("project", "create project - invalid request",
 			zap.String("error", err.Error()),
 		)
@@ -38,12 +38,12 @@ func (h *ProjectHandler) Create(c *gin.Context) {
 	}
 
 	securityUser := platform_http.GetCurrentUser(c)
-	cmd.UserID = securityUser.ID
+	param.UserID = securityUser.ID
 
-	id, err := h.appService.CreateProject(platform_http.Ctx(c), cmd)
+	id, err := h.appService.CreateProject(platform_http.Ctx(c), param)
 	if err != nil {
 		logger.Error("project", "create project failed",
-			zap.String("name", cmd.Name),
+			zap.String("name", param.Name),
 			zap.Error(err),
 		)
 		response.Error(c, http.StatusInternalServerError, err.Error())
@@ -52,14 +52,14 @@ func (h *ProjectHandler) Create(c *gin.Context) {
 
 	logger.Info("project", "project created successfully",
 		zap.Int64("project_id", id),
-		zap.String("name", cmd.Name),
+		zap.String("name", param.Name),
 	)
 	response.Success(c, gin.H{"id": id})
 }
 
 // Update updates a project
 func (h *ProjectHandler) Update(c *gin.Context) {
-	idStr := c.Param("id")
+	idStr := c.Query("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		response.Error(c, http.StatusBadRequest, "invalid id")
@@ -86,7 +86,7 @@ func (h *ProjectHandler) Update(c *gin.Context) {
 
 // Delete deletes a project
 func (h *ProjectHandler) Delete(c *gin.Context) {
-	idStr := c.Param("id")
+	idStr := c.Query("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		response.Error(c, http.StatusBadRequest, "invalid id")
@@ -103,32 +103,36 @@ func (h *ProjectHandler) Delete(c *gin.Context) {
 	response.Success(c, nil)
 }
 
-// GetByID gets project by ID
-func (h *ProjectHandler) GetByID(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		response.Error(c, http.StatusBadRequest, "invalid id")
-		return
-	}
-
-	project, err := h.appService.GetProjectByID(platform_http.Ctx(c), id)
-	if err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	response.Success(c, project)
+type GetByIDRequest struct {
+	ID   int64  `json:"id" form:"id"`
+	Code string `json:"code" form:"code"`
 }
 
-// GetByCode gets project by code
-func (h *ProjectHandler) GetByCode(c *gin.Context) {
-	code := c.Param("code")
+// GetByCond gets project by ID
+func (h *ProjectHandler) GetByCond(c *gin.Context) {
 
-	project, err := h.appService.GetProjectByCode(platform_http.Ctx(c), code)
-	if err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
+	var cond GetByIDRequest
+	if err := c.ShouldBindQuery(&cond); err != nil {
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
+	}
+
+	var project *domain.Project
+	var err error
+	if cond.ID > 0 {
+		project, err = h.appService.GetProjectByID(platform_http.Ctx(c), cond.ID)
+		if err != nil {
+			response.Error(c, http.StatusInternalServerError, err.Error())
+			return
+		}
+	}
+
+	if cond.Code != "" {
+		project, err = h.appService.GetProjectByCode(platform_http.Ctx(c), cond.Code)
+		if err != nil {
+			response.Error(c, http.StatusInternalServerError, err.Error())
+			return
+		}
 	}
 
 	response.Success(c, project)
@@ -142,28 +146,20 @@ func (h *ProjectHandler) GetPage(c *gin.Context) {
 		return
 	}
 
-	if query.PageNum == 0 {
-		query.PageNum = 1
-	}
-	if query.PageSize == 0 {
-		query.PageSize = 10
-	}
+	query.Fixed()
 
-	projects, total, err := h.appService.GetProjectPage(platform_http.Ctx(c), &query)
+	projects, err := h.appService.GetProjectPage(platform_http.Ctx(c), &query)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	response.Success(c, gin.H{
-		"list":  projects,
-		"total": total,
-	})
+	response.Success(c, projects)
 }
 
 // ChangeStatus changes project status
 func (h *ProjectHandler) ChangeStatus(c *gin.Context) {
-	idStr := c.Param("id")
+	idStr := c.Query("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		response.Error(c, http.StatusBadRequest, "invalid id")

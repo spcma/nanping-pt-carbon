@@ -92,7 +92,7 @@ func NewLoggerFactory(config *LogConfig) (*Logger, error) {
 	}
 
 	if config.Other.Path == "" {
-		config.Other.Path = config.Path + ".//other"
+		config.Other.Path = "./logs/other/"
 	}
 
 	if config.Other.Level == "" {

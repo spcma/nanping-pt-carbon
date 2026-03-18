@@ -2,6 +2,7 @@ package domain
 
 import (
 	"app/internal/shared/entity"
+	idgen "app/internal/shared/idgen"
 	"app/internal/shared/timeutil"
 )
 
@@ -33,6 +34,7 @@ func (*Project) TableName() string {
 func NewProject(name, code, description string, createUser int64) (*Project, error) {
 	project := &Project{
 		BaseEntity: entity.BaseEntity{
+			Id:         idgen.NumID(),
 			CreateBy:   createUser,
 			CreateTime: timeutil.Now(),
 		},
@@ -70,10 +72,10 @@ func (p *Project) Delete(userID int64) error {
 
 // ProjectPageQuery system user page query object
 type ProjectPageQuery struct {
-	entity.Pagination
+	entity.PaginationQuery
 	Name      string `json:"name"`
 	Code      string `json:"code"`
 	Status    string `json:"status"`
 	SortBy    string `json:"sortBy"`
-	SortOrder string `json:"sortOrder" binding:"oneof=asc desc"` // "asc" or "desc"
+	SortOrder string `json:"sortOrder"` // "asc" or "desc"
 }

@@ -3,6 +3,7 @@ package application
 import (
 	"app/internal/module/iam/domain"
 	"app/internal/shared/crypto"
+	"app/internal/shared/entity"
 	"app/internal/shared/token"
 	"context"
 )
@@ -27,7 +28,7 @@ type CreateSysUserCommand struct {
 
 // CreateSysUser creates a system user
 func (s *SysUserAppService) CreateSysUser(ctx context.Context, cmd CreateSysUserCommand) (int64, error) {
-	user, err := domain.NewSysUser(cmd.Username, cmd.Nickname, cmd.Password, "", cmd.UserID)
+	user, err := domain.NewUser(cmd.Username, cmd.Nickname, cmd.Password, "", cmd.UserID)
 	if err != nil {
 		return 0, err
 	}
@@ -89,22 +90,31 @@ func (s *SysUserAppService) DeleteSysUser(ctx context.Context, id int64, userID 
 }
 
 // GetSysUserByID gets system user by ID
-func (s *SysUserAppService) GetSysUserByID(ctx context.Context, id int64) (*domain.SysUser, error) {
+func (s *SysUserAppService) GetSysUserByID(ctx context.Context, id int64) (*domain.Users, error) {
 	return s.repo.FindByID(ctx, id)
 }
 
 // GetSysUserByUsername gets system user by username
-func (s *SysUserAppService) GetSysUserByUsername(ctx context.Context, username string) (*domain.SysUser, error) {
+func (s *SysUserAppService) GetSysUserByUsername(ctx context.Context, username string) (*domain.Users, error) {
 	return s.repo.FindByUsername(ctx, username)
 }
 
+func (s *SysUserAppService) GetList(ctx context.Context) ([]*domain.Users, error) {
+	list, err := s.repo.FindList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return list, nil
+}
+
 // GetSysUserPage queries system users with pagination
-func (s *SysUserAppService) GetSysUserPage(ctx context.Context, query *domain.SysUserPageQuery) ([]*domain.SysUser, int64, error) {
+func (s *SysUserAppService) GetSysUserPage(ctx context.Context, query *domain.SysUserPageQuery) (*entity.PaginationResult[*domain.Users], error) {
 	result, err := s.repo.FindPage(ctx, query)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	return result.Data, result.Total, nil
+	return result, nil
 }
 
 // ChangePasswordCommand change password command

@@ -127,21 +127,13 @@ func (h *CarbonReportDayHandler) GetPage(c *gin.Context) {
 		return
 	}
 
-	if query.PageNum == 0 {
-		query.PageNum = 1
-	}
-	if query.PageSize == 0 {
-		query.PageSize = 10
-	}
+	query.Fixed()
 
-	reports, total, err := h.appService.GetCarbonReportDayPage(platform_http.Ctx(c), query)
+	res, err := h.appService.GetCarbonReportDayPage(platform_http.Ctx(c), &query)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	response.Success(c, gin.H{
-		"list":  reports,
-		"total": total,
-	})
+	response.Success(c, res)
 }

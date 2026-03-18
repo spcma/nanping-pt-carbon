@@ -6,7 +6,7 @@ ipfs:
   status: false # 是否开启ipfs服务, 运行环境中没有ipfs会导致初始化失败
 
 logger:
-  level: debug
+  level: info
   path: "./logs"
   development: true
   rotation:
@@ -23,13 +23,12 @@ logger:
       level: info
     - name: error
       level: error
-    - name: business
-      level: info
     - name: iam
       level: info
-    - name: trafficresource
+    - name: ipfs
       level: info
 
+# 主业务数据库
 database:
   host: "121.41.129.227"
   port: 16010
@@ -38,16 +37,21 @@ database:
   dbname: "carbon"
   searchpath: "yanping"
 
+# 远程源数据数据库
+remote_database:
+  host: "121.41.129.227"
+  port: 16010
+  user: "nptadmin"
+  password: "nptadmin@2025"
+  dbname: "nanping"
+  search_path: "biz"
+
 redis:
-  host: 121.41.129.227
-  port: 16020
+  addr: 121.41.129.227:16020
   password: "nanpingredis@2025"
   db: 6
   timeout: 30
 
 jwt:
-  secret: your-secret-key-here
+  secret: carbon-yp
   expire: 7200 # seconds
-
-idgen:
-  worker_id: 1

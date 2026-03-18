@@ -2,6 +2,7 @@ package application
 
 import (
 	"app/internal/module/project/domain"
+	"app/internal/shared/entity"
 	"context"
 )
 
@@ -12,8 +13,8 @@ type ProjectService interface {
 	GetProjectByCode(ctx context.Context, code string) (*domain.Project, error)
 }
 
-// CreateProjectCommand 创建项目命令
-type CreateProjectCommand struct {
+// CreateProjectParam 创建项目命令
+type CreateProjectParam struct {
 	Name        string `json:"name"`
 	Code        string `json:"code"`
 	Description string `json:"description"`
@@ -46,7 +47,7 @@ func NewProjectAppService(repo ProjectRepo) *ProjectAppService {
 }
 
 // CreateProject 创建项目
-func (s *ProjectAppService) CreateProject(ctx context.Context, cmd CreateProjectCommand) (int64, error) {
+func (s *ProjectAppService) CreateProject(ctx context.Context, cmd CreateProjectParam) (int64, error) {
 	project, err := domain.NewProject(cmd.Name, cmd.Code, cmd.Description, cmd.UserID)
 	if err != nil {
 		return 0, err
@@ -94,7 +95,7 @@ func (s *ProjectAppService) GetProjectByCode(ctx context.Context, code string) (
 }
 
 // GetProjectPage 分页查询项目
-func (s *ProjectAppService) GetProjectPage(ctx context.Context, query *domain.ProjectPageQuery) ([]*domain.Project, int64, error) {
+func (s *ProjectAppService) GetProjectPage(ctx context.Context, query *domain.ProjectPageQuery) (*entity.PaginationResult[*domain.Project], error) {
 	return s.repo.FindPage(ctx, query)
 }
 

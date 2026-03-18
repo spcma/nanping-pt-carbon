@@ -12,25 +12,25 @@ import (
 )
 
 type UserRepository struct {
-	*db.BaseRepository[domain.SysUser]
+	*db.BaseRepository[domain.Users]
 }
 
 func NewUserRepository(_db *gorm.DB) *UserRepository {
 	return &UserRepository{
-		BaseRepository: db.NewBaseRepository[domain.SysUser](_db),
+		BaseRepository: db.NewBaseRepository[domain.Users](_db),
 	}
 }
 
-func (u *UserRepository) Create(ctx context.Context, user *domain.SysUser) error {
+func (u *UserRepository) Create(ctx context.Context, user *domain.Users) error {
 	return u.GetDB(ctx).WithContext(ctx).Create(user).Error
 }
 
-func (u *UserRepository) Update(ctx context.Context, user *domain.SysUser) error {
+func (u *UserRepository) Update(ctx context.Context, user *domain.Users) error {
 	return u.GetDB(ctx).WithContext(ctx).Updates(user).Error
 }
 
 func (u *UserRepository) UpdateFields(ctx context.Context, id int64, updates map[string]interface{}) error {
-	return u.GetDB(ctx).WithContext(ctx).Model(&domain.SysUser{}).Where("id = ? AND "+entity.FieldDeleteBy+" = 0", id).Updates(updates).Error
+	return u.GetDB(ctx).WithContext(ctx).Model(&domain.Users{}).Where("id = ? AND "+entity.FieldDeleteBy+" = 0", id).Updates(updates).Error
 }
 
 func (u *UserRepository) Delete(ctx context.Context, id, uid int64) error {
@@ -39,13 +39,13 @@ func (u *UserRepository) Delete(ctx context.Context, id, uid int64) error {
 		"deleteBy":   uid,
 		"deleteTime": timeutil.Now(),
 	}
-	return u.GetDB(ctx).WithContext(ctx).Model(&domain.SysUser{}).Where("id = ?", id).Updates(updates).Error
+	return u.GetDB(ctx).WithContext(ctx).Model(&domain.Users{}).Where("id = ?", id).Updates(updates).Error
 }
 
-func (u *UserRepository) FindByID(ctx context.Context, id int64) (*domain.SysUser, error) {
-	var user domain.SysUser
+func (u *UserRepository) FindByID(ctx context.Context, id int64) (*domain.Users, error) {
+	var user domain.Users
 	err := u.GetDB(ctx).WithContext(ctx).
-		Table("sys_user").
+		Table("users").
 		Where("id = ?", id).
 		Where(entity.FieldDeleteBy + " = 0").
 		Take(&user).Error
@@ -58,10 +58,10 @@ func (u *UserRepository) FindByID(ctx context.Context, id int64) (*domain.SysUse
 	return &user, nil
 }
 
-func (u *UserRepository) FindByUsername(ctx context.Context, username string) (*domain.SysUser, error) {
-	var user domain.SysUser
+func (u *UserRepository) FindByUsername(ctx context.Context, username string) (*domain.Users, error) {
+	var user domain.Users
 	err := u.GetDB(ctx).WithContext(ctx).
-		Table("sys_user").
+		Table("users").
 		Where("username = ?", username).
 		Where(entity.FieldDeleteBy + " = 0").
 		Take(&user).Error
@@ -73,19 +73,19 @@ func (u *UserRepository) FindByUsername(ctx context.Context, username string) (*
 	return &user, nil
 }
 
-func (u *UserRepository) FindList(ctx context.Context) ([]*domain.SysUser, error) {
-	var users []*domain.SysUser
+func (u *UserRepository) FindList(ctx context.Context) ([]*domain.Users, error) {
+	var users []*domain.Users
 	err := u.GetDB(ctx).WithContext(ctx).Find(&users).Error
 	return users, err
 }
 
-func (u *UserRepository) FindPage(ctx context.Context, query *domain.SysUserPageQuery) (*entity.PaginationResult[*domain.SysUser], error) {
+func (u *UserRepository) FindPage(ctx context.Context, query *domain.SysUserPageQuery) (*entity.PaginationResult[*domain.Users], error) {
 	// 使用通用分页助手
-	helper := db.NewPaginationHelper[*domain.SysUser](u.GetDB(ctx))
+	helper := db.NewPaginationHelper[*domain.Users](u.GetDB(ctx))
 	result, err := helper.PageQuery(int(query.PageNum), int(query.PageSize), func(dq *gorm.DB) *gorm.DB {
 		// 构建基础查询 - 使用 delete_by 条件
 		dq = dq.WithContext(ctx).
-			Table("sys_user").
+			Table("users").
 			Where(entity.FieldDeleteBy + " = 0")
 
 		// 动态构建查询条件

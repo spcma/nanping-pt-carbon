@@ -2,14 +2,13 @@ package http
 
 import (
 	"app/internal/module/carbonreportday/application"
-	"app/internal/module/carbonreportday/domain"
 	"app/internal/module/carbonreportday/infrastructure"
 
 	"gorm.io/gorm"
 )
 
 type CarbonReportDayWire struct {
-	Repo    domain.CarbonReportDayRepository
+	Repo    application.CarbonReportDayRepo
 	Service *application.CarbonReportDayAppService
 }
 

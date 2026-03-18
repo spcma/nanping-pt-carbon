@@ -1,6 +1,8 @@
 package response
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -13,8 +15,8 @@ type Response struct {
 
 // Success 成功响应
 func Success(c *gin.Context, data interface{}) {
-	c.JSON(200, Response{
-		Code:    0,
+	c.JSON(http.StatusOK, Response{
+		Code:    http.StatusOK,
 		Message: "success",
 		Data:    data,
 	})
@@ -22,8 +24,8 @@ func Success(c *gin.Context, data interface{}) {
 
 // SuccessWithMessage 带消息的成功响应
 func SuccessWithMessage(c *gin.Context, message string, data interface{}) {
-	c.JSON(200, Response{
-		Code:    0,
+	c.JSON(http.StatusOK, Response{
+		Code:    http.StatusOK,
 		Message: message,
 		Data:    data,
 	})
@@ -31,7 +33,7 @@ func SuccessWithMessage(c *gin.Context, message string, data interface{}) {
 
 // Error 错误响应
 func Error(c *gin.Context, code int, message string) {
-	c.JSON(200, Response{
+	c.JSON(http.StatusOK, Response{
 		Code:    code,
 		Message: message,
 	})
@@ -39,7 +41,7 @@ func Error(c *gin.Context, code int, message string) {
 
 // BadRequest 请求参数错误
 func BadRequest(c *gin.Context, message string) {
-	c.JSON(400, Response{
+	c.JSON(http.StatusOK, Response{
 		Code:    400,
 		Message: message,
 	})
@@ -47,7 +49,7 @@ func BadRequest(c *gin.Context, message string) {
 
 // Unauthorized 未授权
 func Unauthorized(c *gin.Context, message string) {
-	c.JSON(401, Response{
+	c.JSON(http.StatusOK, Response{
 		Code:    401,
 		Message: message,
 	})
@@ -55,7 +57,7 @@ func Unauthorized(c *gin.Context, message string) {
 
 // Forbidden 禁止访问
 func Forbidden(c *gin.Context, message string) {
-	c.JSON(403, Response{
+	c.JSON(http.StatusOK, Response{
 		Code:    403,
 		Message: message,
 	})
@@ -63,7 +65,7 @@ func Forbidden(c *gin.Context, message string) {
 
 // NotFound 资源不存在
 func NotFound(c *gin.Context, message string) {
-	c.JSON(404, Response{
+	c.JSON(http.StatusOK, Response{
 		Code:    404,
 		Message: message,
 	})
@@ -71,7 +73,7 @@ func NotFound(c *gin.Context, message string) {
 
 // InternalError 服务器内部错误
 func InternalError(c *gin.Context, message string) {
-	c.JSON(500, Response{
+	c.JSON(http.StatusOK, Response{
 		Code:    500,
 		Message: message,
 	})

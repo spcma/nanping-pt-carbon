@@ -2,6 +2,7 @@ package application
 
 import (
 	"app/internal/module/iam/domain"
+	"app/internal/shared/entity"
 	"context"
 )
 
@@ -76,12 +77,12 @@ func (s *SysRoleAppService) GetSysRoleByCode(ctx context.Context, code string) (
 }
 
 // GetSysRolePage queries system roles with pagination
-func (s *SysRoleAppService) GetSysRolePage(ctx context.Context, query *domain.SysRolePageQuery) ([]*domain.SysRole, int64, error) {
+func (s *SysRoleAppService) GetSysRolePage(ctx context.Context, query *domain.SysRolePageQuery) (*entity.PaginationResult[*domain.SysRole], error) {
 	result, err := s.repo.FindPage(ctx, query)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	return result.Data, result.Total, nil
+	return result, nil
 }
 
 // ChangeRoleStatus changes role status

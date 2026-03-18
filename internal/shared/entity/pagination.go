@@ -1,11 +1,11 @@
 package entity
 
-type Pagination struct {
-	PageNum  int `json:"pageNum"`
-	PageSize int `json:"pageSize"`
+type PaginationQuery struct {
+	PageNum  int `json:"pageNum" form:"pageNum"`
+	PageSize int `json:"pageSize" form:"pageSize"`
 }
 
-func (p *Pagination) Validate() {
+func (p *PaginationQuery) Fixed() {
 	if p.PageNum <= 0 {
 		p.PageNum = 1
 	}

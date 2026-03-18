@@ -80,7 +80,7 @@ func (r *ProjectRepository) FindList(ctx context.Context) ([]*domain.Project, er
 	return projects, err
 }
 
-func (r *ProjectRepository) FindPage(ctx context.Context, query *domain.ProjectPageQuery) ([]*domain.Project, int64, error) {
+func (r *ProjectRepository) FindPage(ctx context.Context, query *domain.ProjectPageQuery) (*entity.PaginationResult[*domain.Project], error) {
 	// 使用通用分页助手
 	helper := db.NewPaginationHelper[*domain.Project](r.GetDB(ctx))
 	result, err := helper.PageQuery(query.PageNum, query.PageSize, func(dq *gorm.DB) *gorm.DB {
@@ -111,9 +111,9 @@ func (r *ProjectRepository) FindPage(ctx context.Context, query *domain.ProjectP
 		return dq
 	})
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
-	return result.Data, result.Total, nil
+	return result, nil
 }
 
 func (r *ProjectRepository) FindListByStatus(ctx context.Context, status domain.ProjectStatus) ([]*domain.Project, error) {

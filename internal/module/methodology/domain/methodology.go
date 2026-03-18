@@ -70,10 +70,10 @@ func (m *Methodology) Delete(userID int64) error {
 
 // MethodologyPageQuery 方法学分页查询对象
 type MethodologyPageQuery struct {
-	entity.Pagination
+	entity.PaginationQuery
 	Name      string `json:"name"`   // 方法学名模糊匹配
 	Code      string `json:"code"`   // 方法学编码精确匹配
 	Status    string `json:"status"` // 状态
 	SortBy    string `json:"sortBy"`
-	SortOrder string `json:"sortOrder" binding:"oneof=asc desc"` // "asc" or "desc"
+	SortOrder string `json:"sortOrder"` // "asc" or "desc"
 }

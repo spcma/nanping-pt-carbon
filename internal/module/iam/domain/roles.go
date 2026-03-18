@@ -62,8 +62,7 @@ func (r *SysRole) ChangeStatus(status RoleStatus, userID int64) error {
 
 // SysRolePageQuery system role page query object
 type SysRolePageQuery struct {
-	PageNum   int64  `json:"pageNum" binding:"required,min=1"`
-	PageSize  int64  `json:"pageSize" binding:"required,min=1,max=100"`
+	entity.PaginationQuery
 	Name      string `json:"name"`   // 角色名模糊匹配
 	Code      string `json:"code"`   // 角色编码精确匹配
 	Status    string `json:"status"` // 状态

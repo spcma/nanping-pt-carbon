@@ -52,7 +52,7 @@ func (i *DataInitializer) initSuperAdminUser() error {
 
 	// 创建超级管理员用户
 	// 默认密码：Admin@123
-	user, err := domain.NewSysUser("admin", "系统管理员", "admin@2026", "", 0)
+	user, err := domain.NewUser("admin", "系统管理员", "admin@2026", "", 0)
 	if err != nil {
 		return fmt.Errorf("failed to create super admin user: %w", err)
 	}

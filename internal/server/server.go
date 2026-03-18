@@ -13,17 +13,16 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/spf13/cast"
-
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
 // Server 服务器实例
 type Server struct {
-	config *config.Config
-	db     *gorm.DB
-	router *gin.Engine
+	config   *config.Config
+	db       *gorm.DB
+	remoteDb *gorm.DB
+	router   *gin.Engine
 }
 
 // Initialize 初始化服务器所有组件
@@ -43,8 +42,18 @@ func Initialize() (*Server, error) {
 	}
 	idgen.SetDefault(factory)
 
+	dbConfig := db.Config{
+		Driver:     "postgres",
+		Host:       config.GlobalConfig.Database.Host,
+		Port:       config.GlobalConfig.Database.Port,
+		User:       config.GlobalConfig.Database.User,
+		Password:   config.GlobalConfig.Database.Password,
+		DbName:     config.GlobalConfig.Database.DBName,
+		SearchPath: config.GlobalConfig.Database.SearchPath,
+	}
+
 	// 初始化数据库
-	dbInstance, err := initDatabase()
+	dbInstance, err := initDatabase(dbConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize database: %v", err)
 	}
@@ -52,6 +61,22 @@ func Initialize() (*Server, error) {
 	// 初始化基础数据（超级管理员等）
 	if err := initData(dbInstance); err != nil {
 		return nil, fmt.Errorf("failed to initialize data: %v", err)
+	}
+
+	dbConfig2 := db.Config{
+		Driver:     "postgres",
+		Host:       config.GlobalConfig.RemoteDatabase.Host,
+		Port:       config.GlobalConfig.RemoteDatabase.Port,
+		User:       config.GlobalConfig.RemoteDatabase.User,
+		Password:   config.GlobalConfig.RemoteDatabase.Password,
+		DbName:     config.GlobalConfig.RemoteDatabase.DBName,
+		SearchPath: config.GlobalConfig.RemoteDatabase.SearchPath,
+	}
+
+	// 初始化数据库
+	dbInstance2, err := initDatabase(dbConfig2)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize remote_database: %v", err)
 	}
 
 	// 初始化Redis
@@ -64,31 +89,22 @@ func Initialize() (*Server, error) {
 	router := transport_http.InitRouter(dbInstance, redisClient)
 
 	return &Server{
-		config: config.GlobalConfig,
-		db:     dbInstance,
-		router: router,
+		config:   config.GlobalConfig,
+		db:       dbInstance,
+		remoteDb: dbInstance2,
+		router:   router,
 	}, nil
 }
 
 // initData 初始化基础数据
 func initData(dbInstance *gorm.DB) error {
-	inita := initializer.NewDataInitializer(dbInstance)
-	return inita.Initialize()
+	return initializer.NewDataInitializer(dbInstance).Initialize()
 }
 
 // initDatabase 初始化数据库连接
-func initDatabase() (*gorm.DB, error) {
-	dbConfig := db.Config{
-		Driver:     "postgres",
-		Host:       config.GlobalConfig.Database.Host,
-		Port:       config.GlobalConfig.Database.Port,
-		User:       config.GlobalConfig.Database.User,
-		Password:   config.GlobalConfig.Database.Password,
-		DbName:     config.GlobalConfig.Database.DBName,
-		SearchPath: config.GlobalConfig.Database.SearchPath,
-	}
+func initDatabase(config db.Config) (*gorm.DB, error) {
 
-	dbInstance := db.NewGormDB(dbConfig)
+	dbInstance := db.NewGormDB(config)
 	if dbInstance == nil {
 		return nil, fmt.Errorf("failed to create database instance")
 	}
@@ -98,7 +114,7 @@ func initDatabase() (*gorm.DB, error) {
 
 func initRedis() (*cache.RedisClient, error) {
 	redisClient, err := cache.NewRedisClient(&cache.RedisConnConfig{
-		Host:     config.GlobalConfig.Redis.Host + ":" + cast.ToString(config.GlobalConfig.Redis.Port),
+		Addr:     config.GlobalConfig.Redis.Addr,
 		Password: config.GlobalConfig.Redis.Password,
 		DB:       config.GlobalConfig.Redis.DB,
 	})

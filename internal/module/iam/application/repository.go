@@ -9,14 +9,14 @@ import (
 // ===== Repository Ports =====
 
 type UserRepo interface {
-	Create(ctx context.Context, user *domain.SysUser) error
-	Update(ctx context.Context, user *domain.SysUser) error
+	Create(ctx context.Context, user *domain.Users) error
+	Update(ctx context.Context, user *domain.Users) error
 	UpdateFields(ctx context.Context, id int64, updates map[string]interface{}) error // 添加部分更新方法
 	Delete(ctx context.Context, id, uid int64) error
-	FindByID(ctx context.Context, id int64) (*domain.SysUser, error)
-	FindByUsername(ctx context.Context, username string) (*domain.SysUser, error) // 添加按用户名查找
-	FindList(ctx context.Context) ([]*domain.SysUser, error)
-	FindPage(ctx context.Context, query *domain.SysUserPageQuery) (*entity.PaginationResult[*domain.SysUser], error)
+	FindByID(ctx context.Context, id int64) (*domain.Users, error)
+	FindByUsername(ctx context.Context, username string) (*domain.Users, error) // 添加按用户名查找
+	FindList(ctx context.Context) ([]*domain.Users, error)
+	FindPage(ctx context.Context, query *domain.SysUserPageQuery) (*entity.PaginationResult[*domain.Users], error)
 }
 
 type RoleRepo interface {

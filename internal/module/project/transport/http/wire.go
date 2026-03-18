@@ -21,3 +21,18 @@ func InitProjectWire(db *gorm.DB) *ProjectWire {
 		AppService: appService,
 	}
 }
+
+type ProjectMembersWire struct {
+	Repo       application.ProjectMembersRepo
+	AppService *application.ProjectMembersService
+}
+
+// InitProjectMembersWire initializes project members DDD components
+func InitProjectMembersWire(db *gorm.DB) *ProjectMembersWire {
+	projectMembersRepo := infrastructure.NewProjectMembersRepository(db)
+	appService := application.NewProjectMembersService(projectMembersRepo)
+	return &ProjectMembersWire{
+		Repo:       projectMembersRepo,
+		AppService: appService,
+	}
+}

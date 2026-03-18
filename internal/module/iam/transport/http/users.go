@@ -121,6 +121,16 @@ func (h *SysUserHandler) GetByID(c *gin.Context) {
 	response.Success(c, user)
 }
 
+func (h *SysUserHandler) GetList(c *gin.Context) {
+	list, err := h.appService.GetList(platform_http.Ctx(c))
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	response.Success(c, list)
+}
+
 // GetPage queries system users with pagination（需要认证）
 func (h *SysUserHandler) GetPage(c *gin.Context) {
 	var query domain.SysUserPageQuery
@@ -129,23 +139,15 @@ func (h *SysUserHandler) GetPage(c *gin.Context) {
 		return
 	}
 
-	if query.PageNum == 0 {
-		query.PageNum = 1
-	}
-	if query.PageSize == 0 {
-		query.PageSize = 10
-	}
+	query.Fixed()
 
-	users, total, err := h.appService.GetSysUserPage(platform_http.Ctx(c), &query)
+	res, err := h.appService.GetSysUserPage(platform_http.Ctx(c), &query)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	response.Success(c, gin.H{
-		"list":  users,
-		"total": total,
-	})
+	response.Success(c, res)
 }
 
 // GetPublicPage queries public system users with pagination（支持可选认证）
@@ -165,7 +167,7 @@ func (h *SysUserHandler) GetPublicPage(c *gin.Context) {
 		query.PageSize = 10
 	}
 
-	users, total, err := h.appService.GetSysUserPage(platform_http.Ctx(c), &query)
+	res, err := h.appService.GetSysUserPage(platform_http.Ctx(c), &query)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
@@ -180,16 +182,16 @@ func (h *SysUserHandler) GetPublicPage(c *gin.Context) {
 		logger.Debug("iam", "public page accessed by authenticated user",
 			zap.Int64("user_id", securityUser.ID),
 		)
-		h.respondWithEnhancedUsers(c, users, total)
+		h.respondWithEnhancedUsers(c, res.Data, res.Total)
 	} else {
 		// 未登录：返回基础公开信息
 		logger.Debug("iam", "public page accessed by anonymous user")
-		h.respondWithPublicUsers(c, users, total)
+		h.respondWithPublicUsers(c, res.Data, res.Total)
 	}
 }
 
 // respondWithPublicUsers 返回基础公开信息（脱敏）
-func (h *SysUserHandler) respondWithPublicUsers(c *gin.Context, users []*domain.SysUser, total int64) {
+func (h *SysUserHandler) respondWithPublicUsers(c *gin.Context, users []*domain.Users, total int64) {
 	type PublicUserInfo struct {
 		ID       int64  `json:"id"`
 		Username string `json:"username"`
@@ -214,7 +216,7 @@ func (h *SysUserHandler) respondWithPublicUsers(c *gin.Context, users []*domain.
 }
 
 // respondWithEnhancedUsers 返回增强信息（包含更多字段）
-func (h *SysUserHandler) respondWithEnhancedUsers(c *gin.Context, users []*domain.SysUser, total int64) {
+func (h *SysUserHandler) respondWithEnhancedUsers(c *gin.Context, users []*domain.Users, total int64) {
 	type EnhancedUserInfo struct {
 		ID         int64  `json:"id"`
 		Username   string `json:"username"`

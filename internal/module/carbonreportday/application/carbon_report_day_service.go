@@ -2,6 +2,7 @@ package application
 
 import (
 	"app/internal/module/carbonreportday/domain"
+	"app/internal/shared/entity"
 	"context"
 )
 
@@ -21,11 +22,11 @@ type UpdateCarbonReportDayCommand struct {
 
 // CarbonReportDayAppService 碳报告日报应用服务
 type CarbonReportDayAppService struct {
-	repo domain.CarbonReportDayRepository
+	repo CarbonReportDayRepo
 }
 
 // NewCarbonReportDayAppService 创建碳报告日报应用服务
-func NewCarbonReportDayAppService(repo domain.CarbonReportDayRepository) *CarbonReportDayAppService {
+func NewCarbonReportDayAppService(repo CarbonReportDayRepo) *CarbonReportDayAppService {
 	return &CarbonReportDayAppService{repo: repo}
 }
 
@@ -62,6 +63,10 @@ func (s *CarbonReportDayAppService) GetCarbonReportDayByID(ctx context.Context, 
 }
 
 // GetCarbonReportDayPage 分页查询碳报告日报
-func (s *CarbonReportDayAppService) GetCarbonReportDayPage(ctx context.Context, query domain.CarbonReportDayPageQuery) ([]*domain.CarbonReportDay, int64, error) {
-	return s.repo.FindPage(ctx, query)
+func (s *CarbonReportDayAppService) GetCarbonReportDayPage(ctx context.Context, query *domain.CarbonReportDayPageQuery) (*entity.PaginationResult[*domain.CarbonReportDay], error) {
+	res, err := s.repo.FindPage(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
 }

@@ -11,13 +11,13 @@ import (
 var GlobalConfig *Config
 
 type Config struct {
-	Server   ServerConfig     `mapstructure:"server"`
-	Logger   logger.LogConfig `mapstructure:"logger"`
-	Database DatabaseConfig   `mapstructure:"database"`
-	Redis    RedisConfig      `mapstructure:"redis"`
-	Token    TokenConfig      `mapstructure:"token"`
-	Idgen    IdgenConfig      `mapstructure:"idgen"`
-	Ipfs     IpfsConfig       `mapstructure:"ipfs"`
+	Server         ServerConfig     `mapstructure:"server"`
+	Logger         logger.LogConfig `mapstructure:"logger"`
+	Database       DatabaseConfig   `mapstructure:"database"`
+	RemoteDatabase DatabaseConfig   `mapstructure:"remote_database"`
+	Redis          RedisConfig      `mapstructure:"redis"`
+	Token          TokenConfig      `mapstructure:"token"`
+	Ipfs           IpfsConfig       `mapstructure:"ipfs"`
 }
 
 type ServerConfig struct {
@@ -39,8 +39,7 @@ type DatabaseConfig struct {
 }
 
 type RedisConfig struct {
-	Host         string        `mapstructure:"host"`
-	Port         int           `mapstructure:"port"`
+	Addr         string        `mapstructure:"addr"`
 	Password     string        `mapstructure:"password"`
 	DB           int           `mapstructure:"db"`
 	PoolSize     int           `mapstructure:"pool_size"`
@@ -51,10 +50,6 @@ type RedisConfig struct {
 type TokenConfig struct {
 	Secret string `mapstructure:"secret"`
 	Expire int    `mapstructure:"expire"`
-}
-
-type IdgenConfig struct {
-	WorkerID int `mapstructure:"worker_id"`
 }
 
 // Init 初始化配置

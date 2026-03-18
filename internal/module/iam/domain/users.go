@@ -16,8 +16,8 @@ const (
 	UserStatusCanceled UserStatus = "canceled" // canceled
 )
 
-// SysUser system user aggregate root
-type SysUser struct {
+// Users system user aggregate root
+type Users struct {
 	entity.BaseEntity
 	Username    string     `json:"username" gorm:"column:username"`
 	Nickname    string     `json:"nickname" gorm:"column:nickname"`
@@ -29,16 +29,15 @@ type SysUser struct {
 	Email       string     `json:"email" gorm:"column:email"`
 	Description string     `json:"description" gorm:"column:description"`
 	Type        string     `json:"type" gorm:"column:type"`
-	ParentId    int64      `json:"parent_id" gorm:"column:parent_id"`
 }
 
 // TableName table name
-func (*SysUser) TableName() string {
-	return "sys_user"
+func (*Users) TableName() string {
+	return "users"
 }
 
-// NewSysUser creates a new user
-func NewSysUser(username, nickname, password, salt string, createUser int64) (*SysUser, error) {
+// NewUser creates a new user
+func NewUser(username, nickname, password, salt string, createUser int64) (*Users, error) {
 	// 如果没有提供盐值，生成一个新的
 	if salt == "" {
 		var err error
@@ -51,7 +50,7 @@ func NewSysUser(username, nickname, password, salt string, createUser int64) (*S
 	// 加密密码
 	encryptedPassword := crypto.HashPassword(password, salt)
 
-	user := &SysUser{
+	user := &Users{
 		BaseEntity: entity.BaseEntity{
 			Id:         idgen.NumID(),
 			CreateBy:   createUser,
@@ -76,7 +75,7 @@ type UpdateUserCommand struct {
 }
 
 // UpdateInfo 更新用户信息（部分更新）
-func (u *SysUser) UpdateInfo(cmd UpdateUserCommand, userID int64) error {
+func (u *Users) UpdateInfo(cmd UpdateUserCommand, userID int64) error {
 	if cmd.Nickname != nil {
 		u.Nickname = *cmd.Nickname
 	}
@@ -98,7 +97,7 @@ func (u *SysUser) UpdateInfo(cmd UpdateUserCommand, userID int64) error {
 }
 
 // ChangeStatus changes user status
-func (u *SysUser) ChangeStatus(status UserStatus, userID int64) error {
+func (u *Users) ChangeStatus(status UserStatus, userID int64) error {
 	u.Status = status
 	u.UpdateBy = userID
 	u.UpdateTime = timeutil.Now()
@@ -106,7 +105,7 @@ func (u *SysUser) ChangeStatus(status UserStatus, userID int64) error {
 }
 
 // ChangePassword changes password
-func (u *SysUser) ChangePassword(password string, userID int64) error {
+func (u *Users) ChangePassword(password string, userID int64) error {
 	u.Password = password
 	u.UpdateBy = userID
 	u.UpdateTime = timeutil.Now()
@@ -114,7 +113,7 @@ func (u *SysUser) ChangePassword(password string, userID int64) error {
 }
 
 // Delete 逻辑删除用户
-func (u *SysUser) Delete(userID int64) error {
+func (u *Users) Delete(userID int64) error {
 	u.DeleteBy = userID
 	u.DeleteTime = timeutil.Now()
 
@@ -123,7 +122,7 @@ func (u *SysUser) Delete(userID int64) error {
 
 // SysUserPageQuery system user page query object
 type SysUserPageQuery struct {
-	entity.Pagination
+	entity.PaginationQuery
 	Username  string `json:"username"`
 	Nickname  string `json:"nickname"`
 	Phone     string `json:"phone"`

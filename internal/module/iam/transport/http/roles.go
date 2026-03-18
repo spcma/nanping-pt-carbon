@@ -119,6 +119,8 @@ func (h *SysRoleHandler) GetPage(c *gin.Context) {
 		return
 	}
 
+	query.Fixed()
+
 	if query.PageNum == 0 {
 		query.PageNum = 1
 	}
@@ -126,16 +128,13 @@ func (h *SysRoleHandler) GetPage(c *gin.Context) {
 		query.PageSize = 10
 	}
 
-	roles, total, err := h.appService.GetSysRolePage(platform_http.Ctx(c), &query)
+	res, err := h.appService.GetSysRolePage(platform_http.Ctx(c), &query)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	response.Success(c, gin.H{
-		"list":  roles,
-		"total": total,
-	})
+	response.Success(c, res)
 }
 
 // ChangeStatus changes role status
