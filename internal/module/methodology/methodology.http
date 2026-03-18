@@ -1,0 +1,207 @@
+@host = localhost:19870
+@base_url = http://{{host}}/api
+@token = 2033791386607685632
+
+### ====================
+=== Methodology 方法学管理 HTTP API
+### ====================
+
+### 1. 创建方法学
+# @name createMethodology
+POST {{base_url}}/methodology
+Content-Type: application/json
+Authorization: {{token}}
+
+{
+  "name": "测试方法学",
+  "code": "METH_TEST_001",
+  "description": "这是一个测试方法学",
+  "icon": "",
+  "startDate": "",
+  "endDate": ""
+}
+
+### 2. 更新方法学信息
+# @name updateMethodology
+PUT {{base_url}}/methodology/2033791386607685632
+Content-Type: application/json
+Authorization: {{token}}
+
+{
+  "name": "更新后的方法学名称",
+  "description": "更新后的方法学描述"
+}
+
+### 3. 删除方法学（逻辑删除）
+# @name deleteMethodology
+DELETE {{base_url}}/methodology/2033791386607685632
+Authorization: {{token}}
+
+### 4. 根据 ID 获取方法学详情
+# @name getMethodologyById
+GET {{base_url}}/methodology/2033791386607685632
+Authorization: {{token}}
+
+### 5. 根据编码获取方法学详情
+# @name getMethodologyByCode
+GET {{base_url}}/methodology/code/METH_TEST_001
+Authorization: {{token}}
+
+### 6. 分页查询方法学列表
+# 查询参数：
+# - pageNum: 页码，默认 1
+# - pageSize: 每页数量，默认 10
+# - name: 方法学名称（可选，模糊查询）
+# - code: 方法学编码（可选，精确匹配）
+# - status: 状态（可选）- 0:禁用 1:启用
+# - sortBy: 排序字段（可选）
+# - sortOrder: 排序方式（可选）- asc/desc
+# @name getMethodologyPage
+GET {{base_url}}/methodologies?pageNum=1&pageSize=10&name=&code=&status=
+Authorization: {{token}}
+
+### 7. 变更方法学状态
+# 状态选项：
+# - 0: 禁用 (inactive)
+# - 1: 启用 (active)
+# @name changeMethodologyStatus
+PUT {{base_url}}/methodology/2033791386607685632/status
+Content-Type: application/json
+Authorization: {{token}}
+
+{
+  "status": "1"
+}
+
+### ====================
+### 请求数据结构说明
+### ====================
+### 
+### 1. 创建方法学请求体：
+### {
+###   "name": "方法学名称",        // 必填，方法学名称
+###   "code": "METH_CODE",        // 必填，方法学编码（唯一标识）
+###   "description": "方法学描述"  // 可选，方法学详细描述
+### }
+### 
+### 2. 更新方法学请求体：
+### {
+###   "name": "新方法学名称",      // 可选
+###   "description": "新描述"      // 可选
+### }
+### 
+### 3. 变更状态请求体：
+### {
+###   "status": "1"               // 必填，方法学状态
+### }
+### 
+### ====================
+### 响应数据结构说明
+### ====================
+### 
+### 1. 创建/更新/删除响应：
+### {
+###   "code": 200,
+###   "data": {
+###     "id": 2033791386607685632
+###   }
+### }
+### 
+### 2. 方法学详情响应：
+### {
+###   "code": 200,
+###   "data": {
+###     "id": 2033791386607685632,
+###     "name": "方法学名称",
+###     "code": "METH_CODE",
+###     "status": "1",
+###     "description": "方法学描述",
+###     "createTime": "2026-03-18 10:00:00",
+###     "updateTime": "2026-03-18 10:00:00"
+###   }
+### }
+### 
+### 3. 分页查询响应：
+### {
+###   "code": 200,
+###   "data": {
+###     "list": [
+###       {
+###         "id": 2033791386607685632,
+###         "name": "方法学名称",
+###         "code": "METH_CODE",
+###         "status": "1",
+###         "description": "方法学描述",
+###         "createTime": "2026-03-18 10:00:00",
+###         "updateTime": "2026-03-18 10:00:00"
+###       }
+###     ],
+###     "total": 100
+###   }
+### }
+### 
+### ====================
+### 方法学状态说明
+### ====================
+### - 0: inactive - 禁用状态
+### - 1: active   - 启用状态（默认状态）
+### 
+### ====================
+### 错误码说明
+### ====================
+### - 400: 请求参数错误
+### - 401: 未授权访问
+### - 500: 服务器内部错误
+### - 方法学不存在时返回相应错误提示
+### 
+### ====================
+### 使用示例
+### ====================
+### 
+### 示例 1: 创建新的方法学
+### POST /api/methodology
+### Authorization: Bearer <token>
+### {
+###   "name": "CDM 方法学",
+###   "code": "CDM_METH_001",
+###   "description": "清洁发展机制方法学"
+### }
+### 
+### 示例 2: 查询方法学详情（通过 ID）
+### GET /api/methodology/2033791386607685632
+### Authorization: Bearer <token>
+### 
+### 示例 3: 查询方法学详情（通过编码）
+### GET /api/methodology/code/CDM_METH_001
+### Authorization: Bearer <token>
+### 
+### 示例 4: 分页查询方法学列表
+### GET /api/methodologies?pageNum=1&pageSize=20&status=1
+### Authorization: Bearer <token>
+### 
+### 示例 5: 更新方法学信息
+### PUT /api/methodology/2033791386607685632
+### Authorization: Bearer <token>
+### {
+###   "name": "更新后的 CDM 方法学",
+###   "description": "更新后的描述信息"
+### }
+### 
+### 示例 6: 启用方法学
+### PUT /api/methodology/2033791386607685632/status
+### Authorization: Bearer <token>
+### {
+###   "status": "1"
+### }
+### 
+### 示例 7: 禁用方法学
+### PUT /api/methodology/2033791386607685632/status
+### Authorization: Bearer <token>
+### {
+###   "status": "0"
+### }
+### 
+### 示例 8: 删除方法学
+### DELETE /api/methodology/2033791386607685632
+### Authorization: Bearer <token>
+### ====================

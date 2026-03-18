@@ -11,9 +11,9 @@ import (
 type UserStatus string
 
 const (
-	UserStatusNormal   UserStatus = "normal"   // normal
-	UserStatusFrozen   UserStatus = "frozen"   // frozen
-	UserStatusCanceled UserStatus = "canceled" // canceled
+	UserStatusNormal   UserStatus = "1" // 可用
+	UserStatusFrozen   UserStatus = "2" // 冻结
+	UserStatusCanceled UserStatus = "9" // 注销
 )
 
 // Users system user aggregate root

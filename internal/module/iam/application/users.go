@@ -8,14 +8,14 @@ import (
 	"context"
 )
 
-// SysUserAppService system user application service
-type SysUserAppService struct {
+// UsersService system user application service
+type UsersService struct {
 	repo UserRepo
 }
 
-// NewSysUserAppService creates system user application service
-func NewSysUserAppService(repo UserRepo) *SysUserAppService {
-	return &SysUserAppService{repo: repo}
+// NewUsersService creates system user application service
+func NewUsersService(repo UserRepo) *UsersService {
+	return &UsersService{repo: repo}
 }
 
 // CreateSysUserCommand create system user command
@@ -26,8 +26,8 @@ type CreateSysUserCommand struct {
 	UserID   int64  `json:"userId"`
 }
 
-// CreateSysUser creates a system user
-func (s *SysUserAppService) CreateSysUser(ctx context.Context, cmd CreateSysUserCommand) (int64, error) {
+// Create creates a system user
+func (s *UsersService) Create(ctx context.Context, cmd CreateSysUserCommand) (int64, error) {
 	user, err := domain.NewUser(cmd.Username, cmd.Nickname, cmd.Password, "", cmd.UserID)
 	if err != nil {
 		return 0, err
@@ -39,8 +39,8 @@ func (s *SysUserAppService) CreateSysUser(ctx context.Context, cmd CreateSysUser
 	return user.Id, nil
 }
 
-// UpdateSysUserCommand update system user command
-type UpdateSysUserCommand struct {
+// UpdateSysUserParam update system user command
+type UpdateSysUserParam struct {
 	ID          int64   `json:"id"`
 	Nickname    *string `json:"nickname"`
 	Phone       *string `json:"phone"`
@@ -51,26 +51,37 @@ type UpdateSysUserCommand struct {
 }
 
 // UpdateSysUser updates a system user
-func (s *SysUserAppService) UpdateSysUser(ctx context.Context, cmd UpdateSysUserCommand) error {
-	user, err := s.repo.FindByID(ctx, cmd.ID)
+func (s *UsersService) UpdateSysUser(ctx context.Context, updateParam UpdateSysUserParam) error {
+	user, err := s.repo.FindByID(ctx, updateParam.ID)
 	if err != nil {
 		return err
 	}
 
 	// 将 application 层的 Command 转换为 domain 层的 Command
 	domainCmd := domain.UpdateUserCommand{
-		Nickname:    cmd.Nickname,
-		Phone:       cmd.Phone,
-		Email:       cmd.Email,
-		Description: cmd.Description,
-		Avatar:      cmd.Avatar,
+		Nickname:    updateParam.Nickname,
+		Phone:       updateParam.Phone,
+		Email:       updateParam.Email,
+		Description: updateParam.Description,
+		Avatar:      updateParam.Avatar,
 	}
-	return user.UpdateInfo(domainCmd, cmd.UserID)
+
+	err = user.UpdateInfo(domainCmd, updateParam.UserID)
+	if err != nil {
+		return err
+	}
+
+	return s.repo.Update(ctx, user)
+}
+
+type DeleteSysUserParam struct {
+	ID     int64 `json:"id"`
+	UserID int64 `json:"userId"`
 }
 
 // DeleteSysUser deletes a system user (logical delete)
-func (s *SysUserAppService) DeleteSysUser(ctx context.Context, id int64, userID int64) error {
-	user, err := s.repo.FindByID(ctx, id)
+func (s *UsersService) DeleteSysUser(ctx context.Context, param *DeleteSysUserParam) error {
+	user, err := s.repo.FindByID(ctx, param.ID)
 	if err != nil {
 		return err
 	}
@@ -81,7 +92,7 @@ func (s *SysUserAppService) DeleteSysUser(ctx context.Context, id int64, userID 
 	}
 
 	// 执行领域方法
-	if err := user.Delete(userID); err != nil {
+	if err := user.Delete(param.UserID); err != nil {
 		return err
 	}
 
@@ -90,16 +101,16 @@ func (s *SysUserAppService) DeleteSysUser(ctx context.Context, id int64, userID 
 }
 
 // GetSysUserByID gets system user by ID
-func (s *SysUserAppService) GetSysUserByID(ctx context.Context, id int64) (*domain.Users, error) {
+func (s *UsersService) GetSysUserByID(ctx context.Context, id int64) (*domain.Users, error) {
 	return s.repo.FindByID(ctx, id)
 }
 
 // GetSysUserByUsername gets system user by username
-func (s *SysUserAppService) GetSysUserByUsername(ctx context.Context, username string) (*domain.Users, error) {
+func (s *UsersService) GetSysUserByUsername(ctx context.Context, username string) (*domain.Users, error) {
 	return s.repo.FindByUsername(ctx, username)
 }
 
-func (s *SysUserAppService) GetList(ctx context.Context) ([]*domain.Users, error) {
+func (s *UsersService) GetList(ctx context.Context) ([]*domain.Users, error) {
 	list, err := s.repo.FindList(ctx)
 	if err != nil {
 		return nil, err
@@ -109,7 +120,7 @@ func (s *SysUserAppService) GetList(ctx context.Context) ([]*domain.Users, error
 }
 
 // GetSysUserPage queries system users with pagination
-func (s *SysUserAppService) GetSysUserPage(ctx context.Context, query *domain.SysUserPageQuery) (*entity.PaginationResult[*domain.Users], error) {
+func (s *UsersService) GetSysUserPage(ctx context.Context, query *domain.SysUserPageQuery) (*entity.PaginationResult[*domain.Users], error) {
 	result, err := s.repo.FindPage(ctx, query)
 	if err != nil {
 		return nil, err
@@ -125,7 +136,7 @@ type ChangePasswordCommand struct {
 }
 
 // ChangePassword changes password
-func (s *SysUserAppService) ChangePassword(ctx context.Context, cmd ChangePasswordCommand) error {
+func (s *UsersService) ChangePassword(ctx context.Context, cmd ChangePasswordCommand) error {
 	user, err := s.repo.FindByID(ctx, cmd.Id)
 	if err != nil {
 		return err
@@ -146,7 +157,7 @@ func (s *SysUserAppService) ChangePassword(ctx context.Context, cmd ChangePasswo
 }
 
 // ChangeUserStatus changes user status
-func (s *SysUserAppService) ChangeUserStatus(ctx context.Context, id int64, status domain.UserStatus, userID int64) error {
+func (s *UsersService) ChangeUserStatus(ctx context.Context, id int64, status domain.UserStatus, userID int64) error {
 	user, err := s.repo.FindByID(ctx, id)
 	if err != nil {
 		return err
@@ -162,7 +173,7 @@ type RegisterCommand struct {
 }
 
 // Register 用户注册
-func (s *SysUserAppService) Register(ctx context.Context, cmd RegisterCommand) (int64, error) {
+func (s *UsersService) Register(ctx context.Context, cmd RegisterCommand) (int64, error) {
 	// 检查用户名是否已存在
 	existingUser, err := s.repo.FindByUsername(ctx, cmd.Username)
 	if err == nil && existingUser != nil && !existingUser.IsDeleted() {
@@ -170,7 +181,7 @@ func (s *SysUserAppService) Register(ctx context.Context, cmd RegisterCommand) (
 	}
 
 	// 创建用户（密码加密在 domain 层处理）
-	return s.CreateSysUser(ctx, CreateSysUserCommand{
+	return s.Create(ctx, CreateSysUserCommand{
 		Username: cmd.Username,
 		Nickname: cmd.Nickname,
 		Password: cmd.Password,
@@ -199,7 +210,7 @@ type LoginUserInfo struct {
 }
 
 // Login 用户登录
-func (s *SysUserAppService) Login(ctx context.Context, cmd LoginCommand, jwtManager token.Manager) (*LoginResponse, error) {
+func (s *UsersService) Login(ctx context.Context, cmd LoginCommand, jwtManager token.Manager) (*LoginResponse, error) {
 	// 查找用户
 	user, err := s.repo.FindByUsername(ctx, cmd.Username)
 	if err != nil {

@@ -138,6 +138,16 @@ func (h *ProjectHandler) GetByCond(c *gin.Context) {
 	response.Success(c, project)
 }
 
+func (h *ProjectHandler) GetList(c *gin.Context) {
+	list, err := h.appService.GetList(platform_http.Ctx(c))
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	response.Success(c, list)
+}
+
 // GetPage queries projects with pagination
 func (h *ProjectHandler) GetPage(c *gin.Context) {
 	var query domain.ProjectPageQuery

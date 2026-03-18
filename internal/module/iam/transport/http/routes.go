@@ -62,7 +62,7 @@ func (r *iamRoutes) RegisterRoutes(group *gin.RouterGroup, middlewares map[share
 		sysUserGroup.POST("", handlers.SysUserHandler.Create)
 		sysUserGroup.PUT("", handlers.SysUserHandler.Update)
 		sysUserGroup.DELETE("", handlers.SysUserHandler.Delete)
-		sysUserGroup.GET("", handlers.SysUserHandler.GetByID)
+		sysUserGroup.GET("", handlers.SysUserHandler.GetByCond)
 		sysUserGroup.PUT("/password", handlers.SysUserHandler.ChangePassword)
 		sysUserGroup.PUT("/status", handlers.SysUserHandler.ChangeStatus)
 	}

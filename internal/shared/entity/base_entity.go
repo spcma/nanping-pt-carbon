@@ -18,12 +18,12 @@ const (
 // BaseEntity 通用基础实体，包含所有实体共有的审计字段
 type BaseEntity struct {
 	Id         int64         `gorm:"primaryKey;default:0;autoIncrement:false" json:"id"`
-	CreateBy   int64         `gorm:"column:create_by;default:0" json:"create_by"`
-	UpdateBy   int64         `gorm:"column:update_by;default:0" json:"update_by"`
-	DeleteBy   int64         `gorm:"column:delete_by;default:0" json:"delete_by"`
-	CreateTime timeutil.Time `gorm:"column:create_time;type:timestamp;default:timezone('Asia/Shanghai'::text, now())" json:"create_time"`
-	UpdateTime timeutil.Time `gorm:"column:update_time;type:timestamp;default:timezone('Asia/Shanghai'::text, now())" json:"update_time"`
-	DeleteTime timeutil.Time `gorm:"column:delete_time;type:timestamp;default:'1970-01-01 00:00:00+08'" json:"delete_time"`
+	CreateBy   int64         `gorm:"column:create_by;default:0" json:"createBy"`
+	UpdateBy   int64         `gorm:"column:update_by;default:0" json:"updateBy"`
+	DeleteBy   int64         `gorm:"column:delete_by;default:0" json:"deleteBy"`
+	CreateTime timeutil.Time `gorm:"column:create_time;type:timestamp;default:timezone('Asia/Shanghai'::text, now())" json:"createTime"`
+	UpdateTime timeutil.Time `gorm:"column:update_time;type:timestamp;default:timezone('Asia/Shanghai'::text, now())" json:"updateTime"`
+	DeleteTime timeutil.Time `gorm:"column:delete_time;type:timestamp;default:'1970-01-01 00:00:00+08'" json:"deleteTime"`
 }
 
 // Delete 逻辑删除

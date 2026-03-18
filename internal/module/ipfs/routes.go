@@ -4,6 +4,7 @@ import (
 	"app/internal/config"
 	shared_http "app/internal/shared/http"
 	"app/internal/shared/logger"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -38,19 +39,23 @@ func (i *ipfsRoutes) RegisterRoutes(group *gin.RouterGroup, middlewares map[shar
 	if v, ok := middlewares[shared_http.AuthTypeRequired]; ok {
 		dirRoute.Use(v)
 	}
-	dirRoute.POST("check", i.service.CheckDir)
-	dirRoute.POST("create", i.service.CreateDir)
-	dirRoute.GET("list", i.service.ListDir)
-	dirRoute.POST("handle", i.service.HandleWithDir)
-	dirRoute.DELETE("delete", i.service.DeleteFile)
+	{
+		dirRoute.POST("check", i.service.CheckDir)
+		dirRoute.POST("create", i.service.CreateDir)
+		dirRoute.GET("list", i.service.ListDir)
+		dirRoute.POST("handle", i.service.HandleWithDir)
+		dirRoute.DELETE("delete", i.service.DeleteFile)
+	}
 
 	fileRoute := group.Group("file")
 	if v, ok := middlewares[shared_http.AuthTypeRequired]; ok {
 		fileRoute.Use(v)
 	}
-	fileRoute.GET("read", i.service.ReadFile)
-	fileRoute.POST("save", i.service.SaveFile)
-	fileRoute.POST("upload", i.service.UploadFile)
-	fileRoute.GET("download", i.service.DownloadFile)
-	fileRoute.DELETE("delete", i.service.DeleteFile)
+	{
+		fileRoute.GET("read", i.service.ReadFile)
+		fileRoute.POST("save", i.service.SaveFile)
+		fileRoute.POST("upload", i.service.UploadFile)
+		fileRoute.GET("download", i.service.DownloadFile)
+		fileRoute.DELETE("delete", i.service.DeleteFile)
+	}
 }

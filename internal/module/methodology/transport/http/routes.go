@@ -36,17 +36,18 @@ func (r *methodologyRoutes) RegisterRoutes(group *gin.RouterGroup, middlewares m
 		methodologyGroup.Use(mw)
 	}
 	methodologyGroup.POST("", handlers.MethodologyHandler.Create)
-	methodologyGroup.PUT("/:id", handlers.MethodologyHandler.Update)
-	methodologyGroup.DELETE("/:id", handlers.MethodologyHandler.Delete)
-	methodologyGroup.GET("/:id", handlers.MethodologyHandler.GetByID)
-	methodologyGroup.PUT("/:id/status", handlers.MethodologyHandler.ChangeStatus)
+	methodologyGroup.PUT("", handlers.MethodologyHandler.Update)
+	methodologyGroup.DELETE("", handlers.MethodologyHandler.Delete)
+	methodologyGroup.GET("", handlers.MethodologyHandler.GetByID)
+	methodologyGroup.PUT("status", handlers.MethodologyHandler.ChangeStatus)
 
 	// 方法学列表路由 - /api/methodologies/*
-	methodologiesGroup := group.Group("/methodologies")
+	methodologiesGroup := group.Group("/methodologys")
 	if mw := middlewares[shared_http.AuthTypeRequired]; mw != nil {
 		methodologiesGroup.Use(mw)
 	}
-	methodologiesGroup.GET("", handlers.MethodologyHandler.GetPage)
+	methodologiesGroup.GET("list", handlers.MethodologyHandler.GetList)
+	methodologiesGroup.GET("page", handlers.MethodologyHandler.GetPage)
 
 	// 方法学代码查询路由 - /api/methodology/code/*
 	methodologyCodeGroup := group.Group("/methodology/code")

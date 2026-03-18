@@ -2,19 +2,20 @@ package application
 
 import (
 	"app/internal/module/methodology/domain"
+	"app/internal/shared/timeutil"
 	"context"
 )
 
-// CreateMethodologyCommand 创建方法学命令
-type CreateMethodologyCommand struct {
+// CreateMethodologyParam 创建方法学命令
+type CreateMethodologyParam struct {
 	Name        string `json:"name"`
 	Code        string `json:"code"`
 	Description string `json:"description"`
 	UserID      int64  `json:"userId"`
 }
 
-// UpdateMethodologyCommand 更新方法学命令
-type UpdateMethodologyCommand struct {
+// UpdateMethodologyParam 更新方法学命令
+type UpdateMethodologyParam struct {
 	ID          int64  `json:"id"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
@@ -39,8 +40,8 @@ func NewMethodologyAppService(repo MethodologyRepo) *MethodologyAppService {
 }
 
 // CreateMethodology 创建方法学
-func (s *MethodologyAppService) CreateMethodology(ctx context.Context, cmd CreateMethodologyCommand) (int64, error) {
-	methodology, err := domain.NewMethodology(cmd.Name, cmd.Code, cmd.Description, cmd.UserID)
+func (s *MethodologyAppService) CreateMethodology(ctx context.Context, cmd CreateMethodologyParam) (int64, error) {
+	methodology, err := domain.NewMethodology(cmd.Name, cmd.Code, "", cmd.Description, cmd.UserID, timeutil.Now(), timeutil.Now())
 	if err != nil {
 		return 0, err
 	}
@@ -52,7 +53,7 @@ func (s *MethodologyAppService) CreateMethodology(ctx context.Context, cmd Creat
 }
 
 // UpdateMethodology 更新方法学
-func (s *MethodologyAppService) UpdateMethodology(ctx context.Context, cmd UpdateMethodologyCommand) error {
+func (s *MethodologyAppService) UpdateMethodology(ctx context.Context, cmd UpdateMethodologyParam) error {
 	methodology, err := s.repo.FindByID(ctx, cmd.ID)
 	if err != nil {
 		return err
@@ -84,6 +85,10 @@ func (s *MethodologyAppService) GetMethodologyByID(ctx context.Context, id int64
 // GetMethodologyByCode 根据编码获取方法学
 func (s *MethodologyAppService) GetMethodologyByCode(ctx context.Context, code string) (*domain.Methodology, error) {
 	return s.repo.FindByCode(ctx, code)
+}
+
+func (s *MethodologyAppService) GetList(ctx context.Context) ([]*domain.Methodology, error) {
+	return s.repo.FindList(ctx)
 }
 
 // GetMethodologyPage 分页查询方法学

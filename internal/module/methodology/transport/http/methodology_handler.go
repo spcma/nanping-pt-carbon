@@ -28,8 +28,8 @@ func NewMethodologyHandler(appService *application.MethodologyAppService) *Metho
 
 // Create creates a methodology
 func (h *MethodologyHandler) Create(c *gin.Context) {
-	var cmd application.CreateMethodologyCommand
-	if err := c.ShouldBindJSON(&cmd); err != nil {
+	var param application.CreateMethodologyParam
+	if err := c.ShouldBindJSON(&param); err != nil {
 		logger.Warn("methodology", "create methodology - invalid request",
 			zap.String("error", err.Error()),
 		)
@@ -38,12 +38,12 @@ func (h *MethodologyHandler) Create(c *gin.Context) {
 	}
 
 	securityUser := platform_http.GetCurrentUser(c)
-	cmd.UserID = securityUser.ID
+	param.UserID = securityUser.ID
 
-	id, err := h.appService.CreateMethodology(platform_http.Ctx(c), cmd)
+	id, err := h.appService.CreateMethodology(platform_http.Ctx(c), param)
 	if err != nil {
 		logger.Error("methodology", "create methodology failed",
-			zap.String("name", cmd.Name),
+			zap.String("name", param.Name),
 			zap.Error(err),
 		)
 		response.Error(c, http.StatusInternalServerError, err.Error())
@@ -52,7 +52,7 @@ func (h *MethodologyHandler) Create(c *gin.Context) {
 
 	logger.Info("methodology", "methodology created successfully",
 		zap.Int64("methodology_id", id),
-		zap.String("name", cmd.Name),
+		zap.String("name", param.Name),
 	)
 	response.Success(c, gin.H{"id": id})
 }
@@ -66,7 +66,7 @@ func (h *MethodologyHandler) Update(c *gin.Context) {
 		return
 	}
 
-	var cmd application.UpdateMethodologyCommand
+	var cmd application.UpdateMethodologyParam
 	if err := c.ShouldBindJSON(&cmd); err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
@@ -105,7 +105,7 @@ func (h *MethodologyHandler) Delete(c *gin.Context) {
 
 // GetByID gets methodology by ID
 func (h *MethodologyHandler) GetByID(c *gin.Context) {
-	idStr := c.Param("id")
+	idStr := c.Query("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		response.Error(c, http.StatusBadRequest, "invalid id")
@@ -132,6 +132,16 @@ func (h *MethodologyHandler) GetByCode(c *gin.Context) {
 	}
 
 	response.Success(c, methodology)
+}
+
+func (h *MethodologyHandler) GetList(c *gin.Context) {
+	list, err := h.appService.GetList(platform_http.Ctx(c))
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	response.Success(c, list)
 }
 
 // GetPage queries methodologies with pagination

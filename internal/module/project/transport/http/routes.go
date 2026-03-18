@@ -48,6 +48,7 @@ func (r *projectRoutes) RegisterRoutes(group *gin.RouterGroup, middlewares map[s
 	if mw := middlewares[shared_http.AuthTypeRequired]; mw != nil {
 		projectsGroup.Use(mw)
 	}
+	projectsGroup.GET("list", handlers.ProjectHandler.GetList)
 	projectsGroup.GET("page", handlers.ProjectHandler.GetPage)
 
 	// 项目成员管理路由 - /api/projectMember/*

@@ -9,13 +9,13 @@ import (
 
 type SysUserWire struct {
 	Repo    application.UserRepo
-	Service *application.SysUserAppService
+	Service *application.UsersService
 }
 
 // InitSysUserWire initializes system user DDD components
 func InitSysUserWire(db *gorm.DB) *SysUserWire {
 	repo := infrastructure.NewUserRepository(db)
-	appService := application.NewSysUserAppService(repo)
+	appService := application.NewUsersService(repo)
 	return &SysUserWire{
 		Repo:    repo,
 		Service: appService,

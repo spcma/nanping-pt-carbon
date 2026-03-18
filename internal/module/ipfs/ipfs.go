@@ -1,15 +1,21 @@
 package ipfs
 
 import (
+	"app/internal/module/ipfs/application"
+	"app/internal/module/ipfs/infrastructure"
 	"app/internal/module/ipfs/rpc"
 	"app/internal/platform/http/response"
 	"app/internal/shared/logger"
+	"app/internal/shared/timeutil"
+	"context"
 	"fmt"
-	"gorm.io/gorm"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/dromara/carbon/v2"
+	"gorm.io/gorm"
 
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
@@ -18,17 +24,23 @@ import (
 
 // Service IPFS 服务
 type Service struct {
-	db      *gorm.DB
-	client  *rpc.LApiStub
-	session string
+	db                   *gorm.DB
+	client               *rpc.LApiStub
+	session              string
+	ipfsDetailAppService *application.IpfsDetailAppService
 }
 
 // NewService 创建 IPFS 服务
 func NewService(db *gorm.DB, client *rpc.LApiStub, session string) *Service {
+	// 初始化仓储和應用服務
+	ipfsDetailRepo := infrastructure.NewIpfsDetailRepository(db)
+	ipfsDetailAppService := application.NewIpfsDetailAppService(ipfsDetailRepo)
+
 	return &Service{
-		db:      db,
-		client:  client,
-		session: session,
+		db:                   db,
+		client:               client,
+		session:              session,
+		ipfsDetailAppService: ipfsDetailAppService,
 	}
 }
 
@@ -194,6 +206,11 @@ func (s *Service) HandleWithDir(c *gin.Context) {
 			continue
 		}
 
+		if strings.Contains(link.Name, ".jpg") {
+			logger.IpfsLogger.Info("skip image", zap.String("file", link.Name))
+			continue
+		}
+
 		fullPath := fmt.Sprintf("%s/%s", fullDir, link.Name)
 
 		localPath := "./tempfile/" + link.Name
@@ -203,47 +220,27 @@ func (s *Service) HandleWithDir(c *gin.Context) {
 			return
 		}
 
-		rec, err := parseFile(localPath)
+		records, err := parseFile(localPath)
 		if err != nil {
 			response.Error(c, http.StatusInternalServerError, err.Error())
 			return
 		}
 
 		logger.IpfsLogger.Info("parse file", zap.String("file", link.Name),
-			zap.Int("count", len(rec)),
+			zap.Int("count", len(records)),
 		)
 
-		// 计算里程并保存到文件
+		// 计算里程并保存到数据库
 		calculator := NewDistanceCalculator()
-		totalDistance, err := calculator.CalculateTotalDistance(rec)
-		if err == nil && len(rec) > 0 {
-			summary := calculator.CalculateSummary(rec)
-			logger.IpfsLogger.Info("distance calculation",
-				zap.String("file", link.Name),
-				zap.Float64("total_distance_m", totalDistance),
-				zap.Float64("total_distance_km", summary.TotalDistanceKm),
-				zap.Int("point_count", summary.PointCount),
-				zap.Float64("avg_speed_kmh", summary.AverageSpeed),
-			)
+		summary := calculator.CalculateSummary(records)
 
-			// 将里程结果写入新文件
-			err = s.saveDistanceResult(link.Name, summary)
-			if err != nil {
-				logger.IpfsLogger.Warn("save distance result failed",
-					zap.String("file", link.Name),
-					zap.Error(err),
-				)
-			}
-		}
-
-		for _, record := range rec {
-			logger.IpfsLogger.Info("parse file", zap.String("file", link.Name),
-				zap.Time("timestamp", record.Timestamp),
-				zap.Float64("lat", record.Lat),
-				zap.Float64("lon", record.Lon),
-				zap.Float64("value", record.Value),
-			)
-		}
+		logger.IpfsLogger.Info("distance calculation",
+			zap.String("file", link.Name),
+			zap.Float64("total_distance_m", summary.TotalDistance),
+			zap.Float64("total_distance_km", summary.TotalDistanceKm),
+			zap.Int("point_count", summary.PointCount),
+			zap.Float64("avg_speed_kmh", summary.AverageSpeed),
+		)
 
 		dir := DirResponse{
 			Name: link.Name,
@@ -255,7 +252,7 @@ func (s *Service) HandleWithDir(c *gin.Context) {
 		ext := filepath.Ext(link.Name)
 
 		newStr := strings.ReplaceAll(link.Name, "image_", "")
-		newStr = strings.ReplaceAll(link.Name, "gps_", "")
+		newStr = strings.ReplaceAll(newStr, "gps_", "")
 		newStr = strings.ReplaceAll(newStr, ext, "")
 
 		if ext == ".jpg" {
@@ -268,6 +265,22 @@ func (s *Service) HandleWithDir(c *gin.Context) {
 			}
 		} else {
 			dir.Timestamp = cast.ToInt64(newStr)
+		}
+
+		fmt.Println("time", dir.Timestamp)
+		// 保存里程计算结果到数据库
+		err = s.saveIpfsDetailToDB(fullDir, link.Name, dir.Timestamp, records, summary)
+		if err != nil {
+			logger.IpfsLogger.Warn("save ipfs detail to database failed",
+				zap.String("file", link.Name),
+				zap.Error(err),
+			)
+		} else {
+			logger.IpfsLogger.Info("ipfs detail saved to database",
+				zap.String("file", link.Name),
+				zap.Float64("total_distance_km", summary.TotalDistanceKm),
+				zap.Int("point_count", summary.PointCount),
+			)
 		}
 
 		list = append(list, dir)
@@ -544,4 +557,41 @@ func (s *Service) saveDistanceResult(fileName string, summary DistanceSummary) e
 	)
 
 	return nil
+}
+
+// saveIpfsDetailToDB 保存 IPFS 详情到数据库
+// dir: 目录路径（用于提取设备编码）
+// fileName: 文件名
+// records: GPS 记录列表
+// summary: 里程汇总信息
+func (s *Service) saveIpfsDetailToDB(deviceCode, fileName string, timestamp int64, records []Record, summary DistanceSummary) error {
+	if len(records) == 0 {
+		return nil
+	}
+
+	collectionTime := timeutil.Now(carbon.Parse(cast.ToString(timestamp), carbon.Shanghai).StdTime())
+
+	// 创建命令
+	cmd := application.CreateIpfsDetailCommand{
+		DeviceCode:     deviceCode,
+		Filename:       fileName,
+		CollectionTime: collectionTime.Format("2006-01-02 15:04:05"),
+		TotalDistance:  summary.TotalDistanceKm,
+		PointCount:     int64(summary.PointCount),
+		UserID:         0, // 系统自动创建
+	}
+
+	// 检查文件是否已存在
+	existingDetail, _ := s.ipfsDetailAppService.GetIpfsDetailByFilename(context.Background(), fileName)
+	if existingDetail != nil {
+		logger.IpfsLogger.Warn("ipfs detail already exists, skip saving",
+			zap.String("file", fileName),
+			zap.Int64("existing_id", existingDetail.Id),
+		)
+		return nil
+	}
+
+	// 保存到数据库
+	_, err := s.ipfsDetailAppService.CreateIpfsDetail(context.Background(), cmd)
+	return err
 }

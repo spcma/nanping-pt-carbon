@@ -4,13 +4,16 @@ go 1.25.0
 
 require (
 	github.com/bwmarrin/snowflake v0.3.0
+	github.com/dromara/carbon/v2 v2.6.8
 	github.com/fasthttp/websocket v1.5.12
 	github.com/gin-gonic/gin v1.12.0
 	github.com/golang-jwt/jwt/v5 v5.3.1
+	github.com/golang/geo v0.0.0-20260302211937-87f5a40ea07a
 	github.com/google/uuid v1.6.0
 	github.com/hprose/hprose-golang/v3 v3.0.16
 	github.com/redis/go-redis/v9 v9.18.0
 	github.com/shirou/gopsutil v3.21.11+incompatible
+	github.com/spf13/cast v1.10.0
 	github.com/spf13/viper v1.21.0
 	github.com/valyala/fasthttp v1.69.0
 	github.com/yitter/idgenerator-go v1.3.3
@@ -60,7 +63,6 @@ require (
 	github.com/savsgio/gotils v0.0.0-20250924091648-bce9a52d7761 // indirect
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
-	github.com/spf13/cast v1.10.0 // indirect
 	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect

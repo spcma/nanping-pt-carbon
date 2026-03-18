@@ -1,0 +1,161 @@
+@host = localhost:19870
+@base_url = http://{{host}}/api
+@token = 2033791386607685632
+
+### ====================
+=== Project 项目管理 HTTP API
+### ====================
+
+### 1. 创建项目
+# @name createProject
+POST {{base_url}}/project
+Content-Type: application/json
+Authorization: {{token}}
+
+{
+  "name": "测试项目",
+  "code": "TEST_PROJECT_001",
+  "description": "这是一个测试项目"
+}
+
+### 2. 更新项目信息
+# @name updateProject
+PUT {{base_url}}/project?id=2033791386607685632
+Content-Type: application/json
+Authorization: {{token}}
+
+{
+  "name": "更新后的项目名称",
+  "description": "更新后的项目描述"
+}
+
+### 3. 删除项目（逻辑删除）
+# @name deleteProject
+DELETE {{base_url}}/project?id=2033791386607685632
+Authorization: {{token}}
+
+### 4. 根据 ID 或编码查询项目详情
+# 方式一：通过 ID 查询
+# @name getProjectById
+GET {{base_url}}/project?id=2033791386607685632
+Authorization: {{token}}
+
+### 5. 根据编码查询项目详情
+# 方式二：通过 Code 查询
+# @name getProjectByCode
+GET {{base_url}}/project?code=TEST_PROJECT_001
+Authorization: {{token}}
+
+### 6. 分页查询项目列表
+# 查询参数：
+# - pageNum: 页码，默认 1
+# - pageSize: 每页数量，默认 10
+# - name: 项目名称（可选，模糊查询）
+# - code: 项目编码（可选，模糊查询）
+# - status: 项目状态（可选）- 0:待启动 1:进行中 2:已完成 3:已取消
+# - sortBy: 排序字段（可选）
+# - sortOrder: 排序方式（可选）- asc/desc
+# @name getProjectPage
+GET {{base_url}}/projects/page?pageNum=1&pageSize=10&name=&code=&status=
+Authorization: {{token}}
+
+### 7. 变更项目状态
+# 状态选项：
+# - 0: 待启动 (pending)
+# - 1: 进行中 (active)
+# - 2: 已完成 (completed)
+# - 3: 已取消 (cancelled)
+# @name changeProjectStatus
+PUT {{base_url}}/project/status?id=2033791386607685632
+Content-Type: application/json
+Authorization: {{token}}
+
+{
+  "status": "1"
+}
+
+### ====================
+### 请求数据结构说明
+### ====================
+### 
+### 1. 创建项目请求体：
+### {
+###   "name": "项目名称",          // 必填，项目名称
+###   "code": "PROJECT_CODE",     // 必填，项目编码（唯一标识）
+###   "description": "项目描述"    // 可选，项目详细描述
+### }
+### 
+### 2. 更新项目请求体：
+### {
+###   "name": "新项目名称",        // 可选
+###   "description": "新描述"      // 可选
+### }
+### 
+### 3. 变更状态请求体：
+### {
+###   "status": "1"               // 必填，项目状态
+### }
+### 
+### ====================
+### 响应数据结构说明
+### ====================
+### 
+### 1. 创建/更新/删除响应：
+### {
+###   "code": 200,
+###   "data": {
+###     "id": 2033791386607685632
+###   }
+### }
+### 
+### 2. 项目详情响应：
+### {
+###   "code": 200,
+###   "data": {
+###     "id": 2033791386607685632,
+###     "name": "项目名称",
+###     "code": "PROJECT_CODE",
+###     "status": "1",
+###     "description": "项目描述",
+###     "createTime": "2026-03-18 10:00:00",
+###     "updateTime": "2026-03-18 10:00:00"
+###   }
+### }
+### 
+### 3. 分页查询响应：
+### {
+###   "code": 200,
+###   "data": {
+###     "list": [
+###       {
+###         "id": 2033791386607685632,
+###         "name": "项目名称",
+###         "code": "PROJECT_CODE",
+###         "status": "1",
+###         "description": "项目描述",
+###         "createTime": "2026-03-18 10:00:00",
+###         "updateTime": "2026-03-18 10:00:00"
+###       }
+###     ],
+###     "total": 100,
+###     "pageNum": 1,
+###     "pageSize": 10
+###   }
+### }
+### 
+### ====================
+### 项目状态说明
+### ====================
+### - 0: pending   - 待启动
+### - 1: active    - 进行中（默认状态）
+### - 2: completed - 已完成
+### - 3: cancelled - 已取消
+### 
+### ====================
+### 错误码说明
+### ====================
+### - 400: 请求参数错误
+### - 401: 未授权访问
+### - 500: 服务器内部错误
+### - 项目不存在时返回相应错误提示
+### ====================

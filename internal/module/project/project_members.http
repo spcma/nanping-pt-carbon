@@ -1,0 +1,177 @@
+@host = localhost:19870
+@base_url = http://{{host}}/api
+@token = 2033791386607685632
+
+### ====================
+=== Project Members 项目成员管理 HTTP API
+### ====================
+
+### 1. 添加项目成员
+# @name createProjectMember
+POST {{base_url}}/projectMember
+Content-Type: application/json
+Authorization: {{token}}
+
+{
+  "projectId": 2033791386607685632,
+  "userId": 2033791386607685633,
+  "role": "member"
+}
+
+### 2. 更新项目成员角色
+# @name updateProjectMember
+PUT {{base_url}}/projectMember?id=2033791386607685640
+Content-Type: application/json
+Authorization: {{token}}
+
+{
+  "role": "admin"
+}
+
+### 3. 删除项目成员（逻辑删除）
+# @name deleteProjectMember
+DELETE {{base_url}}/projectMember?id=2033791386607685640
+Authorization: {{token}}
+
+### 4. 根据项目 ID 查询成员列表
+# @name getMembersByProjectId
+GET {{base_url}}/projectMembers/list?projectId=2033791386607685632
+Authorization: {{token}}
+
+### 5. 根据用户 ID 查询参与的项目
+# @name getMembersByUserId
+GET {{base_url}}/projectMembers/list?userId=2033791386607685633
+Authorization: {{token}}
+
+### 6. 分页查询项目成员列表
+# 查询参数：
+# - pageNum: 页码，默认 1
+# - pageSize: 每页数量，默认 10
+# - projectId: 项目 ID（可选）
+# - userId: 用户 ID（可选）
+# - role: 成员角色（可选）- owner/admin/member
+# - sortBy: 排序字段（可选）
+# - sortOrder: 排序方式（可选）- asc/desc
+# @name getProjectMemberPage
+GET {{base_url}}/projectMembers/page?pageNum=1&pageSize=10&projectId=&userId=&role=
+Authorization: {{token}}
+
+### ====================
+### 请求数据结构说明
+### ====================
+### 
+### 1. 添加项目成员请求体：
+### {
+###   "projectId": 2033791386607685632,    // 必填，项目 ID
+###   "userId": 2033791386607685633,       // 必填，用户 ID
+###   "role": "member"                     // 可选，成员角色（默认 member）
+### }
+### 
+### 2. 更新项目成员请求体：
+### {
+###   "role": "admin"                      // 必填，新的成员角色
+### }
+### 
+### ====================
+### 响应数据结构说明
+### ====================
+### 
+### 1. 创建/更新/删除响应：
+### {
+###   "code": 200,
+###   "data": {
+###     "id": 2033791386607685640
+###   }
+### }
+### 
+### 2. 项目成员详情响应：
+### {
+###   "code": 200,
+###   "data": [
+###     {
+###       "id": 2033791386607685640,
+###       "projectId": 2033791386607685632,
+###       "userId": 2033791386607685633,
+###       "role": "member",
+###       "createTime": "2026-03-18 10:00:00",
+###       "updateTime": "2026-03-18 10:00:00"
+###     }
+###   ]
+### }
+### 
+### 3. 分页查询响应：
+### {
+###   "code": 200,
+###   "data": {
+###     "list": [
+###       {
+###         "id": 2033791386607685640,
+###         "projectId": 2033791386607685632,
+###         "userId": 2033791386607685633,
+###         "role": "member",
+###         "createTime": "2026-03-18 10:00:00",
+###         "updateTime": "2026-03-18 10:00:00"
+###       }
+###     ],
+###     "total": 50,
+###     "pageNum": 1,
+###     "pageSize": 10
+###   }
+### }
+### 
+### ====================
+### 项目成员角色说明
+### ====================
+### - owner:  所有者（项目创建者，拥有最高权限）
+### - admin:  管理员（可管理项目成员和项目设置）
+### - member: 普通成员（参与项目的基本成员）
+### 
+### ====================
+### 业务规则说明
+### ====================
+### 1. 同一用户在同一项目中只能有一个成员身份
+### 2. 如果尝试重复添加已存在的成员，将返回该成员的 ID
+### 3. 删除成员为逻辑删除，不会从数据库中物理删除
+### 4. 创建成员时，系统会自动检查用户是否已在该项目中
+### 
+### ====================
+### 错误码说明
+### ====================
+### - 400: 请求参数错误（如角色类型无效）
+### - 401: 未授权访问
+### - 404: 项目成员不存在
+### - 500: 服务器内部错误
+### - 项目成员已存在时返回相应提示
+### 
+### ====================
+### 使用示例
+### ====================
+### 
+### 示例 1: 将用户添加为项目普通成员
+### POST /api/projectMember
+### Authorization: Bearer <token>
+### {
+###   "projectId": 2033791386607685632,
+###   "userId": 2033791386607685633,
+###   "role": "member"
+### }
+### 
+### 示例 2: 将成员提升为管理员
+### PUT /api/projectMember?id=2033791386607685640
+### Authorization: Bearer <token>
+### {
+###   "role": "admin"
+### }
+### 
+### 示例 3: 查询某个项目的所有成员
+### GET /api/projectMembers/list?projectId=2033791386607685632
+### Authorization: Bearer <token>
+### 
+### 示例 4: 查询某个用户参与的所有项目
+### GET /api/projectMembers/list?userId=2033791386607685633
+### Authorization: Bearer <token>
+### 
+### 示例 5: 分页查询带有角色过滤的成员列表
+### GET /api/projectMembers/page?pageNum=1&pageSize=20&projectId=2033791386607685632&role=admin
+### Authorization: Bearer <token>
+### ====================

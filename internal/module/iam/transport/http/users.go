@@ -16,11 +16,11 @@ import (
 
 // SysUserHandler system user handler
 type SysUserHandler struct {
-	appService *application.SysUserAppService
+	appService *application.UsersService
 }
 
 // NewSysUserHandler creates system user handler
-func NewSysUserHandler(appService *application.SysUserAppService) *SysUserHandler {
+func NewSysUserHandler(appService *application.UsersService) *SysUserHandler {
 	return &SysUserHandler{
 		appService: appService,
 	}
@@ -40,7 +40,7 @@ func (h *SysUserHandler) Create(c *gin.Context) {
 	securityUser := platform_http.GetCurrentUser(c)
 	cmd.UserID = securityUser.ID
 
-	id, err := h.appService.CreateSysUser(platform_http.Ctx(c), cmd)
+	id, err := h.appService.Create(platform_http.Ctx(c), cmd)
 	if err != nil {
 		logger.Error("iam", "create securityUser failed",
 			zap.String("username", cmd.Username),
@@ -59,19 +59,11 @@ func (h *SysUserHandler) Create(c *gin.Context) {
 
 // Update updates a system user
 func (h *SysUserHandler) Update(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		response.Error(c, http.StatusBadRequest, "invalid id")
-		return
-	}
-
-	var cmd application.UpdateSysUserCommand
+	var cmd application.UpdateSysUserParam
 	if err := c.ShouldBindJSON(&cmd); err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
-	cmd.ID = id
 
 	user := platform_http.GetCurrentUser(c)
 	cmd.UserID = user.ID
@@ -86,16 +78,17 @@ func (h *SysUserHandler) Update(c *gin.Context) {
 
 // Delete deletes a system user
 func (h *SysUserHandler) Delete(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		response.Error(c, http.StatusBadRequest, "invalid id")
+	var param application.DeleteSysUserParam
+	if err := c.ShouldBindJSON(&param); err != nil {
+		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	user := platform_http.GetCurrentUser(c)
 
-	if err := h.appService.DeleteSysUser(platform_http.Ctx(c), id, user.ID); err != nil {
+	param.UserID = user.ID
+
+	if err := h.appService.DeleteSysUser(platform_http.Ctx(c), &param); err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -103,9 +96,9 @@ func (h *SysUserHandler) Delete(c *gin.Context) {
 	response.Success(c, nil)
 }
 
-// GetByID gets system user by ID
-func (h *SysUserHandler) GetByID(c *gin.Context) {
-	idStr := c.Param("id")
+// GetByCond gets system user by ID
+func (h *SysUserHandler) GetByCond(c *gin.Context) {
+	idStr := c.Query("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		response.Error(c, http.StatusBadRequest, "invalid id")

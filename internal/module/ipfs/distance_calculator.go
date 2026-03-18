@@ -1,6 +1,7 @@
 package ipfs
 
 import "math"
+import "github.com/golang/geo/s2"
 
 // DistanceCalculator 距离计算器
 type DistanceCalculator struct {
@@ -18,21 +19,35 @@ func NewDistanceCalculator() *DistanceCalculator {
 // lat1, lon1: 起点纬度和经度（十进制度）
 // lat2, lon2: 终点纬度和经度（十进制度）
 // 返回值：距离（米）
-func (dc *DistanceCalculator) HaversineDistance(lat1, lon1, lat2, lon2 float64) float64 {
-	// 将角度转换为弧度
-	dLat := dc.toRad(lat2 - lat1)
-	dLon := dc.toRad(lon2 - lon1)
+//func (dc *DistanceCalculator) HaversineDistance(lat1, lon1, lat2, lon2 float64) float64 {
+//	// 将角度转换为弧度
+//	dLat := dc.toRad(lat2 - lat1)
+//	dLon := dc.toRad(lon2 - lon1)
+//
+//	lat1Rad := dc.toRad(lat1)
+//	lat2Rad := dc.toRad(lat2)
+//
+//	// Haversine 公式
+//	a := math.Sin(dLat/2)*math.Sin(dLat/2) +
+//		math.Sin(dLon/2)*math.Sin(dLon/2)*math.Cos(lat1Rad)*math.Cos(lat2Rad)
+//
+//	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
+//
+//	return dc.earthRadius * c
+//}
 
-	lat1Rad := dc.toRad(lat1)
-	lat2Rad := dc.toRad(lat2)
+// 依据 Haversine 公式 Google 的 s2geometry(高精度计算库) 计算两个经纬度之间的距离，单位为米
+func (dc *DistanceCalculator) HaversineDistance(lat1, lng1, lat2, lng2 float64) float64 {
+	if lat1 == 0 || lng1 == 0 || lat2 == 0 || lng2 == 0 {
+		return 0
+	}
 
-	// Haversine 公式
-	a := math.Sin(dLat/2)*math.Sin(dLat/2) +
-		math.Sin(dLon/2)*math.Sin(dLon/2)*math.Cos(lat1Rad)*math.Cos(lat2Rad)
+	point1 := s2.LatLngFromDegrees(lat1, lng1)
+	point2 := s2.LatLngFromDegrees(lat2, lng2)
 
-	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
+	distance := point1.Distance(point2).Radians() * 6371 * 1000
 
-	return dc.earthRadius * c
+	return distance
 }
 
 // CalculateTotalDistance 计算所有记录点的总里程

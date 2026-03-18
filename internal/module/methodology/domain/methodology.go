@@ -21,6 +21,9 @@ type Methodology struct {
 	Code        string            `json:"code" gorm:"column:code"`
 	Status      MethodologyStatus `json:"status" gorm:"column:status"`
 	Description string            `json:"description" gorm:"column:description"`
+	Icon        string            `json:"icon" gorm:"column:icon"`
+	StartDate   timeutil.Time     `json:"startDate" gorm:"column:start_date"`
+	EndDate     timeutil.Time     `json:"endDate" gorm:"column:end_date"`
 }
 
 // TableName 表名
@@ -29,7 +32,7 @@ func (*Methodology) TableName() string {
 }
 
 // NewMethodology 创建新方法学
-func NewMethodology(name, code, description string, createUser int64) (*Methodology, error) {
+func NewMethodology(name, code, icon, description string, createUser int64, startDate, endDate timeutil.Time) (*Methodology, error) {
 	methodology := &Methodology{
 		BaseEntity: entity.BaseEntity{
 			Id:         idgen.NumID(),
@@ -38,8 +41,11 @@ func NewMethodology(name, code, description string, createUser int64) (*Methodol
 		},
 		Name:        name,
 		Code:        code,
-		Description: description,
 		Status:      MethodologyStatusActive,
+		Description: description,
+		Icon:        icon,
+		StartDate:   startDate,
+		EndDate:     endDate,
 	}
 	return methodology, nil
 }

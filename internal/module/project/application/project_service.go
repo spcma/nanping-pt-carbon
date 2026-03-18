@@ -3,6 +3,7 @@ package application
 import (
 	"app/internal/module/project/domain"
 	"app/internal/shared/entity"
+	"app/internal/shared/timeutil"
 	"context"
 )
 
@@ -48,7 +49,7 @@ func NewProjectAppService(repo ProjectRepo) *ProjectAppService {
 
 // CreateProject 创建项目
 func (s *ProjectAppService) CreateProject(ctx context.Context, cmd CreateProjectParam) (int64, error) {
-	project, err := domain.NewProject(cmd.Name, cmd.Code, cmd.Description, cmd.UserID)
+	project, err := domain.NewProject(cmd.Name, cmd.Code, "", cmd.Description, cmd.UserID, timeutil.Now(), timeutil.Now())
 	if err != nil {
 		return 0, err
 	}
@@ -97,6 +98,15 @@ func (s *ProjectAppService) GetProjectByCode(ctx context.Context, code string) (
 // GetProjectPage 分页查询项目
 func (s *ProjectAppService) GetProjectPage(ctx context.Context, query *domain.ProjectPageQuery) (*entity.PaginationResult[*domain.Project], error) {
 	return s.repo.FindPage(ctx, query)
+}
+
+func (s *ProjectAppService) GetList(ctx context.Context) ([]*domain.Project, error) {
+	list, err := s.repo.FindList(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return list, nil
 }
 
 // ChangeProjectStatus 变更项目状态

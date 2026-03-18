@@ -23,6 +23,9 @@ type Project struct {
 	Code        string        `json:"code" gorm:"column:code"`
 	Status      ProjectStatus `json:"status" gorm:"column:status"`
 	Description string        `json:"description" gorm:"column:description"`
+	Icon        string        `json:"icon" gorm:"column:icon"`
+	StartDate   timeutil.Time `json:"startDate" gorm:"column:start_date"`
+	EndDate     timeutil.Time `json:"endDate" gorm:"column:end_date"`
 }
 
 // TableName 表名
@@ -31,7 +34,7 @@ func (*Project) TableName() string {
 }
 
 // NewProject 创建新项目
-func NewProject(name, code, description string, createUser int64) (*Project, error) {
+func NewProject(name, code, icon, description string, createUser int64, startDate, endDate timeutil.Time) (*Project, error) {
 	project := &Project{
 		BaseEntity: entity.BaseEntity{
 			Id:         idgen.NumID(),
@@ -40,8 +43,11 @@ func NewProject(name, code, description string, createUser int64) (*Project, err
 		},
 		Name:        name,
 		Code:        code,
-		Description: description,
 		Status:      ProjectStatusActive,
+		Description: description,
+		Icon:        icon,
+		StartDate:   startDate,
+		EndDate:     endDate,
 	}
 	return project, nil
 }

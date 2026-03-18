@@ -1,9 +1,14 @@
 package initializer
 
 import (
-	"app/internal/module/iam/domain"
-	"app/internal/module/iam/infrastructure"
+	users_domain "app/internal/module/iam/domain"
+	users_infrastructure "app/internal/module/iam/infrastructure"
+	methodology_domain "app/internal/module/methodology/domain"
+	methodology_infrastructure "app/internal/module/methodology/infrastructure"
+	project_domain "app/internal/module/project/domain"
+	project_infrastructure "app/internal/module/project/infrastructure"
 	"app/internal/shared/logger"
+	"app/internal/shared/timeutil"
 	"context"
 	"fmt"
 
@@ -32,6 +37,10 @@ func (i *DataInitializer) Initialize() error {
 		return fmt.Errorf("failed to init super admin user: %w", err)
 	}
 
+	//i.initProject_20260318()
+
+	i.initMethodology_20260318()
+
 	logger.Info("initialize", "data initialization completed successfully")
 	return nil
 }
@@ -39,7 +48,7 @@ func (i *DataInitializer) Initialize() error {
 // initSuperAdminUser 初始化超级管理员用户
 func (i *DataInitializer) initSuperAdminUser() error {
 	ctx := context.Background()
-	userRepo := infrastructure.NewUserRepository(i.db)
+	userRepo := users_infrastructure.NewUserRepository(i.db)
 
 	// 检查用户是否已存在
 	existingUser, err := userRepo.FindByUsername(ctx, "admin")
@@ -52,7 +61,7 @@ func (i *DataInitializer) initSuperAdminUser() error {
 
 	// 创建超级管理员用户
 	// 默认密码：Admin@123
-	user, err := domain.NewUser("admin", "系统管理员", "admin@2026", "", 0)
+	user, err := users_domain.NewUser("admin", "系统管理员", "admin@2026", "", 0)
 	if err != nil {
 		return fmt.Errorf("failed to create super admin user: %w", err)
 	}
@@ -65,5 +74,55 @@ func (i *DataInitializer) initSuperAdminUser() error {
 		zap.Int64("user_id", user.Id),
 		zap.String("username", user.Username),
 	)
+	return nil
+}
+
+func (i *DataInitializer) initProject_20260318() error {
+	ctx := context.Background()
+	projectRepo := project_infrastructure.NewProjectRepository(i.db)
+
+	p1, err := project_domain.NewProject("项目1", "P1", "", "项目1描述", 1, timeutil.Now(), timeutil.Now())
+	if err != nil {
+		return fmt.Errorf("failed to create project: %w", err)
+	}
+	projectRepo.Create(ctx, p1)
+
+	p2, err := project_domain.NewProject("项目2", "P2", "", "项目2描述", 1, timeutil.Now(), timeutil.Now())
+	if err != nil {
+		return fmt.Errorf("failed to create project: %w", err)
+	}
+	projectRepo.Create(ctx, p2)
+
+	p3, err := project_domain.NewProject("项目3", "P3", "", "项目3描述", 1, timeutil.Now(), timeutil.Now())
+	if err != nil {
+		return fmt.Errorf("failed to create project: %w", err)
+	}
+	projectRepo.Create(ctx, p3)
+
+	return nil
+}
+
+func (i *DataInitializer) initMethodology_20260318() error {
+	ctx := context.Background()
+	projectRepo := methodology_infrastructure.NewMethodologyRepository(i.db)
+
+	p1, err := methodology_domain.NewMethodology("项目1", "P1", "", "项目1描述", 1, timeutil.Now(), timeutil.Now())
+	if err != nil {
+		return fmt.Errorf("failed to create project: %w", err)
+	}
+	projectRepo.Create(ctx, p1)
+
+	p2, err := methodology_domain.NewMethodology("项目2", "P2", "", "项目2描述", 1, timeutil.Now(), timeutil.Now())
+	if err != nil {
+		return fmt.Errorf("failed to create project: %w", err)
+	}
+	projectRepo.Create(ctx, p2)
+
+	p3, err := methodology_domain.NewMethodology("项目3", "P3", "", "项目3描述", 1, timeutil.Now(), timeutil.Now())
+	if err != nil {
+		return fmt.Errorf("failed to create project: %w", err)
+	}
+	projectRepo.Create(ctx, p3)
+
 	return nil
 }
