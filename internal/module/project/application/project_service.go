@@ -115,7 +115,7 @@ func (s *ProjectAppService) GetByQuery(ctx context.Context, query *ProjectQuery)
 		return s.repo.FindByCode(ctx, query.Code)
 	}
 
-	domainQuery := domain.ProjectQuery{
+	domainQuery := &domain.ProjectQuery{
 		ID:     query.ID,
 		Code:   query.Code,
 		Name:   query.Name,

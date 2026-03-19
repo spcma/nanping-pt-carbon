@@ -86,7 +86,7 @@ func Initialize() (*Server, error) {
 	}
 
 	// 初始化 HTTP 路由
-	router := transport_http.InitRouter(dbInstance, redisClient)
+	router := transport_http.InitRouter(dbInstance, dbInstance2, redisClient)
 
 	return &Server{
 		config:   config.GlobalConfig,

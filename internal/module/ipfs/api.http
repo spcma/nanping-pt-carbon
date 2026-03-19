@@ -1,4 +1,4 @@
-@host = localhost:19870
+@host = 192.168.1.10:19870
 @base_url = http://{{host}}/api
 @token = 2033791386607685632
 
@@ -24,7 +24,7 @@ Authorization: Bearer your_token_here
 
 ### 3. 列出目录内容（GET 请求，参数通过 query string 传递）
 # @name listDir
-GET {{base_url}}/dir/list?path=/aibk/26/03/14/19BONNcTiriywcgCUSOv82Pj-i6/gps_20260314142635.txt
+GET {{base_url}}/dir/list?path=/aibk/26/03/14/
 Authorization: {{token}}
 
 ### 3. 列出目录内容（GET 请求，参数通过 query string 传递）
@@ -41,6 +41,12 @@ Authorization: {{token}}
 # @name readFile
 GET {{base_url}}/file/read?path=/aibk/26/03/14/19BONNcTiriywcgCUSOv82Pj-i6/gps_20260314063002.txt
 Authorization: {{token}}
+
+
+###
+GET {{base_url}}/dir/hhh?rootDir=/aibk&date=2026-03-14
+Authorization: {{token}}
+
 
 ### 6. 保存文件（JSON 格式内容）
 # @name saveFile

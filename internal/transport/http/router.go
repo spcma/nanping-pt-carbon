@@ -19,7 +19,7 @@ import (
 )
 
 // InitRouter 初始化路由器（主入口）
-func InitRouter(db *gorm.DB, redisClient *cache.RedisClient) *gin.Engine {
+func InitRouter(db *gorm.DB, remoteDB *gorm.DB, redisClient *cache.RedisClient) *gin.Engine {
 	// 1. 创建基础路由引擎, 并配置中间件
 	router := gin.Default()
 
@@ -44,7 +44,7 @@ func InitRouter(db *gorm.DB, redisClient *cache.RedisClient) *gin.Engine {
 	}
 
 	// 3. 注册所有路由
-	registerAllRoutes(router, db, tokenManager)
+	registerAllRoutes(router, db, remoteDB, tokenManager)
 
 	logger.HttpLogger.Info("Router initialized")
 
@@ -52,7 +52,7 @@ func InitRouter(db *gorm.DB, redisClient *cache.RedisClient) *gin.Engine {
 }
 
 // registerAllRoutes 注册所有路由
-func registerAllRoutes(router *gin.Engine, db *gorm.DB, tokenManager token.Manager) {
+func registerAllRoutes(router *gin.Engine, db *gorm.DB, remoteDB *gorm.DB, tokenManager token.Manager) {
 	// API 根路由组
 	apiGroup := router.Group("/api")
 
@@ -64,7 +64,7 @@ func registerAllRoutes(router *gin.Engine, db *gorm.DB, tokenManager token.Manag
 	}
 
 	// 获取所有模块的路由注册器并注册
-	registries := getAllRouteRegistries(db, tokenManager)
+	registries := getAllRouteRegistries(db, remoteDB, tokenManager)
 	for _, registry := range registries {
 		registry.RegisterRoutes(apiGroup, middlewares)
 	}
@@ -75,7 +75,7 @@ func registerAllRoutes(router *gin.Engine, db *gorm.DB, tokenManager token.Manag
 // getAllRouteRegistries 获取所有模块的路由注册器
 //
 //	新的模块添加时，请添加到该列表中完成注册
-func getAllRouteRegistries(db *gorm.DB, tokenManager token.Manager) []shared_http.RouteRegistry {
+func getAllRouteRegistries(db *gorm.DB, remoteDB *gorm.DB, tokenManager token.Manager) []shared_http.RouteRegistry {
 	var registries []shared_http.RouteRegistry
 
 	// 收集各模块的路由注册器
@@ -83,7 +83,7 @@ func getAllRouteRegistries(db *gorm.DB, tokenManager token.Manager) []shared_htt
 	registries = append(registries, project_http.NewProjectRoutes(db))
 	registries = append(registries, methodology_http.NewMethodologyRoutes(db))
 	registries = append(registries, carbonreportday_http.NewCarbonReportDayRoutes(db))
-	registries = append(registries, ipfs_http.NewIpfsRoutes(db))
+	registries = append(registries, ipfs_http.NewIpfsRoutes(db, remoteDB))
 
 	return registries
 }

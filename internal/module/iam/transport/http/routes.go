@@ -84,8 +84,8 @@ func (r *iamRoutes) RegisterRoutes(group *gin.RouterGroup, middlewares map[share
 			sysRoleGroup.POST("", handlers.SysRoleHandler.Create)
 			sysRoleGroup.PUT("", handlers.SysRoleHandler.Update)
 			sysRoleGroup.DELETE("", handlers.SysRoleHandler.Delete)
-			sysRoleGroup.GET("", handlers.SysRoleHandler.GetById)         // 仅 ID 查询
-			sysRoleGroup.GET("query", handlers.SysRoleHandler.GetByQuery) // 综合查询
+			sysRoleGroup.GET("", handlers.SysRoleHandler.GetByID) // 仅 ID 查询
+			//sysRoleGroup.GET("query", handlers.SysRoleHandler.GetByQuery) // 综合查询
 			sysRoleGroup.PUT("/status", handlers.SysRoleHandler.ChangeStatus)
 		}
 

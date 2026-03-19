@@ -2,6 +2,7 @@ package http
 
 import (
 	shared_http "app/internal/shared/http"
+
 	"gorm.io/gorm"
 
 	"github.com/gin-gonic/gin"
@@ -41,7 +42,7 @@ func (r *carbonReportDayRoutes) RegisterRoutes(group *gin.RouterGroup, middlewar
 			carbonReportDayGroup.POST("", handlers.CarbonReportDayHandler.Create)
 			carbonReportDayGroup.PUT("", handlers.CarbonReportDayHandler.Update)
 			carbonReportDayGroup.DELETE("", handlers.CarbonReportDayHandler.Delete)
-			carbonReportDayGroup.GET("", handlers.CarbonReportDayHandler.GetById) // 仅 ID 查询
+			carbonReportDayGroup.GET("", handlers.CarbonReportDayHandler.GetByID) // 仅 ID 查询
 		}
 
 		// 碳报告日报列表路由 - /api/carbon-report-days/*

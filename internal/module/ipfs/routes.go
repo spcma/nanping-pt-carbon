@@ -13,8 +13,8 @@ type ipfsRoutes struct {
 	service *Service
 }
 
-func NewIpfsRoutes(db *gorm.DB) shared_http.RouteRegistry {
-	newService := NewService(db, nil, "")
+func NewIpfsRoutes(db *gorm.DB, db2 *gorm.DB) shared_http.RouteRegistry {
+	newService := NewService(db, db2, nil, "")
 
 	if config.GlobalConfig.Ipfs.Status {
 		fsClient, sessionId, err := CreateFsClient()
@@ -45,6 +45,7 @@ func (i *ipfsRoutes) RegisterRoutes(group *gin.RouterGroup, middlewares map[shar
 		dirRoute.GET("list", i.service.ListDir)
 		dirRoute.POST("handle", i.service.HandleWithDir)
 		dirRoute.DELETE("delete", i.service.DeleteFile)
+		dirRoute.GET("hhh", i.service.HHH)
 	}
 
 	fileRoute := group.Group("file")

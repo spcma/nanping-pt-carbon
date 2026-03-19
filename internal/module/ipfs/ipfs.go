@@ -5,6 +5,7 @@ import (
 	"app/internal/module/ipfs/infrastructure"
 	"app/internal/module/ipfs/rpc"
 	"app/internal/platform/http/response"
+	"app/internal/shared/entity"
 	"app/internal/shared/logger"
 	"app/internal/shared/timeutil"
 	"context"
@@ -25,19 +26,21 @@ import (
 // Service IPFS 服务
 type Service struct {
 	db                   *gorm.DB
+	remoteDB             *gorm.DB
 	client               *rpc.LApiStub
 	session              string
 	ipfsDetailAppService *application.IpfsDetailAppService
 }
 
 // NewService 创建 IPFS 服务
-func NewService(db *gorm.DB, client *rpc.LApiStub, session string) *Service {
+func NewService(db *gorm.DB, remoteDB *gorm.DB, client *rpc.LApiStub, session string) *Service {
 	// 初始化仓储和應用服務
 	ipfsDetailRepo := infrastructure.NewIpfsDetailRepository(db)
 	ipfsDetailAppService := application.NewIpfsDetailAppService(ipfsDetailRepo)
 
 	return &Service{
 		db:                   db,
+		remoteDB:             remoteDB,
 		client:               client,
 		session:              session,
 		ipfsDetailAppService: ipfsDetailAppService,
@@ -594,4 +597,92 @@ func (s *Service) saveIpfsDetailToDB(deviceCode, fileName string, timestamp int6
 	// 保存到数据库
 	_, err := s.ipfsDetailAppService.CreateIpfsDetail(context.Background(), cmd)
 	return err
+}
+
+// 统计单日里程数量
+func (s *Service) HHH(c *gin.Context) {
+	type Param struct {
+		RootDir    string `json:"rootDir" form:"rootDir"`       // 目录
+		Date       string `json:"date" form:"date"`             // 日期
+		DeviceCode string `json:"deviceCode" form:"deviceCode"` // 车辆
+	}
+
+	var param Param
+	err := c.ShouldBindQuery(&param)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	now := carbon.Parse(param.Date, carbon.Shanghai).StartOfDay()
+
+	parse := now.Format(carbon.DateFormat)
+
+	split := strings.Split(parse, "-")
+	if len(split) < 3 {
+		response.Error(c, http.StatusBadRequest, fmt.Sprintf("invalid date: %s", parse))
+		return
+	}
+
+	year := split[0][2:]
+	month := split[1]
+	day := split[2]
+
+	fullDir := fmt.Sprintf("%s/%s/%s/%s", param.RootDir, year, month, day)
+
+	lsLinks, err := s.client.FilesLs(s.session, fullDir)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	startTime := now.Format(carbon.DateTimeFormat)
+	endTime := now.AddDay().Format(carbon.DateTimeFormat)
+
+	for _, link := range lsLinks {
+		newFullPath := fmt.Sprintf("%s/%s", fullDir, link.Name)
+		fmt.Println(newFullPath)
+		links2, err := s.client.FilesLs(s.session, newFullPath)
+		if err != nil {
+			response.Error(c, http.StatusInternalServerError, err.Error())
+			return
+		}
+		//	查询某辆车某天所有的图片地址
+		var lll []*BusImageDetailCv
+		err = s.remoteDB.WithContext(context.Background()).Table("bus_image_detail_cv").
+			Where("device_code = ? and collection_time >= ? and collection_time < ?", param.DeviceCode, startTime, endTime).Find(&lll).Error
+		if err != nil {
+			response.Error(c, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		for _, cv := range lll {
+			logger.IpfsLogger.Info("bus image detail", zap.String("deviceCode", cv.DeviceCode), zap.Any("res", cv.BaiduResult))
+		}
+
+		for _, lsLink := range links2 {
+			//	仅解析gps文件,gps_xxxx.txt
+			if !strings.HasPrefix(lsLink.Name, "gps_") || !strings.HasSuffix(lsLink.Name, ".txt") {
+				continue
+			}
+
+			logger.IpfsLogger.Info("ls link", zap.String("name", lsLink.Name), zap.String("hash", lsLink.Hash), zap.Int("type", lsLink.Type))
+		}
+
+		logger.IpfsLogger.Info("ls link", zap.String("name", link.Name), zap.String("hash", link.Hash), zap.Int("type", link.Type))
+	}
+
+	logger.IpfsLogger.Info("ls dir", zap.String("dir", fullDir), zap.Int("count", len(lsLinks)))
+	Success(c, lsLinks)
+}
+
+type BusImageDetailCv struct {
+	entity.BaseEntity `map:"dive"`
+	BusImageId        int64         `json:"busImageId" form:"busImageId" gorm:"column:bus_image_id" label:""`
+	CollectionTime    timeutil.Time `json:"collectionTime" form:"collectionTime" gorm:"column:collection_time;default:now()" label:""`
+	MergeSrcPath      string        `json:"mergeSrcPath" form:"mergeSrcPath" gorm:"column:merge_src_path" label:""`
+	BaiduPath         string        `json:"baiduPath" form:"baiduPath" gorm:"column:baidu_path" label:""`
+	BaiduResult       int64         `json:"baiduResult" form:"baiduResult" gorm:"column:baidu_result" label:""`
+	CvType            string        `json:"cvType" form:"cvType" gorm:"column:cv_type" label:"识别类型 10 原图 20 预处理后图片"`
+	DeviceCode        string        `json:"deviceCode" form:"deviceCode" gorm:"column:device_code" label:"设备编号"`
 }
