@@ -55,7 +55,7 @@ func (dc *DistanceCalculator) HaversineDistance(lat1, lng1, lat2, lng2 float64) 
 // CalculateTotalDistance 计算所有记录点的总里程
 // records: GPS 记录列表（按时间顺序排列）
 // 返回值：总距离（米）、错误信息
-func (dc *DistanceCalculator) CalculateTotalDistance(records []Record) (float64, error) {
+func (dc *DistanceCalculator) CalculateTotalDistance(records []*Record) (float64, error) {
 	if len(records) < 2 {
 		return 0, nil
 	}
@@ -133,7 +133,7 @@ type DistanceSummary struct {
 }
 
 // CalculateSummary 计算距离汇总信息
-func (dc *DistanceCalculator) CalculateSummary(records []Record) DistanceSummary {
+func (dc *DistanceCalculator) CalculateSummary(records []*Record) DistanceSummary {
 	if len(records) == 0 {
 		return DistanceSummary{}
 	}

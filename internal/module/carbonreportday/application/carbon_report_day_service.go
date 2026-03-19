@@ -3,6 +3,7 @@ package application
 import (
 	"app/internal/module/carbonreportday/domain"
 	"app/internal/shared/entity"
+	"app/internal/shared/timeutil"
 	"context"
 )
 
@@ -10,7 +11,11 @@ import (
 type CreateCarbonReportDayCommand struct {
 	// TODO: 根据实际业务需求添加字段
 	// ReportDate string `json:"report_date"`
-	UserID int64 `json:"userId"`
+	UserID          int64         `json:"userId"`
+	Turnover        float64       `json:"turnover"`
+	Baseline        float64       `json:"baseline" gorm:"column:baseline"`                // 基准值
+	CarbonReduction float64       `json:"carbonReduction" gorm:"column:carbon_reduction"` // 碳减排量
+	CollectionDate  timeutil.Time `json:"collection_date" gorm:"column:collection_date"`  // 数据采集日期
 }
 
 // UpdateCarbonReportDayCommand 更新碳报告日报命令
@@ -32,7 +37,7 @@ func NewCarbonReportDayAppService(repo CarbonReportDayRepo) *CarbonReportDayAppS
 
 // CreateCarbonReportDay 创建碳报告日报
 func (s *CarbonReportDayAppService) CreateCarbonReportDay(ctx context.Context, cmd CreateCarbonReportDayCommand) (int64, error) {
-	report, err := domain.NewCarbonReportDay(cmd.UserID)
+	report, err := domain.NewCarbonReportDay(cmd.Turnover, cmd.Baseline, cmd.CollectionDate, cmd.UserID)
 	if err != nil {
 		return 0, err
 	}

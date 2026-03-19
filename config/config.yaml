@@ -11,10 +11,10 @@ logger:
   development: true
   rotation:
     enabled: true
-    max_size: 100
+    max_size: 15
     max_backups: 5
     max_age: 30
-    compress: true
+    compress: false
   other:
     path: "./logs/other"
     level: info

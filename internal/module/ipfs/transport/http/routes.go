@@ -5,6 +5,7 @@ import (
 	"app/internal/module/ipfs/application"
 	shared_http "app/internal/shared/http"
 	"app/internal/shared/logger"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -43,31 +44,32 @@ func NewIpfsRoutes(db *gorm.DB, remoteDB *gorm.DB) shared_http.RouteRegistry {
 // RegisterRoutes 注册 IPFS 模块的所有路由
 func (i *ipfsRoutes) RegisterRoutes(group *gin.RouterGroup, middlewares map[shared_http.AuthType]gin.HandlerFunc) {
 
-	dirRoute := group.Group("dir")
+	routerGroup := group.Group("")
 	if v, ok := middlewares[shared_http.AuthTypeRequired]; ok {
-		dirRoute.Use(v)
+		routerGroup.Use(v)
 	}
 	{
-		dirRoute.POST("", i.ipfsHandler.CreateDir)
-		dirRoute.DELETE("", i.ipfsHandler.DeleteFile)
-		dirRoute.GET("list", i.ipfsHandler.ListDir)
-		dirRoute.POST("upload", i.ipfsHandler.UploadFileHandler)
-		dirRoute.GET("download", i.ipfsHandler.DownloadFileHandler)
+		dirRoute := group.Group("dir")
+		{
+			dirRoute.POST("", i.ipfsHandler.CreateDir)
+			dirRoute.DELETE("", i.ipfsHandler.DeleteFile)
+			dirRoute.GET("list", i.ipfsHandler.ListDir)
+			dirRoute.GET("check", i.ipfsHandler.CheckDir)
+		}
 
-		dirRoute.POST("handle", i.service.HandleWithDir)
-		dirRoute.GET("hhh", i.service.HHH)
-		dirRoute.GET("h1", i.service.H1)
+		fileRoute := group.Group("file")
+		{
+			fileRoute.POST("upload", i.ipfsHandler.UploadFile)
+			fileRoute.GET("download", i.ipfsHandler.DownloadFile)
+			fileRoute.GET("read", i.ipfsHandler.ReadIpfs)
+		}
+
+		calcRoute := group.Group("calc")
+		{
+			// 为计算接口配置更长的超时时间（5 分钟），因为业务逻辑复杂，执行时间长
+			calcRoute.Use(logger.TimeoutMiddleware(5 * time.Minute))
+			calcRoute.GET("", i.ipfsHandler.CalcDir)
+		}
 	}
 
-	fileRoute := group.Group("file")
-	if v, ok := middlewares[shared_http.AuthTypeRequired]; ok {
-		fileRoute.Use(v)
-	}
-	{
-		fileRoute.GET("read", i.service.ReadFile)
-		fileRoute.POST("save", i.service.SaveFile)
-		fileRoute.POST("upload", i.service.UploadFile)
-		fileRoute.GET("download", i.service.DownloadFile)
-		fileRoute.DELETE("delete", i.service.DeleteFile)
-	}
 }

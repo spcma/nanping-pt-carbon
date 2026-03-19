@@ -2,16 +2,17 @@ package domain
 
 import (
 	"app/internal/shared/entity"
+	idgen "app/internal/shared/idgen"
 	"app/internal/shared/timeutil"
 )
 
 // CarbonReportDay 碳报告日报聚合根
 type CarbonReportDay struct {
 	entity.BaseEntity
-	// TODO: 根据实际业务需求添加业务字段
-	// 例如：
-	// ReportDate timeutil.Time `json:"report_date" gorm:"column:report_date"` // 报告日期
-	// TotalEmission float64 `json:"total_emission" gorm:"column:total_emission"` // 总排放量
+	Turnover        float64       `json:"turnover" gorm:"column:turnover"`                // 营业额
+	Baseline        float64       `json:"baseline" gorm:"column:baseline"`                // 基准值
+	CarbonReduction float64       `json:"carbonReduction" gorm:"column:carbon_reduction"` // 碳减排量
+	CollectionDate  timeutil.Time `json:"collection_date" gorm:"column:collection_date"`  // 数据采集日期
 }
 
 // TableName 表名
@@ -20,12 +21,16 @@ func (*CarbonReportDay) TableName() string {
 }
 
 // NewCarbonReportDay 创建新的碳报告日报
-func NewCarbonReportDay(createUser int64) (*CarbonReportDay, error) {
+func NewCarbonReportDay(turnover, baseline float64, collectionDate timeutil.Time, createUser int64) (*CarbonReportDay, error) {
 	report := &CarbonReportDay{
 		BaseEntity: entity.BaseEntity{
+			Id:         idgen.NumID(),
 			CreateBy:   createUser,
 			CreateTime: timeutil.Now(),
 		},
+		Turnover:       turnover,
+		Baseline:       baseline,
+		CollectionDate: collectionDate,
 	}
 	return report, nil
 }
