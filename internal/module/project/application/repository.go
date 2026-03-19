@@ -18,7 +18,7 @@ type ProjectRepo interface {
 	FindByCode(ctx context.Context, code string) (*domain.Project, error)
 
 	// 通用查询（支持多条件组合）
-	FindByQuery(ctx context.Context, query domain.ProjectQuery) (*domain.Project, error)
+	FindByQuery(ctx context.Context, query *domain.ProjectQuery) (*domain.Project, error)
 
 	// 列表/分页
 	FindList(ctx context.Context) ([]*domain.Project, error)

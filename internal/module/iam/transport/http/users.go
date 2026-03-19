@@ -28,7 +28,7 @@ func NewSysUserHandler(appService *application.UsersService) *SysUserHandler {
 
 // Create creates a system user
 func (h *SysUserHandler) Create(c *gin.Context) {
-	var cmd application.CreateSysUserCommand
+	var cmd application.CreateUserCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
 		logger.Warn("iam", "create securityUser - invalid request",
 			zap.String("error", err.Error()),
@@ -59,7 +59,7 @@ func (h *SysUserHandler) Create(c *gin.Context) {
 
 // Update updates a system user
 func (h *SysUserHandler) Update(c *gin.Context) {
-	var cmd application.UpdateSysUserParam
+	var cmd application.UpdateUserCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
@@ -68,7 +68,7 @@ func (h *SysUserHandler) Update(c *gin.Context) {
 	user := platform_http.GetCurrentUser(c)
 	cmd.UserID = user.ID
 
-	if err := h.appService.UpdateSysUser(platform_http.Ctx(c), cmd); err != nil {
+	if err := h.appService.Update(platform_http.Ctx(c), cmd); err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -78,7 +78,7 @@ func (h *SysUserHandler) Update(c *gin.Context) {
 
 // Delete deletes a system user
 func (h *SysUserHandler) Delete(c *gin.Context) {
-	var param application.DeleteSysUserParam
+	var param application.DeleteUserCommand
 	if err := c.ShouldBindJSON(&param); err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
@@ -88,7 +88,7 @@ func (h *SysUserHandler) Delete(c *gin.Context) {
 
 	param.UserID = user.ID
 
-	if err := h.appService.DeleteSysUser(platform_http.Ctx(c), &param); err != nil {
+	if err := h.appService.Delete(platform_http.Ctx(c), &param); err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -104,7 +104,7 @@ func (h *SysUserHandler) GetById(c *gin.Context) {
 		return
 	}
 
-	user, err := h.appService.GetSysUserByID(platform_http.Ctx(c), id)
+	user, err := h.appService.GetByID(platform_http.Ctx(c), id)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
@@ -115,12 +115,19 @@ func (h *SysUserHandler) GetById(c *gin.Context) {
 
 // GetByQuery
 func (h *SysUserHandler) GetByQuery(c *gin.Context) {
-	var query application.UsersQuery
+	var query domain.UserQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
+	user, err := h.appService.GetByQuery(platform_http.Ctx(c), &query)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	response.Success(c, user)
 }
 
 func (h *SysUserHandler) GetList(c *gin.Context) {
@@ -135,7 +142,7 @@ func (h *SysUserHandler) GetList(c *gin.Context) {
 
 // GetPage queries system users with pagination（需要认证）
 func (h *SysUserHandler) GetPage(c *gin.Context) {
-	var query domain.SysUserPageQuery
+	var query domain.UsersPageQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
@@ -143,7 +150,7 @@ func (h *SysUserHandler) GetPage(c *gin.Context) {
 
 	query.Fixed()
 
-	res, err := h.appService.GetSysUserPage(platform_http.Ctx(c), &query)
+	res, err := h.appService.GetPage(platform_http.Ctx(c), &query)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
@@ -156,7 +163,7 @@ func (h *SysUserHandler) GetPage(c *gin.Context) {
 // - 未登录：返回基础公开信息
 // - 已登录：返回增强信息（包含更多字段）
 func (h *SysUserHandler) GetPublicPage(c *gin.Context) {
-	var query domain.SysUserPageQuery
+	var query domain.UsersPageQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
@@ -169,7 +176,7 @@ func (h *SysUserHandler) GetPublicPage(c *gin.Context) {
 		query.PageSize = 10
 	}
 
-	res, err := h.appService.GetSysUserPage(platform_http.Ctx(c), &query)
+	res, err := h.appService.GetPage(platform_http.Ctx(c), &query)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return

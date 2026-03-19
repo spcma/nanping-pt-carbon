@@ -120,8 +120,8 @@ func (u *Users) Delete(userID int64) error {
 	return nil
 }
 
-// SysUserPageQuery system user page query object
-type SysUserPageQuery struct {
+// UsersPageQuery system user page query object
+type UsersPageQuery struct {
 	entity.PaginationQuery
 	Username  string `json:"username"`
 	Nickname  string `json:"nickname"`
@@ -131,4 +131,10 @@ type SysUserPageQuery struct {
 	UserType  string `json:"userType"`
 	SortBy    string `json:"sortBy"`
 	SortOrder string `json:"sortOrder"` // "asc" or "desc"
+}
+
+type UserQuery struct {
+	ID       int64  `json:"id"`
+	Username string `json:"username"`
+	Nickname string `json:"nickname"`
 }

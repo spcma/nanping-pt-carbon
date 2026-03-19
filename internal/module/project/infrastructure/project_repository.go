@@ -75,7 +75,7 @@ func (r *ProjectRepository) FindByCode(ctx context.Context, code string) (*domai
 }
 
 // FindByQuery 根据条件查询项目（支持多条件组合）
-func (r *ProjectRepository) FindByQuery(ctx context.Context, query domain.ProjectQuery) (*domain.Project, error) {
+func (r *ProjectRepository) FindByQuery(ctx context.Context, query *domain.ProjectQuery) (*domain.Project, error) {
 	txDB := r.GetDB(ctx).WithContext(ctx).
 		Table("project").
 		Where(entity.FieldDeleteBy + " = 0")

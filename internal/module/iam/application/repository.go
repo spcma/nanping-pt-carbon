@@ -15,8 +15,9 @@ type UserRepo interface {
 	Delete(ctx context.Context, id, uid int64) error
 	FindByID(ctx context.Context, id int64) (*domain.Users, error)
 	FindByUsername(ctx context.Context, username string) (*domain.Users, error) // 添加按用户名查找
+	FindByQuery(ctx context.Context, query *domain.UserQuery) (*domain.Users, error)
 	FindList(ctx context.Context) ([]*domain.Users, error)
-	FindPage(ctx context.Context, query *domain.SysUserPageQuery) (*entity.PaginationResult[*domain.Users], error)
+	FindPage(ctx context.Context, query *domain.UsersPageQuery) (*entity.PaginationResult[*domain.Users], error)
 }
 
 type RoleRepo interface {
