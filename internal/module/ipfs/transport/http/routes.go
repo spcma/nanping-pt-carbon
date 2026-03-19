@@ -1,7 +1,8 @@
-package ipfs
+package http
 
 import (
 	"app/internal/config"
+	"app/internal/module/ipfs/application"
 	shared_http "app/internal/shared/http"
 	"app/internal/shared/logger"
 
@@ -10,25 +11,32 @@ import (
 )
 
 type ipfsRoutes struct {
-	service *Service
+	ipfsHandler *IpfsHandler
 }
 
-func NewIpfsRoutes(db *gorm.DB, db2 *gorm.DB) shared_http.RouteRegistry {
-	newService := NewService(db, db2, nil, "")
+func NewIpfsRoutes(db *gorm.DB, remoteDB *gorm.DB) shared_http.RouteRegistry {
 
+	var appService *application.Service
+	//	是否开启ipfs本地服务
 	if config.GlobalConfig.Ipfs.Status {
-		fsClient, sessionId, err := CreateFsClient()
+		fsClient, sessionId, err := application.CreateFsClient()
 		if err != nil {
 			logger.Error("http", "Failed to create IPFS client: "+err.Error())
 			panic(err)
 		}
+		appService = application.NewService(db, remoteDB, fsClient, sessionId)
+	} else {
+		appService = application.NewService(db, remoteDB, nil, "")
+	}
 
-		newService.client = fsClient
-		newService.session = sessionId
+	ipfsHandler, err := NewIpfsHandler(appService)
+	if err != nil {
+		logger.Error("http", "Failed to create IPFS handler: "+err.Error())
+		panic(err)
 	}
 
 	return &ipfsRoutes{
-		service: newService,
+		ipfsHandler: ipfsHandler,
 	}
 }
 
@@ -40,12 +48,15 @@ func (i *ipfsRoutes) RegisterRoutes(group *gin.RouterGroup, middlewares map[shar
 		dirRoute.Use(v)
 	}
 	{
-		dirRoute.POST("check", i.service.CheckDir)
-		dirRoute.POST("create", i.service.CreateDir)
-		dirRoute.GET("list", i.service.ListDir)
+		dirRoute.POST("", i.ipfsHandler.CreateDir)
+		dirRoute.DELETE("", i.ipfsHandler.DeleteFile)
+		dirRoute.GET("list", i.ipfsHandler.ListDir)
+		dirRoute.POST("upload", i.ipfsHandler.UploadFileHandler)
+		dirRoute.GET("download", i.ipfsHandler.DownloadFileHandler)
+
 		dirRoute.POST("handle", i.service.HandleWithDir)
-		dirRoute.DELETE("delete", i.service.DeleteFile)
 		dirRoute.GET("hhh", i.service.HHH)
+		dirRoute.GET("h1", i.service.H1)
 	}
 
 	fileRoute := group.Group("file")

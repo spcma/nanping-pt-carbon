@@ -13,6 +13,8 @@ type IpfsDetail struct {
 	TotalDistance  float64       `json:"total_distance"`
 	PointCount     int64         `json:"point_count"`
 	Filename       string        `json:"filename"`
+	Turnover       float64       `json:"turnover"`
+	Passenger      int64         `json:"passenger"`
 }
 
 func (*IpfsDetail) TableName() string {
@@ -20,20 +22,10 @@ func (*IpfsDetail) TableName() string {
 }
 
 // NewIpfsDetail 创建 IPFS 详情
-func NewIpfsDetail(deviceCode, filename string, collectionTime timeutil.Time, totalDistance float64, pointCount int64, createUser int64) (*IpfsDetail, error) {
-	ipfsDetail := &IpfsDetail{
-		BaseEntity: entity.BaseEntity{
-			Id:         idgen.NumID(),
-			CreateBy:   createUser,
-			CreateTime: timeutil.Now(),
-		},
-		DeviceCode:     deviceCode,
-		CollectionTime: collectionTime,
-		TotalDistance:  totalDistance,
-		PointCount:     pointCount,
-		Filename:       filename,
-	}
-	return ipfsDetail, nil
+func NewIpfsDetail(detail *IpfsDetail) (*IpfsDetail, error) {
+	detail.Id = idgen.NumID()
+	detail.CreateTime = timeutil.Now()
+	return detail, nil
 }
 
 // UpdateInfo 更新 IPFS 详情信息

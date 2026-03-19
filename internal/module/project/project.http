@@ -59,6 +59,8 @@ Authorization: {{token}}
 GET {{base_url}}/projects/page?pageNum=1&pageSize=10&name=&code=&status=
 Authorization: {{token}}
 
+
+
 ### 7. 变更项目状态
 # 状态选项：
 # - 0: 待启动 (pending)
@@ -76,6 +78,11 @@ Authorization: {{token}}
 
 ### ====================
 ### 请求数据结构说明
+
+# @name getProjectPage
+GET {{base_url}}/projects/list
+Authorization: {{token}}
+
 ### ====================
 ### 
 ### 1. 创建项目请求体：

@@ -1,7 +1,6 @@
-package ipfs
+package application
 
 import (
-	"app/internal/module/ipfs/application"
 	"app/internal/module/ipfs/infrastructure"
 	"app/internal/module/ipfs/rpc"
 	"app/internal/platform/http/response"
@@ -29,14 +28,14 @@ type Service struct {
 	remoteDB             *gorm.DB
 	client               *rpc.LApiStub
 	session              string
-	ipfsDetailAppService *application.IpfsDetailAppService
+	ipfsDetailAppService *IpfsDetailAppService
 }
 
 // NewService 创建 IPFS 服务
 func NewService(db *gorm.DB, remoteDB *gorm.DB, client *rpc.LApiStub, session string) *Service {
 	// 初始化仓储和應用服務
 	ipfsDetailRepo := infrastructure.NewIpfsDetailRepository(db)
-	ipfsDetailAppService := application.NewIpfsDetailAppService(ipfsDetailRepo)
+	ipfsDetailAppService := NewIpfsDetailAppService(ipfsDetailRepo)
 
 	return &Service{
 		db:                   db,
@@ -47,69 +46,8 @@ func NewService(db *gorm.DB, remoteDB *gorm.DB, client *rpc.LApiStub, session st
 	}
 }
 
-// FileResponse 文件响应
-type FileResponse struct {
-	Path    string `json:"path"`
-	Name    string `json:"name"`
-	Size    int64  `json:"size"`
-	Content string `json:"content,omitempty"`
-}
-
-// UploadFileCommand 上传文件命令
-type UploadFileCommand struct {
-	Dir      string
-	Filename string
-}
-
-// CheckDirRequest 检查目录请求
-type CheckDirRequest struct {
-	Path string `json:"path" form:"path"`
-}
-
-// CheckDir 检查目录
-func (s *Service) CheckDir(c *gin.Context) {
-	var req CheckDirRequest
-	if err := c.ShouldBind(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	logger.IpfsLogger.Info("check dir", zap.String("path", req.Path))
-
-	c.JSON(http.StatusOK, gin.H{
-		"exists": true,
-		"path":   req.Path,
-	})
-}
-
-// CreateDirRequest 创建目录请求
-type CreateDirRequest struct {
-	Path string `json:"path" form:"path"`
-}
-
-// CreateDir 创建目录
-func (s *Service) CreateDir(c *gin.Context) {
-	var req CreateDirRequest
-	if err := c.ShouldBind(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	logger.IpfsLogger.Info("create dir", zap.String("path", req.Path))
-
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-		"path":    req.Path,
-	})
-}
-
-// ListDirRequest 列出目录请求
-type ListDirRequest struct {
-	Path string `form:"path"`
-}
-
-// DirResponse 目录项
-type DirResponse struct {
+// DirDto 目录项
+type DirDto struct {
 	Name      string
 	Hash      string
 	Size      uint64
@@ -119,26 +57,32 @@ type DirResponse struct {
 	Seq       int    // 序号
 }
 
+func (s *Service) CheckDir(ctx context.Context, dir string) {
+	s.client.FilesStat(s.session, dir)
+}
+
+// CreateDir 创建目录
+func (s *Service) CreateDir(ctx context.Context, dir string) {
+	if dir == "" {
+		return
+	}
+	s.client.FilesMkdir(s.session, dir, true)
+}
+
 // ListDir 列出目录
-func (s *Service) ListDir(c *gin.Context) {
-	var req ListDirRequest
-	if err := c.ShouldBindQuery(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
-		return
-	}
+func (s *Service) ListDir(ctx context.Context, dir string) {
 
-	logger.IpfsLogger.Info("list dir", zap.String("path", req.Path))
+	logger.IpfsLogger.Info("list dir", zap.String("dir", dir))
 
-	lsLinks, err := s.client.FilesLs(s.session, req.Path)
+	lsLinks, err := s.client.FilesLs(s.session, dir)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	var list []DirResponse
+	var list []*DirDto
 	for _, link := range lsLinks {
 
-		dir := DirResponse{
+		dirDto := &DirDto{
 			Name: link.Name,
 			Hash: link.Hash,
 			Size: link.Size,
@@ -154,155 +98,59 @@ func (s *Service) ListDir(c *gin.Context) {
 		if ext == ".jpg" {
 			split := strings.Split(newStr, "_")
 			if len(split) >= 2 {
-				dir.Timestamp = cast.ToInt64(split[0])
-				dir.Seq = cast.ToInt(split[1])
+				dirDto.Timestamp = cast.ToInt64(split[0])
+				dirDto.Seq = cast.ToInt(split[1])
 			} else {
 				logger.IpfsLogger.Error("parse time error", zap.String("file", link.Name))
 			}
 		} else {
-			dir.Timestamp = cast.ToInt64(newStr)
+			dirDto.Timestamp = cast.ToInt64(newStr)
 		}
 
-		list = append(list, dir)
+		list = append(list, dirDto)
 	}
-
-	response.Success(c, list)
 }
 
-func (s *Service) HandleWithDir(c *gin.Context) {
-	type Param struct {
-		Dir        string `json:"dir" form:"dir"` // 目录
-		Year       string `json:"year" form:"year"`
-		Month      string `json:"month" form:"month"`
-		Day        string `json:"day" form:"day"`
-		DeviceCode string `json:"device_code" form:"device_code"`
-	}
-
-	var req Param
-	if err := c.ShouldBindQuery(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	//	开始扫描目录
-	fullDir := fmt.Sprintf("%s/%s/%s/%s/%s", req.Dir, req.Year, req.Month, req.Day, req.DeviceCode)
-
-	logger.IpfsLogger.Info("handle with dir", zap.String("dir", req.Dir),
-		zap.String("year", req.Year),
-		zap.String("month", req.Month),
-		zap.String("day", req.Day),
-		zap.String("device_code", req.DeviceCode),
-		zap.String("full_dir", fullDir),
-	)
-
-	lsLinks, err := s.client.FilesLs(s.session, fullDir)
-	if err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	var list []DirResponse
-	for _, link := range lsLinks {
-
-		if link.Type == 1 {
-			logger.IpfsLogger.Info("skip dir", zap.String("dir", link.Name))
-			continue
-		}
-
-		if strings.Contains(link.Name, ".jpg") {
-			logger.IpfsLogger.Info("skip image", zap.String("file", link.Name))
-			continue
-		}
-
-		fullPath := fmt.Sprintf("%s/%s", fullDir, link.Name)
-
-		localPath := "./tempfile/" + link.Name
-		err := s.SaveFileToLocal(fullPath, localPath)
-		if err != nil {
-			response.Error(c, http.StatusInternalServerError, err.Error())
-			return
-		}
-
-		records, err := parseFile(localPath)
-		if err != nil {
-			response.Error(c, http.StatusInternalServerError, err.Error())
-			return
-		}
-
-		logger.IpfsLogger.Info("parse file", zap.String("file", link.Name),
-			zap.Int("count", len(records)),
-		)
-
-		// 计算里程并保存到数据库
-		calculator := NewDistanceCalculator()
-		summary := calculator.CalculateSummary(records)
-
-		logger.IpfsLogger.Info("distance calculation",
-			zap.String("file", link.Name),
-			zap.Float64("total_distance_m", summary.TotalDistance),
-			zap.Float64("total_distance_km", summary.TotalDistanceKm),
-			zap.Int("point_count", summary.PointCount),
-			zap.Float64("avg_speed_kmh", summary.AverageSpeed),
-		)
-
-		dir := DirResponse{
-			Name: link.Name,
-			Hash: link.Hash,
-			Size: link.Size,
-			Type: link.Type,
-		}
-
-		ext := filepath.Ext(link.Name)
-
-		newStr := strings.ReplaceAll(link.Name, "image_", "")
-		newStr = strings.ReplaceAll(newStr, "gps_", "")
-		newStr = strings.ReplaceAll(newStr, ext, "")
-
-		if ext == ".jpg" {
-			split := strings.Split(newStr, "_")
-			if len(split) >= 2 {
-				dir.Timestamp = cast.ToInt64(split[0])
-				dir.Seq = cast.ToInt(split[1])
-			} else {
-				logger.IpfsLogger.Error("parse time error", zap.String("file", link.Name))
-			}
-		} else {
-			dir.Timestamp = cast.ToInt64(newStr)
-		}
-
-		fmt.Println("time", dir.Timestamp)
-		// 保存里程计算结果到数据库
-		err = s.saveIpfsDetailToDB(fullDir, link.Name, dir.Timestamp, records, summary)
-		if err != nil {
-			logger.IpfsLogger.Warn("save ipfs detail to database failed",
-				zap.String("file", link.Name),
-				zap.Error(err),
-			)
-		} else {
-			logger.IpfsLogger.Info("ipfs detail saved to database",
-				zap.String("file", link.Name),
-				zap.Float64("total_distance_km", summary.TotalDistanceKm),
-				zap.Int("point_count", summary.PointCount),
-			)
-		}
-
-		list = append(list, dir)
-	}
+// DeleteFileRequest 删除文件请求
+type DeleteFileRequest struct {
+	Path      string `form:"path"`
+	Recursive bool   `form:"recursive"` // 递归
+	Force     bool   `form:"force"`     // 强制删除
 }
 
 // DeleteFile 删除文件
-func (s *Service) DeleteFile(c *gin.Context) {
-	var req DeleteFileRequest
-	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
+func (s *Service) DeleteFile(ctx context.Context, path string, recursive, force bool) {
+	s.client.FilesRm(s.session, path, recursive, force)
+}
+
+// SaveContent 保存内容到文件
+func (s *Service) SaveContent(content, fsDir, filename string) (string, error) {
+	// 打开临时文件
+	fsid, err := s.client.MFOpenTempFile(s.session)
+	if err != nil {
+		return "", err
 	}
 
-	logger.IpfsLogger.Info("delete file", zap.String("path", req.Path))
+	// 写入数据
+	_, err = s.client.MFSetData(fsid, []byte(content), 0)
+	if err != nil {
+		return "", err
+	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"success": true,
-	})
+	// 确保目录存在
+	//err = s.EnsureDirExists(fsDir, true)
+	//if err != nil {
+	//	return "", err
+	//}
+
+	// 保存到 NPFS
+	nodePath := fsDir + "/" + filename
+	ipfsid, err := s.client.MFTemp2Files(fsid, nodePath)
+	if err != nil {
+		return "", err
+	}
+
+	return ipfsid, nil
 }
 
 // ReadFile 读取文件
@@ -343,6 +191,72 @@ func (s *Service) ReadFile(c *gin.Context) {
 		"path":             req.Path,
 		"distance_summary": summary,
 	})
+}
+
+// ReadFile 读取文件
+func (s *Service) readFileHandle(filePath string) ([]byte, int64, error) {
+	fsid, err := s.client.MMOpenUrl(s.session, filePath)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer s.client.MMClose(fsid)
+
+	size, err := s.client.MFGetSize(fsid)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	data, err := s.client.MFGetData(fsid, 0, int(size))
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return data, size, nil
+}
+
+// SaveLocalFile 保存本地文件到 NPFS
+func (s *Service) SaveLocalFile(localPath, fsDir, filename string) (string, error) {
+	// 打开临时文件
+	fsid, err := s.client.MFOpenTempFile(s.session)
+	if err != nil {
+		return "", err
+	}
+
+	// 读取本地文件
+	data, err := os.ReadFile(localPath)
+	if err != nil {
+		return "", err
+	}
+
+	// 写入数据
+	_, err = s.client.MFSetData(fsid, data, 0)
+	if err != nil {
+		return "", err
+	}
+
+	// 确保目录存在
+	err = s.EnsureDirExists(fsDir, true)
+	if err != nil {
+		return "", err
+	}
+
+	// 保存到 NPFS
+	nodePath := fsDir + "/" + filename
+	ipfsid, err := s.client.MFTemp2Files(fsid, nodePath)
+	if err != nil {
+		return "", err
+	}
+
+	return ipfsid, nil
+}
+
+// EnsureDirExists 确保目录存在
+func (s *Service) EnsureDirExists(path string, recursive bool) error {
+	exists := s.CheckDirExist(path)
+	if !exists {
+		return s.CreateDir(path, recursive)
+	}
+	return nil
 }
 
 // ==================== 文件读取相关 ====================
@@ -433,14 +347,15 @@ func (s *Service) SaveFile(c *gin.Context) {
 	})
 }
 
-// DeleteFileRequest 删除文件请求
-type DeleteFileRequest struct {
-	Path string `form:"path"`
-}
-
 // ReadFileRequest 读取文件请求
 type ReadFileRequest struct {
 	Path string `form:"path"`
+}
+
+// UploadFileCommand 上传文件命令
+type UploadFileCommand struct {
+	Dir      string
+	Filename string
 }
 
 // UploadFile 上传文件
@@ -567,7 +482,7 @@ func (s *Service) saveDistanceResult(fileName string, summary DistanceSummary) e
 // fileName: 文件名
 // records: GPS 记录列表
 // summary: 里程汇总信息
-func (s *Service) saveIpfsDetailToDB(deviceCode, fileName string, timestamp int64, records []Record, summary DistanceSummary) error {
+func (s *Service) saveIpfsDetailToDB(deviceCode, fileName string, timestamp int64, turnover float64, passenger int64, records []Record, summary DistanceSummary) error {
 	if len(records) == 0 {
 		return nil
 	}
@@ -575,7 +490,7 @@ func (s *Service) saveIpfsDetailToDB(deviceCode, fileName string, timestamp int6
 	collectionTime := timeutil.Now(carbon.Parse(cast.ToString(timestamp), carbon.Shanghai).StdTime())
 
 	// 创建命令
-	cmd := application.CreateIpfsDetailCommand{
+	cmd := CreateIpfsDetailCommand{
 		DeviceCode:     deviceCode,
 		Filename:       fileName,
 		CollectionTime: collectionTime.Format("2006-01-02 15:04:05"),
@@ -599,8 +514,20 @@ func (s *Service) saveIpfsDetailToDB(deviceCode, fileName string, timestamp int6
 	return err
 }
 
+func (s *Service) H1(c *gin.Context) {
+	var lll []*BusImageDetailCv
+	err := s.remoteDB.WithContext(context.Background()).Table("bus_image_detail_cv").Find(&lll).Error
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	response.Success(c, lll)
+}
+
 // 统计单日里程数量
 func (s *Service) HHH(c *gin.Context) {
+
 	type Param struct {
 		RootDir    string `json:"rootDir" form:"rootDir"`       // 目录
 		Date       string `json:"date" form:"date"`             // 日期
@@ -640,40 +567,125 @@ func (s *Service) HHH(c *gin.Context) {
 	endTime := now.AddDay().Format(carbon.DateTimeFormat)
 
 	for _, link := range lsLinks {
+		//	每台设备的存储路径
 		newFullPath := fmt.Sprintf("%s/%s", fullDir, link.Name)
-		fmt.Println(newFullPath)
-		links2, err := s.client.FilesLs(s.session, newFullPath)
+
+		//	读取设备路径下单日所有文件
+		deviceLinks, err := s.client.FilesLs(s.session, newFullPath)
 		if err != nil {
 			response.Error(c, http.StatusInternalServerError, err.Error())
 			return
 		}
 		//	查询某辆车某天所有的图片地址
-		var lll []*BusImageDetailCv
-		err = s.remoteDB.WithContext(context.Background()).Table("bus_image_detail_cv").
-			Where("device_code = ? and collection_time >= ? and collection_time < ?", param.DeviceCode, startTime, endTime).Find(&lll).Error
+		var cvres []*BusImageDetailCv
+
+		//	查询图片对应的识别乘客人数
+		err = s.remoteDB.WithContext(context.Background()).
+			Table("bus_image_detail_cv").
+			Where("device_code = ? and collection_time >= ? and collection_time < ?", link.Name, startTime, endTime).
+			Find(&cvres).Error
 		if err != nil {
 			response.Error(c, http.StatusInternalServerError, err.Error())
 			return
 		}
 
-		for _, cv := range lll {
-			logger.IpfsLogger.Info("bus image detail", zap.String("deviceCode", cv.DeviceCode), zap.Any("res", cv.BaiduResult))
+		m := make(map[string]int64)
+		for _, cv := range cvres {
+			ttt := cv.CollectionTime.ToTime().Format("20060102150405")
+			m[ttt] = cv.BaiduResult
 		}
 
-		for _, lsLink := range links2 {
+		//	解析每个文件，计算里程与周转量
+		for _, lsLink := range deviceLinks {
 			//	仅解析gps文件,gps_xxxx.txt
 			if !strings.HasPrefix(lsLink.Name, "gps_") || !strings.HasSuffix(lsLink.Name, ".txt") {
 				continue
 			}
 
+			newNewFullPath := fmt.Sprintf("%s/%s", newFullPath, lsLink.Name)
+
 			logger.IpfsLogger.Info("ls link", zap.String("name", lsLink.Name), zap.String("hash", lsLink.Hash), zap.Int("type", lsLink.Type))
+
+			localPath := "./tempfile/" + link.Name
+			err := s.SaveFileToLocal(newNewFullPath, localPath)
+			if err != nil {
+				response.Error(c, http.StatusInternalServerError, err.Error())
+				return
+			}
+
+			records, err := parseFile(localPath)
+			if err != nil {
+				response.Error(c, http.StatusInternalServerError, err.Error())
+				return
+			}
+
+			logger.IpfsLogger.Info("parse file", zap.String("file", link.Name),
+				zap.Int("count", len(records)),
+			)
+
+			// 计算里程并保存到数据库
+			calculator := NewDistanceCalculator()
+			summary := calculator.CalculateSummary(records)
+
+			logger.IpfsLogger.Info("distance calculation",
+				zap.String("file", link.Name),
+				zap.Float64("total_distance_m", summary.TotalDistance),
+				zap.Float64("total_distance_km", summary.TotalDistanceKm),
+				zap.Int("point_count", summary.PointCount),
+				zap.Float64("avg_speed_kmh", summary.AverageSpeed),
+			)
+
+			dir := DirDto{
+				Name: link.Name,
+				Hash: link.Hash,
+				Size: link.Size,
+				Type: link.Type,
+			}
+
+			ext := filepath.Ext(link.Name)
+
+			newStr := strings.ReplaceAll(link.Name, "image_", "")
+			newStr = strings.ReplaceAll(newStr, "gps_", "")
+			newStr = strings.ReplaceAll(newStr, ext, "")
+
+			if ext == ".jpg" {
+				split := strings.Split(newStr, "_")
+				if len(split) >= 2 {
+					dir.Timestamp = cast.ToInt64(split[0])
+					dir.Seq = cast.ToInt(split[1])
+				} else {
+					logger.IpfsLogger.Error("parse time error", zap.String("file", link.Name))
+				}
+			} else {
+				dir.Timestamp = cast.ToInt64(newStr)
+			}
+
+			//	查询对应的客流量，计算周转量
+			if v, ok := m[cast.ToString(dir.Timestamp)]; ok {
+				turnOver := cast.ToFloat64(v) * summary.TotalDistanceKm
+			}
+
+			//  保存里程计算结果到数据库
+			err = s.saveIpfsDetailToDB(fullDir, link.Name, dir.Timestamp, records, summary)
+			if err != nil {
+				logger.IpfsLogger.Warn("save ipfs detail to database failed",
+					zap.String("file", link.Name),
+					zap.Error(err),
+				)
+			} else {
+				logger.IpfsLogger.Info("ipfs detail saved to database",
+					zap.String("file", link.Name),
+					zap.Float64("total_distance_km", summary.TotalDistanceKm),
+					zap.Int("point_count", summary.PointCount),
+				)
+			}
 		}
 
 		logger.IpfsLogger.Info("ls link", zap.String("name", link.Name), zap.String("hash", link.Hash), zap.Int("type", link.Type))
 	}
 
 	logger.IpfsLogger.Info("ls dir", zap.String("dir", fullDir), zap.Int("count", len(lsLinks)))
-	Success(c, lsLinks)
+	response.Success(c, lsLinks)
 }
 
 type BusImageDetailCv struct {
@@ -685,4 +697,131 @@ type BusImageDetailCv struct {
 	BaiduResult       int64         `json:"baiduResult" form:"baiduResult" gorm:"column:baidu_result" label:""`
 	CvType            string        `json:"cvType" form:"cvType" gorm:"column:cv_type" label:"识别类型 10 原图 20 预处理后图片"`
 	DeviceCode        string        `json:"deviceCode" form:"deviceCode" gorm:"column:device_code" label:"设备编号"`
+}
+
+// Close 关闭连接
+func (s *Service) Close() {
+	if s.client != nil {
+		s.client.Logout(s.session, "")
+	}
+}
+
+func (s *Service) HandleWithDir(c *gin.Context) {
+	type Param struct {
+		Dir        string `json:"dir" form:"dir"` // 目录
+		Year       string `json:"year" form:"year"`
+		Month      string `json:"month" form:"month"`
+		Day        string `json:"day" form:"day"`
+		DeviceCode string `json:"device_code" form:"device_code"`
+	}
+
+	var req Param
+	if err := c.ShouldBindQuery(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	//	开始扫描目录
+	fullDir := fmt.Sprintf("%s/%s/%s/%s/%s", req.Dir, req.Year, req.Month, req.Day, req.DeviceCode)
+
+	logger.IpfsLogger.Info("handle with dir", zap.String("dir", req.Dir),
+		zap.String("year", req.Year),
+		zap.String("month", req.Month),
+		zap.String("day", req.Day),
+		zap.String("device_code", req.DeviceCode),
+		zap.String("full_dir", fullDir),
+	)
+
+	lsLinks, err := s.client.FilesLs(s.session, fullDir)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	var list []DirDto
+	for _, link := range lsLinks {
+
+		if link.Type == 1 {
+			logger.IpfsLogger.Info("skip dir", zap.String("dir", link.Name))
+			continue
+		}
+
+		if strings.Contains(link.Name, ".jpg") {
+			logger.IpfsLogger.Info("skip image", zap.String("file", link.Name))
+			continue
+		}
+
+		fullPath := fmt.Sprintf("%s/%s", fullDir, link.Name)
+
+		localPath := "./tempfile/" + link.Name
+		err := s.SaveFileToLocal(fullPath, localPath)
+		if err != nil {
+			response.Error(c, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		records, err := parseFile(localPath)
+		if err != nil {
+			response.Error(c, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		logger.IpfsLogger.Info("parse file", zap.String("file", link.Name),
+			zap.Int("count", len(records)),
+		)
+
+		// 计算里程并保存到数据库
+		calculator := NewDistanceCalculator()
+		summary := calculator.CalculateSummary(records)
+
+		logger.IpfsLogger.Info("distance calculation",
+			zap.String("file", link.Name),
+			zap.Float64("total_distance_m", summary.TotalDistance),
+			zap.Float64("total_distance_km", summary.TotalDistanceKm),
+			zap.Int("point_count", summary.PointCount),
+			zap.Float64("avg_speed_kmh", summary.AverageSpeed),
+		)
+
+		dir := DirDto{
+			Name: link.Name,
+			Hash: link.Hash,
+			Size: link.Size,
+			Type: link.Type,
+		}
+
+		ext := filepath.Ext(link.Name)
+
+		newStr := strings.ReplaceAll(link.Name, "image_", "")
+		newStr = strings.ReplaceAll(newStr, "gps_", "")
+		newStr = strings.ReplaceAll(newStr, ext, "")
+
+		if ext == ".jpg" {
+			split := strings.Split(newStr, "_")
+			if len(split) >= 2 {
+				dir.Timestamp = cast.ToInt64(split[0])
+				dir.Seq = cast.ToInt(split[1])
+			} else {
+				logger.IpfsLogger.Error("parse time error", zap.String("file", link.Name))
+			}
+		} else {
+			dir.Timestamp = cast.ToInt64(newStr)
+		}
+
+		// 保存里程计算结果到数据库
+		//err = s.saveIpfsDetailToDB(fullDir, link.Name, dir.Timestamp, records, summary)
+		//if err != nil {
+		//	logger.IpfsLogger.Warn("save ipfs detail to database failed",
+		//		zap.String("file", link.Name),
+		//		zap.Error(err),
+		//	)
+		//} else {
+		//	logger.IpfsLogger.Info("ipfs detail saved to database",
+		//		zap.String("file", link.Name),
+		//		zap.Float64("total_distance_km", summary.TotalDistanceKm),
+		//		zap.Int("point_count", summary.PointCount),
+		//	)
+		//}
+
+		list = append(list, dir)
+	}
 }

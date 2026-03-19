@@ -1,4 +1,5 @@
 @host = 192.168.1.10:19870
+#@host = localhost:19870
 @base_url = http://{{host}}/api
 @token = 2033791386607685632
 
@@ -47,6 +48,9 @@ Authorization: {{token}}
 GET {{base_url}}/dir/hhh?rootDir=/aibk&date=2026-03-14
 Authorization: {{token}}
 
+###
+GET {{base_url}}/dir/h1
+Authorization: {{token}}
 
 ### 6. 保存文件（JSON 格式内容）
 # @name saveFile

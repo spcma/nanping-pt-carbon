@@ -1,6 +1,8 @@
-package ipfs
+package application
 
-import "math"
+import (
+	"math"
+)
 import "github.com/golang/geo/s2"
 
 // DistanceCalculator 距离计算器

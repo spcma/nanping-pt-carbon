@@ -44,7 +44,7 @@ remote_database:
   user: "nptadmin"
   password: "nptadmin@2025"
   dbname: "nanping"
-  search_path: "biz"
+  searchpath: "biz"
 
 redis:
   addr: 121.41.129.227:16020

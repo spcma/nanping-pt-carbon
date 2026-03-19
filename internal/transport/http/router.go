@@ -4,7 +4,7 @@ import (
 	"app/internal/config"
 	carbonreportday_http "app/internal/module/carbonreportday/transport/http"
 	iam_http "app/internal/module/iam/transport/http"
-	ipfs_http "app/internal/module/ipfs"
+	ipfs_http "app/internal/module/ipfs/transport/http"
 	methodology_http "app/internal/module/methodology/transport/http"
 	project_http "app/internal/module/project/transport/http"
 	"app/internal/shared/cache"

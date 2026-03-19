@@ -3,7 +3,6 @@ package application
 import (
 	"app/internal/module/ipfs/domain"
 	"app/internal/shared/entity"
-	"app/internal/shared/timeutil"
 	"context"
 )
 
@@ -36,29 +35,31 @@ func NewIpfsDetailAppService(repo IpfsDetailRepo) *IpfsDetailAppService {
 
 // CreateIpfsDetail 创建 IPFS 详情
 func (s *IpfsDetailAppService) CreateIpfsDetail(ctx context.Context, cmd CreateIpfsDetailCommand) (int64, error) {
-	collectionTime, err := timeutil.FromString(cmd.CollectionTime)
-	if err != nil {
-		return 0, err
-	}
+	//collectionTime, err := timeutil.FromString(cmd.CollectionTime)
+	//if err != nil {
+	//	return 0, err
+	//}
 
-	ipfsDetail, err := domain.NewIpfsDetail(
-		cmd.DeviceCode,
-		cmd.Filename,
-		collectionTime,
-		cmd.TotalDistance,
-		cmd.PointCount,
-		cmd.UserID,
-	)
-	if err != nil {
-		return 0, err
-	}
+	//ipfsDetail, err := domain.NewIpfsDetail(
+	//	cmd.DeviceCode,
+	//	cmd.Filename,
+	//	collectionTime,
+	//	cmd.TotalDistance,
+	//	cmd.PointCount,
+	//	cmd.UserID,
+	//)
+	//if err != nil {
+	//	return 0, err
+	//}
+	//
+	//err = s.repo.Create(ctx, ipfsDetail)
+	//if err != nil {
+	//	return 0, err
+	//}
+	//
+	//return ipfsDetail.Id, nil
 
-	err = s.repo.Create(ctx, ipfsDetail)
-	if err != nil {
-		return 0, err
-	}
-
-	return ipfsDetail.Id, nil
+	return 0, nil
 }
 
 // UpdateIpfsDetail 更新 IPFS 详情
