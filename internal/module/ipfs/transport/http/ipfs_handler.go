@@ -218,6 +218,5 @@ func (h *IpfsHandler) CalcDir(c *gin.Context) {
 
 	}()
 
-	// fmt.Sprintf("rootDir: %s, date: %s 计算完成, 总周转量为: %.4f", dto.RootDir, dto.Date, turnover)
 	response.Success(c, "等待执行中")
 }

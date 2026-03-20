@@ -70,7 +70,7 @@ func (u *CarbonReportDayRepository) FindPage(ctx context.Context, query *domain.
 	result, err := helper.PageQuery(int(query.PageNum), int(query.PageSize), func(dq *gorm.DB) *gorm.DB {
 		// 构建基础查询 - 使用 delete_by 条件
 		dq = dq.WithContext(ctx).
-			Table("CarbonReportDays").
+			Table("carbon_report_day").
 			Where(entity.FieldDeleteBy + " = 0")
 
 		return dq

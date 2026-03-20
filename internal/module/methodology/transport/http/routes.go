@@ -47,7 +47,7 @@ func (r *methodologyRoutes) RegisterRoutes(group *gin.RouterGroup, middlewares m
 		}
 
 		// 方法学列表路由 - /api/methodologies/*
-		methodologiesGroup := authTypeRequiredRoute.Group("/methodologies")
+		methodologiesGroup := authTypeRequiredRoute.Group("/methodologys")
 		{
 			methodologiesGroup.GET("list", r.methodologyHandler.GetList)
 			methodologiesGroup.GET("page", r.methodologyHandler.GetPage)

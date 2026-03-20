@@ -356,6 +356,8 @@ func (s *Service) SaveFileToLocal(filePath, localPath string) error {
 		return err
 	}
 
+	_ = data
+
 	err = os.WriteFile(localPath, data, os.ModePerm)
 	if err != nil {
 		return err
@@ -749,9 +751,13 @@ func (s *Service) CalcDir(ctx context.Context, rootDir string, date string) (flo
 	startTime := now.Format(carbon.DateTimeFormat)
 	endTime := now.AddDay().Format(carbon.DateTimeFormat)
 
-	var turnover float64
+	var totalTurnover = 0.0
 
-	for _, deviceCode := range deviceCodes {
+	for i, deviceCode := range deviceCodes {
+		// 记录剩余未处理设备数量
+		logger.IpfsLogger.Info("开始处理设备",
+			zap.Int("index", i),
+			zap.String("device_code", deviceCode.Name))
 		//	每台设备的存储路径
 		newFullPath := fmt.Sprintf("%s/%s", fullDir, deviceCode.Name)
 
@@ -759,7 +765,7 @@ func (s *Service) CalcDir(ctx context.Context, rootDir string, date string) (flo
 		gpsFiles, err := s.client.FilesLs(s.session, newFullPath)
 		if err != nil {
 			logger.IpfsLogger.Error("gps ipfs ls failed", zap.String("full_dir", newFullPath), zap.Error(err))
-			return 0, err
+			continue
 		}
 
 		//	查询某辆车某天所有的图片地址
@@ -776,7 +782,7 @@ func (s *Service) CalcDir(ctx context.Context, rootDir string, date string) (flo
 				zap.Any("start_time", startTime),
 				zap.Any("end_time", endTime),
 				zap.Error(err))
-			return 0, err
+			continue
 		}
 
 		cvPassengers := make(map[string]int64)
@@ -786,8 +792,9 @@ func (s *Service) CalcDir(ctx context.Context, rootDir string, date string) (flo
 		}
 
 		//	解析每个文件，计算里程与周转量
+		deviceTurnover := 0.0
 		for _, gpsFile := range gpsFiles {
-			//	仅解析gps文件,gps_xxxx.txt
+			//	仅解析 gps 文件，gps_xxxx.txt
 			if !strings.HasPrefix(gpsFile.Name, "gps_") || !strings.HasSuffix(gpsFile.Name, ".txt") {
 				continue
 			}
@@ -799,14 +806,14 @@ func (s *Service) CalcDir(ctx context.Context, rootDir string, date string) (flo
 			err = s.SaveFileToLocal(newNewFullPath, localPath)
 			if err != nil {
 				logger.IpfsLogger.Error("save file to local failed", zap.String("file", gpsFile.Name), zap.Error(err))
-				return 0, err
+				continue
 			}
 			logger.IpfsLogger.Info("download file done", zap.String("file", gpsFile.Name), zap.Duration("cost", time.Since(st)))
 
 			records, err := parseFile(localPath)
 			if err != nil {
 				logger.IpfsLogger.Error("parse file failed", zap.String("file", gpsFile.Name), zap.Error(err))
-				return 0, err
+				continue
 			}
 
 			//	删除本地临时文件
@@ -829,26 +836,28 @@ func (s *Service) CalcDir(ctx context.Context, rootDir string, date string) (flo
 				zap.Float64("avg_speed_kmh", summary.AverageSpeed),
 			)
 
-			//	从文件名中解析出时间戳, 用于计算周转量
+			// 从文件名中解析出时间戳，用于计算周转量
 			ext := filepath.Ext(gpsFile.Name)
 
 			t := strings.ReplaceAll(gpsFile.Name, "gps_", "")
 			t = strings.ReplaceAll(t, ext, "")
 
-			//	查询对应的客流量，计算周转量
+			// 查询对应的客流量，计算周转量
 			if v, ok := cvPassengers[t]; ok {
 				tmpTurnover := cast.ToFloat64(v) * summary.TotalDistanceKm // 周转量 = 里程 * 乘客数
-				turnover += tmpTurnover
+				deviceTurnover += tmpTurnover
 			}
 		}
+
+		totalTurnover += deviceTurnover
 	}
 
 	//	XX 日总周转量
-	logger.IpfsLogger.Info(fmt.Sprintf("%s, 总周转量为：%.4f", date, turnover))
+	logger.IpfsLogger.Info(fmt.Sprintf("%s, 总周转量为：%.4f", date, totalTurnover))
 
 	//	创建碳报告日报
 	_, err = s.carbonReportDayAppService.CreateCarbonReportDay(ctx, carbonreportday_application.CreateCarbonReportDayCommand{
-		Turnover:       turnover,
+		Turnover:       totalTurnover,
 		Baseline:       0,
 		CollectionDate: timeutil.Now(now.StdTime()),
 	})
@@ -859,5 +868,104 @@ func (s *Service) CalcDir(ctx context.Context, rootDir string, date string) (flo
 		)
 	}
 
-	return turnover, nil
+	return totalTurnover, nil
+}
+
+func (s *Service) CalcDirTest(ctx context.Context, rootDir string, date string) (float64, error) {
+	//	解析日期
+	now := carbon.Parse(date, carbon.Shanghai).StartOfDay()
+
+	onlyDate := now.Format(carbon.DateFormat)
+
+	split := strings.Split(onlyDate, "-")
+	if len(split) < 3 {
+		return 0, fmt.Errorf("日期格式错误 %v", date)
+	}
+
+	year := split[0][2:]
+	month := split[1]
+	day := split[2]
+
+	fullDir := fmt.Sprintf("%s/%s/%s/%s", rootDir, year, month, day)
+
+	deviceCodes, err := s.client.FilesLs(s.session, fullDir)
+	if err != nil {
+		logger.IpfsLogger.Error("device_code ipfs ls failed", zap.String("full_dir", fullDir), zap.Error(err))
+		return 0, err
+	}
+
+	startTime := now.Format(carbon.DateTimeFormat)
+	endTime := now.AddDay().Format(carbon.DateTimeFormat)
+
+	var totalTurnover = 0.0
+
+	for i, deviceCode := range deviceCodes {
+		// 记录剩余未处理设备数量
+		logger.IpfsLogger.Info("开始处理设备",
+			zap.Int("index", i),
+			zap.String("device_code", deviceCode.Name))
+		//	每台设备的存储路径
+		newFullPath := fmt.Sprintf("%s/%s", fullDir, deviceCode.Name)
+
+		//	读取设备路径下单日所有文件
+		gpsFiles, err := s.client.FilesLs(s.session, newFullPath)
+		if err != nil {
+			logger.IpfsLogger.Error("gps ipfs ls failed", zap.String("full_dir", newFullPath), zap.Error(err))
+			continue
+		}
+
+		//	查询某辆车某天所有的图片地址
+		var cvres []*BusImageDetailCv
+
+		//	查询图片对应的识别乘客人数
+		err = s.remoteDB.WithContext(context.Background()).
+			Table("bus_image_detail_cv").
+			Where("device_code = ? and collection_time >= ? and collection_time < ?", deviceCode.Name, startTime, endTime).
+			Find(&cvres).Error
+		if err != nil {
+			logger.IpfsLogger.Error("query bus_image_detail_cv failed",
+				zap.String("device_code", deviceCode.Name),
+				zap.Any("start_time", startTime),
+				zap.Any("end_time", endTime),
+				zap.Error(err))
+			continue
+		}
+
+		cvPassengers := make(map[string]int64)
+		for _, cv := range cvres {
+			t := cv.CollectionTime.ToTime().Format("20060102150405")
+			cvPassengers[t] = cv.BaiduResult
+		}
+
+		//	解析每个文件，计算里程与周转量
+		deviceTurnover := 0.0
+		for _, gpsFile := range gpsFiles {
+			//	仅解析 gps 文件，gps_xxxx.txt
+			if !strings.HasPrefix(gpsFile.Name, "gps_") || !strings.HasSuffix(gpsFile.Name, ".txt") {
+				continue
+			}
+
+			newNewFullPath := fmt.Sprintf("%s/%s", newFullPath, gpsFile.Name)
+
+			st := time.Now()
+			localPath := "./tempfile/" + gpsFile.Name
+			err = s.SaveFileToLocal(newNewFullPath, localPath)
+			if err != nil {
+				logger.IpfsLogger.Error("save file to local failed", zap.String("file", gpsFile.Name), zap.Error(err))
+				continue
+			}
+			logger.IpfsLogger.Info("download file done", zap.String("file", gpsFile.Name), zap.Duration("cost", time.Since(st)))
+
+			//	删除本地临时文件
+			//err = os.Remove(localPath)
+			//if err != nil {
+			//	logger.IpfsLogger.Error("remove local file failed", zap.String("file", gpsFile.Name), zap.Error(err))
+			//}
+
+		}
+
+		totalTurnover += deviceTurnover
+	}
+
+	return totalTurnover, nil
 }
