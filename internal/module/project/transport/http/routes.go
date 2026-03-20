@@ -1,6 +1,8 @@
 package http
 
 import (
+	"app/internal/module/project/application"
+	"app/internal/module/project/infrastructure"
 	shared_http "app/internal/shared/http"
 
 	"gorm.io/gorm"
@@ -16,13 +18,16 @@ type projectRoutes struct {
 
 // NewProjectRoutes 创建 Project 模块的路由注册器
 func NewProjectRoutes(db *gorm.DB) shared_http.RouteRegistry {
-	//	初始化application
-	projectWire := InitProjectWire(db)
-	projectMembersWire := InitProjectMembersWire(db)
 
-	//	初始化handler
-	projectHandler := NewProjectHandler(projectWire.Service)
-	projectMembersHandler := NewProjectMembersHandler(projectMembersWire.Service)
+	//	初始化 project 模块
+	projectRepo := infrastructure.NewProjectRepository(db)
+	appService := application.NewProjectService(projectRepo)
+	projectHandler := NewProjectHandler(appService)
+
+	//	初始化 projectMembers 模块
+	projectMembersRepo := infrastructure.NewProjectMembersRepository(db)
+	projectMembersAppService := application.NewProjectMembersService(projectMembersRepo)
+	projectMembersHandler := NewProjectMembersHandler(projectMembersAppService)
 
 	return &projectRoutes{
 		projectHandler:        projectHandler,

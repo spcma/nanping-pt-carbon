@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/dromara/carbon/v2"
 	"gorm.io/gorm"
@@ -793,12 +794,14 @@ func (s *Service) CalcDir(ctx context.Context, rootDir string, date string) (flo
 
 			newNewFullPath := fmt.Sprintf("%s/%s", newFullPath, gpsFile.Name)
 
+			st := time.Now()
 			localPath := "./tempfile/" + gpsFile.Name
 			err = s.SaveFileToLocal(newNewFullPath, localPath)
 			if err != nil {
 				logger.IpfsLogger.Error("save file to local failed", zap.String("file", gpsFile.Name), zap.Error(err))
 				return 0, err
 			}
+			logger.IpfsLogger.Info("download file done", zap.String("file", gpsFile.Name), zap.Duration("cost", time.Since(st)))
 
 			records, err := parseFile(localPath)
 			if err != nil {

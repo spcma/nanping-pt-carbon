@@ -11,20 +11,20 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// SysRoleHandler system role handler
-type SysRoleHandler struct {
+// RolesHandler system role handler
+type RolesHandler struct {
 	appService *application.SysRoleAppService
 }
 
-// NewSysRoleHandler creates system role handler
-func NewSysRoleHandler(appService *application.SysRoleAppService) *SysRoleHandler {
-	return &SysRoleHandler{
+// NewRolesHandler creates system role handler
+func NewRolesHandler(appService *application.SysRoleAppService) *RolesHandler {
+	return &RolesHandler{
 		appService: appService,
 	}
 }
 
 // Create creates a system role
-func (h *SysRoleHandler) Create(c *gin.Context) {
+func (h *RolesHandler) Create(c *gin.Context) {
 	var cmd application.CreateSysRoleCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
@@ -44,7 +44,7 @@ func (h *SysRoleHandler) Create(c *gin.Context) {
 }
 
 // Update updates a system role
-func (h *SysRoleHandler) Update(c *gin.Context) {
+func (h *RolesHandler) Update(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
@@ -71,7 +71,7 @@ func (h *SysRoleHandler) Update(c *gin.Context) {
 }
 
 // Delete deletes a system role
-func (h *SysRoleHandler) Delete(c *gin.Context) {
+func (h *RolesHandler) Delete(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
@@ -94,7 +94,7 @@ func (h *SysRoleHandler) Delete(c *gin.Context) {
 }
 
 // GetByID gets system role by ID
-func (h *SysRoleHandler) GetByID(c *gin.Context) {
+func (h *RolesHandler) GetByID(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
@@ -112,7 +112,7 @@ func (h *SysRoleHandler) GetByID(c *gin.Context) {
 }
 
 // GetPage queries system roles with pagination
-func (h *SysRoleHandler) GetPage(c *gin.Context) {
+func (h *RolesHandler) GetPage(c *gin.Context) {
 	var query domain.SysRolePageQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
@@ -138,7 +138,7 @@ func (h *SysRoleHandler) GetPage(c *gin.Context) {
 }
 
 // ChangeStatus changes role status
-func (h *SysRoleHandler) ChangeStatus(c *gin.Context) {
+func (h *RolesHandler) ChangeStatus(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {

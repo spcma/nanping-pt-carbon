@@ -1,6 +1,8 @@
 package http
 
 import (
+	"app/internal/module/carbonreportday/application"
+	"app/internal/module/carbonreportday/infrastructure"
 	shared_http "app/internal/shared/http"
 
 	"gorm.io/gorm"
@@ -10,25 +12,24 @@ import (
 
 // carbonReportDayRoutes CarbonReportDay 模块路由注册器
 type carbonReportDayRoutes struct {
-	db *gorm.DB
+	carbonReportDayHandler *CarbonReportDayHandler
 }
 
 // NewCarbonReportDayRoutes 创建 CarbonReportDay 模块的路由注册器
 func NewCarbonReportDayRoutes(db *gorm.DB) shared_http.RouteRegistry {
+
+	//	初始化 carbon_report_day 模块
+	carbonReportDayRepo := infrastructure.NewCarbonReportDayRepository(db)
+	carbonReportDayService := application.NewCarbonReportDayAppService(carbonReportDayRepo)
+	carbonReportDayHandler := NewCarbonReportDayHandler(carbonReportDayService)
+
 	return &carbonReportDayRoutes{
-		db: db,
+		carbonReportDayHandler: carbonReportDayHandler,
 	}
 }
 
 // RegisterRoutes 注册 CarbonReportDay 模块的所有路由（实现 RouteRegistry 接口）
 func (r *carbonReportDayRoutes) RegisterRoutes(group *gin.RouterGroup, middlewares map[shared_http.AuthType]gin.HandlerFunc) {
-	// 初始化 DDD 组件
-	carbonReportDayDDD := InitCarbonReportDayWire(r.db)
-
-	// 创建 handlers
-	handlers := &Handlers{
-		CarbonReportDayHandler: NewCarbonReportDayHandler(carbonReportDayDDD.Service),
-	}
 
 	// 统一认证中间件
 	authTypeRequiredRoute := group.Group("")
@@ -39,21 +40,16 @@ func (r *carbonReportDayRoutes) RegisterRoutes(group *gin.RouterGroup, middlewar
 		// 碳报告日报管理路由 - /api/carbon-report-day/*
 		carbonReportDayGroup := authTypeRequiredRoute.Group("/carbonReportDay")
 		{
-			carbonReportDayGroup.POST("", handlers.CarbonReportDayHandler.Create)
-			carbonReportDayGroup.PUT("", handlers.CarbonReportDayHandler.Update)
-			carbonReportDayGroup.DELETE("", handlers.CarbonReportDayHandler.Delete)
-			carbonReportDayGroup.GET("", handlers.CarbonReportDayHandler.GetByID) // 仅 ID 查询
+			carbonReportDayGroup.POST("", r.carbonReportDayHandler.Create)
+			carbonReportDayGroup.PUT("", r.carbonReportDayHandler.Update)
+			carbonReportDayGroup.DELETE("", r.carbonReportDayHandler.Delete)
+			carbonReportDayGroup.GET("", r.carbonReportDayHandler.GetByID) // 仅 ID 查询
 		}
 
 		// 碳报告日报列表路由 - /api/carbon-report-days/*
 		carbonReportDaysGroup := authTypeRequiredRoute.Group("/carbonReportDays")
 		{
-			carbonReportDaysGroup.GET("page", handlers.CarbonReportDayHandler.GetPage)
+			carbonReportDaysGroup.GET("page", r.carbonReportDayHandler.GetPage)
 		}
 	}
-}
-
-// Handlers 包含所有 HTTP 处理器
-type Handlers struct {
-	CarbonReportDayHandler *CarbonReportDayHandler
 }

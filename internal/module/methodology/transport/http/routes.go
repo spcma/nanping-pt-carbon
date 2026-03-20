@@ -1,6 +1,8 @@
 package http
 
 import (
+	"app/internal/module/methodology/application"
+	"app/internal/module/methodology/infrastructure"
 	shared_http "app/internal/shared/http"
 
 	"gorm.io/gorm"
@@ -10,23 +12,22 @@ import (
 
 // methodologyRoutes Methodology 模块路由注册器
 type methodologyRoutes struct {
-	db *gorm.DB
+	methodologyHandler *MethodologyHandler
 }
 
 // NewMethodologyRoutes 创建 Methodology 模块的路由注册器
 func NewMethodologyRoutes(db *gorm.DB) shared_http.RouteRegistry {
+	repo := infrastructure.NewMethodologyRepository(db)
+	appService := application.NewMethodologyAppService(repo)
+	methodologyHandler := NewMethodologyHandler(appService)
+
 	return &methodologyRoutes{
-		db: db,
+		methodologyHandler: methodologyHandler,
 	}
 }
 
 // RegisterRoutes 注册 Methodology 模块的所有路由（实现 RouteRegistry 接口）
 func (r *methodologyRoutes) RegisterRoutes(group *gin.RouterGroup, middlewares map[shared_http.AuthType]gin.HandlerFunc) {
-	// 初始化 wire 组件
-	methodologyWire := InitMethodologyWire(r.db)
-
-	// 创建 handlers
-	methodologyHandler := NewMethodologyHandler(methodologyWire.AppService)
 
 	// 统一认证中间件
 	authTypeRequiredRoute := group.Group("")
@@ -37,19 +38,19 @@ func (r *methodologyRoutes) RegisterRoutes(group *gin.RouterGroup, middlewares m
 		// 方法学管理路由 - /api/methodology/*
 		methodologyGroup := authTypeRequiredRoute.Group("/methodology")
 		{
-			methodologyGroup.POST("", methodologyHandler.Create)
-			methodologyGroup.PUT("", methodologyHandler.Update)
-			methodologyGroup.DELETE("", methodologyHandler.Delete)
-			methodologyGroup.GET("", methodologyHandler.GetById)         // 仅 ID 查询
-			methodologyGroup.GET("query", methodologyHandler.GetByQuery) // 综合查询
-			methodologyGroup.PUT("status", methodologyHandler.ChangeStatus)
+			methodologyGroup.POST("", r.methodologyHandler.Create)
+			methodologyGroup.PUT("", r.methodologyHandler.Update)
+			methodologyGroup.DELETE("", r.methodologyHandler.Delete)
+			methodologyGroup.GET("", r.methodologyHandler.GetById)         // 仅 ID 查询
+			methodologyGroup.GET("query", r.methodologyHandler.GetByQuery) // 综合查询
+			methodologyGroup.PUT("status", r.methodologyHandler.ChangeStatus)
 		}
 
 		// 方法学列表路由 - /api/methodologies/*
 		methodologiesGroup := authTypeRequiredRoute.Group("/methodologies")
 		{
-			methodologiesGroup.GET("list", methodologyHandler.GetList)
-			methodologiesGroup.GET("page", methodologyHandler.GetPage)
+			methodologiesGroup.GET("list", r.methodologyHandler.GetList)
+			methodologiesGroup.GET("page", r.methodologyHandler.GetPage)
 		}
 	}
 }
