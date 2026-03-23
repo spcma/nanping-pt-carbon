@@ -7,11 +7,16 @@ import (
 	methodology_infrastructure "app/internal/module/methodology/infrastructure"
 	project_domain "app/internal/module/project/domain"
 	project_infrastructure "app/internal/module/project/infrastructure"
+	"app/internal/platform/http"
+	"app/internal/platform/http/response"
+	"app/internal/shared/entity"
 	"app/internal/shared/logger"
 	"app/internal/shared/timeutil"
 	"context"
 	"fmt"
+	"sync"
 
+	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -23,9 +28,14 @@ type DataInitializer struct {
 
 // NewDataInitializer 创建数据初始化器
 func NewDataInitializer(db *gorm.DB) *DataInitializer {
-	return &DataInitializer{
-		db: db,
-	}
+	once := sync.Once{}
+	once.Do(func() {
+		dataInitializer = &DataInitializer{
+			db: db,
+		}
+	})
+
+	return dataInitializer
 }
 
 // Initialize 初始化所有基础数据
@@ -36,10 +46,6 @@ func (i *DataInitializer) Initialize() error {
 	if err := i.initSuperAdminUser(); err != nil {
 		return fmt.Errorf("failed to init super admin user: %w", err)
 	}
-
-	//i.initProject_20260318()
-
-	i.initMethodology_20260318()
 
 	logger.Info("initialize", "data initialization completed successfully")
 	return nil
@@ -77,52 +83,120 @@ func (i *DataInitializer) initSuperAdminUser() error {
 	return nil
 }
 
-func (i *DataInitializer) initProject_20260318() error {
-	ctx := context.Background()
-	projectRepo := project_infrastructure.NewProjectRepository(i.db)
-
-	p1, err := project_domain.NewProject("项目1", "P1", "", "项目1描述", 1, timeutil.Now(), timeutil.Now())
-	if err != nil {
-		return fmt.Errorf("failed to create project: %w", err)
-	}
-	projectRepo.Create(ctx, p1)
-
-	p2, err := project_domain.NewProject("项目2", "P2", "", "项目2描述", 1, timeutil.Now(), timeutil.Now())
-	if err != nil {
-		return fmt.Errorf("failed to create project: %w", err)
-	}
-	projectRepo.Create(ctx, p2)
-
-	p3, err := project_domain.NewProject("项目3", "P3", "", "项目3描述", 1, timeutil.Now(), timeutil.Now())
-	if err != nil {
-		return fmt.Errorf("failed to create project: %w", err)
-	}
-	projectRepo.Create(ctx, p3)
-
-	return nil
-}
-
-func (i *DataInitializer) initMethodology_20260318() error {
-	ctx := context.Background()
+func (i *DataInitializer) Add_Methodology_20260323(c *gin.Context) {
+	ctx := http.Ctx(c)
 	projectRepo := methodology_infrastructure.NewMethodologyRepository(i.db)
 
-	p1, err := methodology_domain.NewMethodology("项目1", "P1", "", "项目1描述", 1, timeutil.Now(), timeutil.Now())
-	if err != nil {
-		return fmt.Errorf("failed to create project: %w", err)
-	}
-	projectRepo.Create(ctx, p1)
+	var datas []methodology_domain.Methodology
+	datas = append(datas,
+		methodology_domain.Methodology{
+			Name:        "项目1",
+			Code:        "P1",
+			Description: "项目1描述",
+			Icon:        "",
+			BaseEntity: entity.BaseEntity{
+				CreateBy: 1,
+			},
+			StartDate: timeutil.Now(),
+			EndDate:   timeutil.Now(),
+		},
+		methodology_domain.Methodology{
+			Name:        "项目2",
+			Code:        "P2",
+			Description: "项目2描述",
+			Icon:        "",
+			BaseEntity: entity.BaseEntity{
+				CreateBy: 1,
+			},
+			StartDate: timeutil.Now(),
+			EndDate:   timeutil.Now(),
+		},
+		methodology_domain.Methodology{
+			Name:        "项目3",
+			Code:        "P3",
+			Description: "项目3描述",
+			Icon:        "",
+			BaseEntity: entity.BaseEntity{
+				CreateBy: 1,
+			},
+			StartDate: timeutil.Now(),
+			EndDate:   timeutil.Now(),
+		},
+	)
 
-	p2, err := methodology_domain.NewMethodology("项目2", "P2", "", "项目2描述", 1, timeutil.Now(), timeutil.Now())
-	if err != nil {
-		return fmt.Errorf("failed to create project: %w", err)
+	for _, data := range datas {
+		p1, err := methodology_domain.NewMethodology(data.Name, data.Code, data.Icon, data.Description, 1, data.StartDate, data.EndDate)
+		if err != nil {
+			logger.RuntimeLogger.Error("new methodology error", zap.Any("data", data), zap.Error(err))
+			response.BadRequest(c, fmt.Errorf("new methodology error: %w", err).Error())
+			return
+		}
+		err = projectRepo.Create(ctx, p1)
+		if err != nil {
+			logger.RuntimeLogger.Error("add methodology error", zap.Any("data", data), zap.Error(err))
+			response.BadRequest(c, fmt.Errorf("add methodology error: %w", err).Error())
+			return
+		}
 	}
-	projectRepo.Create(ctx, p2)
 
-	p3, err := methodology_domain.NewMethodology("项目3", "P3", "", "项目3描述", 1, timeutil.Now(), timeutil.Now())
-	if err != nil {
-		return fmt.Errorf("failed to create project: %w", err)
+	response.Success(c, "success")
+}
+
+func (i *DataInitializer) Add_Project_20260323(c *gin.Context) {
+	ctx := http.Ctx(c)
+	projectRepo := project_infrastructure.NewProjectRepository(i.db)
+
+	var datas []project_domain.Project
+	datas = append(datas,
+		project_domain.Project{
+			Name:        "项目1",
+			Code:        "P1",
+			Description: "项目1描述",
+			Icon:        "",
+			BaseEntity: entity.BaseEntity{
+				CreateBy: 1,
+			},
+			StartDate: timeutil.Now(),
+			EndDate:   timeutil.Now(),
+		},
+		project_domain.Project{
+			Name:        "项目2",
+			Code:        "P2",
+			Description: "项目2描述",
+			Icon:        "",
+			BaseEntity: entity.BaseEntity{
+				CreateBy: 1,
+			},
+			StartDate: timeutil.Now(),
+			EndDate:   timeutil.Now(),
+		},
+		project_domain.Project{
+			Name:        "项目3",
+			Code:        "P3",
+			Description: "项目3描述",
+			Icon:        "",
+			BaseEntity: entity.BaseEntity{
+				CreateBy: 1,
+			},
+			StartDate: timeutil.Now(),
+			EndDate:   timeutil.Now(),
+		},
+	)
+
+	for _, data := range datas {
+		p1, err := project_domain.NewProject(data.Name, data.Code, data.Icon, data.Description, 1, data.StartDate, data.EndDate)
+		if err != nil {
+			logger.RuntimeLogger.Error("add project error", zap.Any("data", data), zap.Error(err))
+			response.BadRequest(c, fmt.Errorf("add project error: %w", err).Error())
+			return
+		}
+		err = projectRepo.Create(ctx, p1)
+		if err != nil {
+			logger.RuntimeLogger.Error("add project error", zap.Any("data", data), zap.Error(err))
+			response.BadRequest(c, fmt.Errorf("add project error: %w", err).Error())
+			return
+		}
 	}
-	projectRepo.Create(ctx, p3)
 
-	return nil
+	response.Success(c, "success")
 }

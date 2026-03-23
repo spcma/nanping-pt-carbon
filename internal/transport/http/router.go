@@ -2,6 +2,7 @@ package http
 
 import (
 	"app/internal/config"
+	initializer_http "app/internal/initializer"
 	carbonreportday_http "app/internal/module/carbonreportday/transport/http"
 	iam_http "app/internal/module/iam/transport/http"
 	ipfs_http "app/internal/module/ipfs/transport/http"
@@ -84,6 +85,9 @@ func getAllRouteRegistries(db *gorm.DB, remoteDB *gorm.DB, tokenManager token.Ma
 	registries = append(registries, methodology_http.NewMethodologyRoutes(db))
 	registries = append(registries, carbonreportday_http.NewCarbonReportDayRoutes(db))
 	registries = append(registries, ipfs_http.NewIpfsRoutes(db, remoteDB))
+
+	//	初始化数据路由
+	registries = append(registries, initializer_http.NewInitializerRoutes(db))
 
 	return registries
 }

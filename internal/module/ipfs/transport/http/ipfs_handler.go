@@ -208,7 +208,7 @@ func (h *IpfsHandler) CalcDir(c *gin.Context) {
 
 	go func() {
 		ctx := context.Background()
-		turnover, err := h.appService.CalcDir(ctx, dto.RootDir, dto.Date)
+		turnover, err := h.appService.CalcDirTest(ctx, dto.RootDir, dto.Date)
 		if err != nil {
 			response.InternalError(c, err.Error())
 			return
