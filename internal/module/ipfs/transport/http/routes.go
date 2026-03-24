@@ -5,7 +5,6 @@ import (
 	"app/internal/module/ipfs/application"
 	shared_http "app/internal/shared/http"
 	"app/internal/shared/logger"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -66,9 +65,8 @@ func (i *ipfsRoutes) RegisterRoutes(group *gin.RouterGroup, middlewares map[shar
 
 		calcRoute := group.Group("calc")
 		{
-			// 为计算接口配置更长的超时时间（5 分钟），因为业务逻辑复杂，执行时间长
-			calcRoute.Use(logger.TimeoutMiddleware(5 * time.Minute))
 			calcRoute.GET("", i.ipfsHandler.CalcDir)
+			calcRoute.GET("save", i.ipfsHandler.SaveContentTest)
 		}
 	}
 

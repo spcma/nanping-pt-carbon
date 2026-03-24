@@ -11,7 +11,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/dromara/carbon/v2"
 	"github.com/gin-gonic/gin"
+	"github.com/spf13/cast"
 	"go.uber.org/zap"
 )
 
@@ -58,7 +60,7 @@ func (h *IpfsHandler) CreateDir(c *gin.Context) {
 		return
 	}
 
-	err := h.appService.CreateDir(platform_http.Ctx(c), dto.Dir)
+	err := h.appService.CreateDir(dto.Dir)
 	if err != nil {
 		response.InternalError(c, err.Error())
 		return
@@ -70,9 +72,7 @@ func (h *IpfsHandler) CreateDir(c *gin.Context) {
 func (h *IpfsHandler) DeleteFile(c *gin.Context) {
 
 	type DeleteFileDto struct {
-		Path      string `json:"path"`
-		Force     bool   `json:"force"`
-		Recursive bool   `json:"recursive"`
+		Path string `json:"path"`
 	}
 
 	var dto DeleteFileDto
@@ -86,7 +86,7 @@ func (h *IpfsHandler) DeleteFile(c *gin.Context) {
 		return
 	}
 
-	err := h.appService.DeleteFile(platform_http.Ctx(c), dto.Path, dto.Recursive, dto.Force)
+	err := h.appService.DeleteFile(platform_http.Ctx(c), dto.Path)
 	if err != nil {
 		response.InternalError(c, err.Error())
 		return
@@ -118,9 +118,13 @@ func (h *IpfsHandler) UploadFile(c *gin.Context) {
 	}
 	defer os.Remove(tmpPath)
 
-	h.appService.SaveLocalFile(tmpPath, dir, filename)
+	ipfsid, err := h.appService.UploadFile(tmpPath, dir, filename)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
 
-	response.Success(c, "upload success")
+	response.Success(c, ipfsid)
 }
 
 func (h *IpfsHandler) DownloadFile(c *gin.Context) {
@@ -145,7 +149,7 @@ func (h *IpfsHandler) DownloadFile(c *gin.Context) {
 		dto.Filename = filepath.Base(dto.Path)
 	}
 
-	data, _, err := h.appService.ReadIpfs(platform_http.Ctx(c), dto.Path)
+	data, _, err := h.appService.ReadFileFromIpfs(dto.Path)
 	if err != nil {
 		response.InternalError(c, "下载失败："+err.Error())
 		return
@@ -167,13 +171,13 @@ func (h *IpfsHandler) CheckDir(c *gin.Context) {
 		response.BadRequest(c, "请指定目录")
 		return
 	}
-	exist := h.appService.CheckDir(platform_http.Ctx(c), dir)
+	exist := h.appService.CheckDir(dir)
 
 	response.Success(c, exist)
 }
 
 func (h *IpfsHandler) ReadIpfs(c *gin.Context) {
-	bytes, count, err := h.appService.ReadIpfs(platform_http.Ctx(c), c.Query("path"))
+	bytes, count, err := h.appService.ReadFileFromIpfs(c.Query("path"))
 	if err != nil {
 		response.InternalError(c, err.Error())
 		return
@@ -208,7 +212,7 @@ func (h *IpfsHandler) CalcDir(c *gin.Context) {
 
 	go func() {
 		ctx := context.Background()
-		turnover, err := h.appService.CalcDirTest(ctx, dto.RootDir, dto.Date)
+		turnover, err := h.appService.CalcDir(ctx, dto.RootDir, dto.Date)
 		if err != nil {
 			response.InternalError(c, err.Error())
 			return
@@ -219,4 +223,29 @@ func (h *IpfsHandler) CalcDir(c *gin.Context) {
 	}()
 
 	response.Success(c, "等待执行中")
+}
+
+func (h *IpfsHandler) SaveContentTest(c *gin.Context) {
+
+	value := c.Query("force")
+	force := cast.ToBool(value)
+
+	now := carbon.Now().StartOfDay()
+
+	//	 保存周转量结果到文件中
+	saveDir := fmt.Sprintf("%s/%s/%s/%s", "/tmpp", "26", "03", "14")
+
+	filename := fmt.Sprintf("%s.txt", now.Format(carbon.ShortDateFormat))
+
+	if force {
+		h.appService.Remove()
+	}
+
+	ipfsid, err := h.appService.SaveContentToIpfs("hello world", saveDir, filename)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	response.Success(c, ipfsid)
 }
