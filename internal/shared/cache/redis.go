@@ -7,6 +7,8 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+var RDS *RedisClient
+
 type RedisClient struct {
 	client *redis.Client
 }
@@ -35,6 +37,10 @@ func NewRedisClient(config *RedisConnConfig) (*RedisClient, error) {
 	}
 
 	return &RedisClient{client: client}, nil
+}
+
+func (r *RedisClient) SetDefault() {
+	RDS = r
 }
 
 func (r *RedisClient) Close() error {

@@ -5,9 +5,11 @@ import (
 	"app/internal/module/methodology/domain"
 	platform_http "app/internal/platform/http"
 	"app/internal/platform/http/response"
+	"app/internal/shared/entity"
 	"app/internal/shared/logger"
 	"net/http"
 	"strconv"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -142,6 +144,17 @@ func (h *MethodologyHandler) GetByQuery(c *gin.Context) {
 	response.Success(c, methodology)
 }
 
+type MethodologyDetail struct {
+	entity.BaseEntity
+	Name        string                   `json:"name" gorm:"column:name"`
+	Code        string                   `json:"code" gorm:"column:code"`
+	Status      domain.MethodologyStatus `json:"status" gorm:"column:status"`
+	Description string                   `json:"description" gorm:"column:description"`
+	Icon        string                   `json:"icon" gorm:"column:icon"`
+	StartDate   string                   `json:"startDate" gorm:"column:start_date"`
+	EndDate     string                   `json:"endDate" gorm:"column:end_date"`
+}
+
 func (h *MethodologyHandler) GetList(c *gin.Context) {
 	list, err := h.appService.GetList(platform_http.Ctx(c))
 	if err != nil {
@@ -149,7 +162,21 @@ func (h *MethodologyHandler) GetList(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, list)
+	var newList []*MethodologyDetail
+	for _, methodology := range list {
+		newList = append(newList, &MethodologyDetail{
+			BaseEntity:  methodology.BaseEntity,
+			Name:        methodology.Name,
+			Code:        methodology.Code,
+			Status:      methodology.Status,
+			Description: methodology.Description,
+			Icon:        methodology.Icon,
+			StartDate:   methodology.StartDate.Format(time.DateOnly),
+			EndDate:     methodology.EndDate.Format(time.DateOnly),
+		})
+	}
+
+	response.Success(c, newList)
 }
 
 // GetPage queries methodologies with pagination

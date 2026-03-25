@@ -5,9 +5,11 @@ import (
 	"app/internal/module/project/domain"
 	platform_http "app/internal/platform/http"
 	"app/internal/platform/http/response"
+	"app/internal/shared/entity"
 	"app/internal/shared/logger"
 	"net/http"
 	"strconv"
+	"time"
 
 	"go.uber.org/zap"
 
@@ -149,6 +151,17 @@ func (h *ProjectHandler) GetByQuery(c *gin.Context) {
 	response.Success(c, project)
 }
 
+type ProjectDetail struct {
+	entity.BaseEntity
+	Name        string               `json:"name" gorm:"column:name"`
+	Code        string               `json:"code" gorm:"column:code"`
+	Status      domain.ProjectStatus `json:"status" gorm:"column:status"`
+	Description string               `json:"description" gorm:"column:description"`
+	Icon        string               `json:"icon" gorm:"column:icon"`
+	StartDate   string               `json:"startDate" gorm:"column:start_date"`
+	EndDate     string               `json:"endDate" gorm:"column:end_date"`
+}
+
 func (h *ProjectHandler) GetList(c *gin.Context) {
 	list, err := h.appService.GetList(platform_http.Ctx(c))
 	if err != nil {
@@ -156,7 +169,21 @@ func (h *ProjectHandler) GetList(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, list)
+	var newList []*ProjectDetail
+	for _, project := range list {
+		newList = append(newList, &ProjectDetail{
+			BaseEntity:  project.BaseEntity,
+			Name:        project.Name,
+			Code:        project.Code,
+			Status:      project.Status,
+			Description: project.Description,
+			Icon:        project.Icon,
+			StartDate:   project.StartDate.Format(time.DateOnly),
+			EndDate:     project.EndDate.Format(time.DateOnly),
+		})
+	}
+
+	response.Success(c, newList)
 }
 
 // GetPage queries projects with pagination

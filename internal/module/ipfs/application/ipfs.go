@@ -1,6 +1,7 @@
 package application
 
 import (
+	"app/internal/config"
 	carbonreportday_application "app/internal/module/carbonreportday/application"
 	carbonreportday_infrastructure "app/internal/module/carbonreportday/infrastructure"
 	"app/internal/module/ipfs/infrastructure"
@@ -58,12 +59,12 @@ func NewService(db *gorm.DB, remoteDB *gorm.DB, client *rpc.LApiStub, session st
 
 // CreateFsClient 创建文件系统客户端
 func CreateFsClient() (*rpc.LApiStub, string, error) {
-	strPPT, err := rpc.GetLocalPassport(4080, 24)
+	strPPT, err := rpc.GetLocalPassport(config.GlobalConfig.Ipfs.Port, 24)
 	if err != nil {
 		return nil, "", err
 	}
 
-	client := rpc.InitLApiStubByUrl("127.0.0.1:4080")
+	client := rpc.InitLApiStubByUrl(fmt.Sprintf("127.0.0.1:%d", config.GlobalConfig.Ipfs.Port))
 
 	loginReply, err := client.LoginWithPPT(strPPT)
 	if err != nil {
@@ -474,6 +475,35 @@ func (s *Service) CalcDir(ctx context.Context, rootDir string, date string) (flo
 	return totalTurnover, nil
 }
 
+func (s *Service) CalcDirTest2() (any, error) {
+
+	path := "/aibk/26/03/15/xNUr48spW1gR2bQTSRURMCl_cII"
+
+	logger.IpfsLogger.Info("ipfs ls", zap.String("path", path))
+
+	files, err := s.client.FilesLs(s.session, path)
+	if err != nil {
+		logger.IpfsLogger.Error("ipfs ls failed", zap.Error(err))
+		return nil, err
+	}
+
+	logger.IpfsLogger.Info("ipfs ls done", zap.Int("count", len(files)))
+
+	for _, file := range files {
+		st := time.Now()
+		logger.IpfsLogger.Info("download file", zap.String("file", file.Name))
+		err = s.SaveFileToLocal("/aibk/26/03/15/xNUr48spW1gR2bQTSRURMCl_cII/"+file.Name, "./tmpfile/"+file.Name)
+		if err != nil {
+			logger.IpfsLogger.Error("save file to local failed", zap.String("file", file.Name), zap.Error(err))
+			continue
+		}
+		logger.IpfsLogger.Info("download file done", zap.String("file", file.Name), zap.Duration("cost", time.Since(st)))
+	}
+
+	logger.IpfsLogger.Info("download file done")
+	return nil, nil
+}
+
 func (s *Service) CalcDirTest(ctx context.Context, rootDir string, date string) (float64, error) {
 	//	解析日期
 	now := carbon.Parse(date, carbon.Shanghai).StartOfDay()
@@ -491,11 +521,14 @@ func (s *Service) CalcDirTest(ctx context.Context, rootDir string, date string) 
 
 	fullDir := fmt.Sprintf("%s/%s/%s/%s", rootDir, year, month, day)
 
+	fmt.Println("full_dir", fullDir)
 	deviceCodes, err := s.client.FilesLs(s.session, fullDir)
 	if err != nil {
 		logger.IpfsLogger.Error("device_code ipfs ls failed", zap.String("full_dir", fullDir), zap.Error(err))
 		return 0, err
 	}
+
+	logger.IpfsLogger.Info("device_code ipfs ls done", zap.Int("count", len(deviceCodes)))
 
 	startTime := now.Format(carbon.DateTimeFormat)
 	endTime := now.AddDay().Format(carbon.DateTimeFormat)

@@ -251,17 +251,21 @@ func (s *Service) Remove() {
 // filePath: IPFS 文件路径
 // localPath: 本地保存路径
 func (s *Service) SaveFileToLocal(filePath, localPath string) error {
+
+	logger.IpfsLogger.Info("save file to local", zap.String("file", filePath))
+
 	data, _, err := s.ReadFileFromIpfs(filePath)
 	if err != nil {
+		logger.IpfsLogger.Error("read file from ipfs failed", zap.String("file", filePath), zap.Error(err))
 		return err
 	}
 
 	_ = data
 
-	err = os.WriteFile(localPath, data, os.ModePerm)
-	if err != nil {
-		return err
-	}
+	//err = os.WriteFile(localPath, data, os.ModePerm)
+	//if err != nil {
+	//	return err
+	//}
 
 	return nil
 }

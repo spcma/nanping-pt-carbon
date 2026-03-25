@@ -3,6 +3,8 @@ server:
   mode: debug # debug, release, test
 
 ipfs:
+  port: 4800
+#  port: 4080
   status: false # 是否开启ipfs服务, 运行环境中没有ipfs会导致初始化失败
 
 logger:

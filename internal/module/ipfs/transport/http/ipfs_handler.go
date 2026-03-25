@@ -5,7 +5,6 @@ import (
 	platform_http "app/internal/platform/http"
 	"app/internal/platform/http/response"
 	"app/internal/shared/logger"
-	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -211,8 +210,9 @@ func (h *IpfsHandler) CalcDir(c *gin.Context) {
 	}
 
 	go func() {
-		ctx := context.Background()
-		turnover, err := h.appService.CalcDir(ctx, dto.RootDir, dto.Date)
+		//ctx := context.Background()
+		//turnover, err := h.appService.CalcDirTest(ctx, dto.RootDir, dto.Date)
+		turnover, err := h.appService.CalcDirTest2()
 		if err != nil {
 			response.InternalError(c, err.Error())
 			return

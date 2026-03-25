@@ -30,29 +30,33 @@ func NewUsersHandler(appService *application.UsersService) *UsersHandler {
 func (h *UsersHandler) Create(c *gin.Context) {
 	var cmd application.CreateUserCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
-		logger.Warn("iam", "create securityUser - invalid request",
+		logger.Warn("iam", "create currentUser - invalid request",
 			zap.String("error", err.Error()),
 		)
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	securityUser := platform_http.GetCurrentUser(c)
-	cmd.UserID = securityUser.ID
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.BadRequest(c, "user not found")
+		return
+	}
+	cmd.UserID = currentUser.ID
 
 	id, err := h.appService.Create(platform_http.Ctx(c), cmd)
 	if err != nil {
-		logger.Error("iam", "create securityUser failed",
-			zap.String("username", cmd.Username),
+		logger.Error("iam", "create currentUser failed",
+			zap.String("username", *cmd.Username),
 			zap.Error(err),
 		)
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	logger.Info("iam", "securityUser created successfully",
+	logger.Info("iam", "currentUser created successfully",
 		zap.Int64("user_id", id),
-		zap.String("username", cmd.Username),
+		zap.String("username", *cmd.Username),
 	)
 	response.Success(c, gin.H{"id": id})
 }
@@ -64,9 +68,6 @@ func (h *UsersHandler) Update(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
-
-	user := platform_http.GetCurrentUser(c)
-	cmd.UserID = user.ID
 
 	if err := h.appService.Update(platform_http.Ctx(c), cmd); err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
@@ -255,31 +256,58 @@ func (h *UsersHandler) respondWithEnhancedUsers(c *gin.Context, users []*domain.
 	})
 }
 
-// ChangePassword changes user password
-func (h *UsersHandler) ChangePassword(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		response.Error(c, http.StatusBadRequest, "invalid id")
+func (h *UsersHandler) ResetPassword(c *gin.Context) {
+	var cmd application.ChangePasswordCommand
+	if err := c.ShouldBindJSON(&cmd); err != nil {
+		response.BadRequest(c, err.Error())
 		return
 	}
 
+	if cmd.Id == 0 {
+		response.BadRequest(c, "id is required")
+		return
+	}
+
+	if cmd.NewPassword == "" {
+		response.BadRequest(c, "newPassword is required")
+		return
+	}
+
+	//	仅管理员可以强制修改密码，后续需要加 force 赋值校验
+	err := h.appService.ChangePassword(platform_http.Ctx(c), &cmd)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	response.Success(c, "重置成功")
+}
+
+// ChangePassword changes user password
+func (h *UsersHandler) ChangePassword(c *gin.Context) {
 	var cmd application.ChangePasswordCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	cmd.Id = id
-
-	// ChangePasswordCommand 不需要 UserID，只需要 Id 和 Password
-
-	if err := h.appService.ChangePassword(platform_http.Ctx(c), cmd); err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
+	if cmd.Id == 0 {
+		response.BadRequest(c, "id is required")
 		return
 	}
 
-	response.Success(c, nil)
+	if cmd.NewPassword == "" {
+		response.BadRequest(c, "newPassword is required")
+		return
+	}
+
+	err := h.appService.ChangePassword(platform_http.Ctx(c), &cmd)
+	if err != nil {
+		response.InternalError(c, "change password failed")
+		return
+	}
+
+	response.Success(c, "密码修改成功")
 }
 
 // ChangeStatus changes user status

@@ -84,6 +84,7 @@ func Initialize() (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize redis: %v", err)
 	}
+	redisClient.SetDefault()
 
 	// 初始化 HTTP 路由
 	router := transport_http.InitRouter(dbInstance, dbInstance2, redisClient)

@@ -20,15 +20,15 @@ func NewUsersService(repo UserRepo) *UsersService {
 
 // CreateUserCommand create system user command
 type CreateUserCommand struct {
-	Username string `json:"username"`
-	Nickname string `json:"nickname"`
-	Password string `json:"password"`
-	UserID   int64  `json:"userId"`
+	Username *string `json:"username"`
+	Nickname *string `json:"nickname"`
+	Password *string `json:"password"`
+	UserID   int64   `json:"userId"`
 }
 
 // Create creates a system user
 func (u *UsersService) Create(ctx context.Context, cmd CreateUserCommand) (int64, error) {
-	user, err := domain.NewUser(cmd.Username, cmd.Nickname, cmd.Password, "", cmd.UserID)
+	user, err := domain.NewUser(*cmd.Username, *cmd.Nickname, *cmd.Password, "", cmd.UserID)
 	if err != nil {
 		return 0, err
 	}
@@ -47,6 +47,7 @@ type UpdateUserCommand struct {
 	Email       *string `json:"email"`
 	Description *string `json:"description"`
 	Avatar      *string `json:"avatar"`
+	Status      *string `json:"status"`
 	UserID      int64   `json:"userId"`
 }
 
@@ -57,6 +58,10 @@ func (u *UsersService) Update(ctx context.Context, updateParam UpdateUserCommand
 		return err
 	}
 
+	if user == nil {
+		return domain.ErrUserNotFound
+	}
+
 	// 将 application 层的 Command 转换为 domain 层的 Command
 	domainCmd := domain.UpdateUserCommand{
 		Nickname:    updateParam.Nickname,
@@ -64,6 +69,7 @@ func (u *UsersService) Update(ctx context.Context, updateParam UpdateUserCommand
 		Email:       updateParam.Email,
 		Description: updateParam.Description,
 		Avatar:      updateParam.Avatar,
+		Status:      updateParam.Status,
 	}
 
 	err = user.UpdateInfo(domainCmd, updateParam.UserID)
@@ -84,6 +90,10 @@ func (u *UsersService) Delete(ctx context.Context, param *DeleteUserCommand) err
 	user, err := u.repo.FindByID(ctx, param.ID)
 	if err != nil {
 		return err
+	}
+
+	if user == nil {
+		return domain.ErrUserNotFound
 	}
 
 	err = user.Delete(param.UserID)
@@ -137,10 +147,11 @@ type ChangePasswordCommand struct {
 	Id          int64  `json:"id"` // userid
 	Password    string `json:"password"`
 	NewPassword string `json:"newPassword"`
+	Force       bool   `json:"force"`
 }
 
 // ChangePassword changes password
-func (u *UsersService) ChangePassword(ctx context.Context, cmd ChangePasswordCommand) error {
+func (u *UsersService) ChangePassword(ctx context.Context, cmd *ChangePasswordCommand) error {
 	user, err := u.repo.FindByID(ctx, cmd.Id)
 	if err != nil {
 		return err
@@ -150,14 +161,29 @@ func (u *UsersService) ChangePassword(ctx context.Context, cmd ChangePasswordCom
 		return domain.ErrUserNotFound
 	}
 
-	//	验证旧密码
-	newPassword := crypto.HashPassword(cmd.NewPassword, user.Salt)
-
-	if newPassword == user.Password {
-		return domain.ErrNewPasswordSameAsOldPassword
+	//	非强制修改密码，需要验证旧密码
+	if cmd.Force {
+		//	验证旧密码
+		validPassword := crypto.HashPassword(cmd.Password, user.Salt)
+		if validPassword == user.Password {
+			return domain.ErrNewPasswordSameAsOldPassword
+		}
 	}
 
-	return user.ChangePassword(cmd.Password, user.Id)
+	//	加密新密码
+	newPassword := crypto.HashPassword(cmd.NewPassword, user.Salt)
+
+	err = user.ChangePassword(newPassword, user.Id)
+	if err != nil {
+		return err
+	}
+
+	err = u.repo.Update(ctx, user)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // ChangeUserStatus changes user status
@@ -186,9 +212,9 @@ func (u *UsersService) Register(ctx context.Context, cmd RegisterCommand) (int64
 
 	// 创建用户（密码加密在 domain 层处理）
 	return u.Create(ctx, CreateUserCommand{
-		Username: cmd.Username,
-		Nickname: cmd.Nickname,
-		Password: cmd.Password,
+		Username: &cmd.Username,
+		Nickname: &cmd.Nickname,
+		Password: &cmd.Password,
 		UserID:   0, // 注册用户没有创建者 ID
 	})
 }

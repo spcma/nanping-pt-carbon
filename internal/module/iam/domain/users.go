@@ -67,11 +67,12 @@ func NewUser(username, nickname, password, salt string, createUser int64) (*User
 
 // UpdateUserCommand 用户更新命令
 type UpdateUserCommand struct {
-	Nickname    *string `json:"nickname" validate:"omitempty,max=100"`
-	Phone       *string `json:"phone" validate:"omitempty,max=20"`
-	Email       *string `json:"email" validate:"omitempty,email,max=100"`
-	Description *string `json:"description" validate:"omitempty,max=500"`
-	Avatar      *string `json:"avatar" validate:"omitempty,url,max=500"`
+	Nickname    *string `json:"nickname"`
+	Phone       *string `json:"phone"`
+	Email       *string `json:"email"`
+	Description *string `json:"description"`
+	Avatar      *string `json:"avatar"`
+	Status      *string `json:"status"`
 }
 
 // UpdateInfo 更新用户信息（部分更新）
@@ -91,6 +92,10 @@ func (u *Users) UpdateInfo(cmd UpdateUserCommand, userID int64) error {
 	if cmd.Avatar != nil {
 		u.Avatar = *cmd.Avatar
 	}
+	if cmd.Status != nil {
+		u.Status = UserStatus(*cmd.Status)
+	}
+
 	u.UpdateBy = userID
 	u.UpdateTime = timeutil.Now()
 	return nil
@@ -123,8 +128,8 @@ func (u *Users) Delete(userID int64) error {
 // UsersPageQuery system user page query object
 type UsersPageQuery struct {
 	entity.PaginationQuery
-	Username  string `json:"username"`
-	Nickname  string `json:"nickname"`
+	Username  string `json:"username" form:"username"`
+	Nickname  string `json:"nickname" form:"nickname"`
 	Phone     string `json:"phone"`
 	Email     string `json:"email"`
 	Status    string `json:"status"`

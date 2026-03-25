@@ -26,6 +26,8 @@ type ServerConfig struct {
 }
 
 type IpfsConfig struct {
+	//Host   string `mapstructure:"host"`
+	Port   int  `mapstructure:"port"`
 	Status bool `mapstructure:"status"` //  是否开启ipfs服务, 运行环境中没有ipfs会导致初始化失败
 }
 

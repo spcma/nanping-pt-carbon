@@ -77,6 +77,7 @@ func (r *iamRoutes) RegisterRoutes(group *gin.RouterGroup, middlewares map[share
 			sysUserGroup.GET("", r.usersHandler.GetById)         // 仅 ID 查询
 			sysUserGroup.GET("query", r.usersHandler.GetByQuery) // 综合查询
 			sysUserGroup.PUT("/password", r.usersHandler.ChangePassword)
+			sysUserGroup.PUT("/password/reset", r.usersHandler.ResetPassword)
 			sysUserGroup.PUT("/status", r.usersHandler.ChangeStatus)
 		}
 
