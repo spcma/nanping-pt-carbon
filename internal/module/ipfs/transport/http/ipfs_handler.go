@@ -187,6 +187,41 @@ func (h *IpfsHandler) ReadIpfs(c *gin.Context) {
 	response.Success(c, string(bytes))
 }
 
+func (h *IpfsHandler) ReadTest(c *gin.Context) {
+	path := c.Query("path")
+	if path == "" {
+		response.BadRequest(c, "请指定目录")
+		return
+	}
+
+}
+
+// ScanDir 递归扫描目录
+func (h *IpfsHandler) ScanDir(c *gin.Context) {
+	type ScanDirDto struct {
+		RootDir string `json:"rootDir" form:"rootDir"`
+	}
+
+	var dto ScanDirDto
+	if err := c.ShouldBindQuery(&dto); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	if dto.RootDir == "" {
+		response.BadRequest(c, "请指定根目录")
+		return
+	}
+
+	result, err := h.appService.ScanDir(platform_http.Ctx(c), dto.RootDir)
+	if err != nil {
+		response.InternalError(c, err.Error())
+		return
+	}
+
+	response.Success(c, result)
+}
+
 func (h *IpfsHandler) CalcDir(c *gin.Context) {
 	type CalcDirDto struct {
 		RootDir string `json:"rootDir" form:"rootDir"`
@@ -232,7 +267,7 @@ func (h *IpfsHandler) SaveContentTest(c *gin.Context) {
 
 	now := carbon.Now().StartOfDay()
 
-	//	 保存周转量结果到文件中
+	//	 保存周转量结果到文件中 /tmpp/26/03/14
 	saveDir := fmt.Sprintf("%s/%s/%s/%s", "/tmpp", "26", "03", "14")
 
 	filename := fmt.Sprintf("%s.txt", now.Format(carbon.ShortDateFormat))

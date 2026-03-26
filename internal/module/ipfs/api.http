@@ -59,6 +59,21 @@ Content-Type: application/json
 Authorization: {{token}}
 
 {
+  "content": "test content",
+  "dir": "/test",
+  "filename": "test.txt"
+}
+
+### 7. 递归扫描目录
+# @name scanDir
+GET {{base_url}}/dir/scan?rootDir=/aibk/26/03
+Authorization: {{token}}
+# @name saveFile
+POST {{base_url}}/file/save
+Content-Type: application/json
+Authorization: {{token}}
+
+{
   "path": "/test/data.json",
   "content": "{\"key\": \"value\", \"number\": 123}"
 }
@@ -87,6 +102,11 @@ example.txt
 ### 8. 下载文件
 # @name downloadFile
 GET {{base_url}}/file/download?path=/test/downloads/report.pdf
+Authorization: {{token}}
+
+### 9. 递归扫描目录（获取目录下所有文件和子目录）
+# @name scanDir
+GET {{base_url}}/dir/scan?rootDir=/aibk/26/03
 Authorization: {{token}}
 
 ### ====================

@@ -37,12 +37,12 @@ func (h *UsersHandler) Create(c *gin.Context) {
 		return
 	}
 
-	currentUser := platform_http.GetCurrentUser(c)
-	if currentUser == nil {
-		response.BadRequest(c, "user not found")
-		return
-	}
-	cmd.UserID = currentUser.ID
+	//currentUser := platform_http.GetCurrentUser(c)
+	//if currentUser == nil {
+	//	response.BadRequest(c, "user not found")
+	//	return
+	//}
+	//cmd.UserID = currentUser.ID
 
 	id, err := h.appService.Create(platform_http.Ctx(c), cmd)
 	if err != nil {

@@ -54,6 +54,7 @@ func (i *ipfsRoutes) RegisterRoutes(group *gin.RouterGroup, middlewares map[shar
 			dirRoute.DELETE("", i.ipfsHandler.DeleteFile)
 			dirRoute.GET("list", i.ipfsHandler.ListDir)
 			dirRoute.GET("check", i.ipfsHandler.CheckDir)
+			dirRoute.GET("scan", i.ipfsHandler.ScanDir) // 递归扫描目录
 		}
 
 		fileRoute := group.Group("file")

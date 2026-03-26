@@ -157,7 +157,7 @@ func (s *Service) ListDir(ctx context.Context, dir string) ([]*DirDto, error) {
 			//	截取文件名中的时间戳 20260301180452
 			timestamp := strings.TrimSuffix(strings.TrimPrefix(link.Name, "gps_"), ".txt")
 			dirDto.Timestamp = timestamp
-			//	文件类型, 截取文件后缀
+			//	文件类型，截取文件后缀
 			dirDto.FileType = filepath.Ext(link.Name)
 		}
 
@@ -165,6 +165,135 @@ func (s *Service) ListDir(ctx context.Context, dir string) ([]*DirDto, error) {
 	}
 
 	return list, nil
+}
+
+// ScanFileResult 扫描文件结果
+type ScanFileResult struct {
+	Path       string `json:"path"`       // 完整路径
+	Name       string `json:"name"`       // 文件名
+	Size       uint64 `json:"size"`       // 文件大小
+	FileType   string `json:"fileType"`   // 文件类型
+	Timestamp  string `json:"timestamp"`  // 时间戳（从文件名提取）
+	Depth      int    `json:"depth"`      // 目录深度
+	ParentPath string `json:"parentPath"` // 父目录路径
+	TotalFiles int    `json:"totalFiles"` // 目录下文件总数
+	TotalDirs  int    `json:"totalDirs"`  // 目录下子目录总数
+	TotalSize  uint64 `json:"totalSize"`  // 目录下所有文件大小总和
+}
+
+// ScanDirResponse 扫描目录响应
+type ScanDirResponse struct {
+	RootPath   string            `json:"rootPath"`   // 根目录路径
+	TotalFiles int               `json:"totalFiles"` // 总文件数
+	TotalDirs  int               `json:"totalDirs"`  // 总目录数
+	TotalSize  uint64            `json:"totalSize"`  // 总大小
+	Files      []*ScanFileResult `json:"files"`      // 文件列表
+	DurationMs int64             `json:"durationMs"` // 耗时（毫秒）
+}
+
+// ScanDir 递归扫描目录，遍历所有子目录和文件
+func (s *Service) ScanDir(ctx context.Context, rootDir string) (*ScanDirResponse, error) {
+	if rootDir == "" {
+		return nil, errors.New("目录为空")
+	}
+
+	startTime := time.Now()
+	response := &ScanDirResponse{
+		RootPath: rootDir,
+		Files:    make([]*ScanFileResult, 0),
+	}
+
+	logger.IpfsLogger.Info("正在扫描目录", zap.String("rootDir", rootDir))
+
+	// 递归扫描目录
+	err := s.scanDirRecursive(ctx, rootDir, response, 0, rootDir)
+	if err != nil {
+		logger.IpfsLogger.Error("扫描目录失败", zap.String("rootDir", rootDir), zap.Error(err))
+		return nil, err
+	}
+
+	response.DurationMs = time.Since(startTime).Milliseconds()
+
+	logger.IpfsLogger.Info("扫描目录完成",
+		zap.String("rootDir", rootDir),
+		zap.Int("totalFiles", response.TotalFiles),
+		zap.Int("totalDirs", response.TotalDirs),
+		zap.Uint64("totalSize", response.TotalSize),
+		zap.Int64("durationMs", response.DurationMs),
+	)
+
+	return response, nil
+}
+
+// scanDirRecursive 递归扫描目录
+func (s *Service) scanDirRecursive(ctx context.Context, dir string, response *ScanDirResponse, depth int, parentPath string) error {
+	logger.IpfsLogger.Info("正在扫描目录", zap.String("dir", dir), zap.Int("depth", depth))
+
+	lsLinks, err := s.client.FilesLs(s.session, dir)
+	if err != nil {
+		logger.IpfsLogger.Error("列出目录失败", zap.String("dir", dir), zap.Error(err))
+		return err
+	}
+
+	localFileCount := 0
+	localDirCount := 0
+	localTotalSize := uint64(0)
+
+	for _, link := range lsLinks {
+		fullPath := dir + "/" + link.Name
+
+		if link.Type == 1 { // 目录
+			localDirCount++
+			response.TotalDirs++
+
+			// 递归扫描子目录
+			err := s.scanDirRecursive(ctx, fullPath, response, depth+1, dir)
+			if err != nil {
+				logger.IpfsLogger.Warn("扫描子目录失败", zap.String("dir", fullPath), zap.Error(err))
+				// 继续扫描其他目录
+			}
+		} else if link.Type == 0 { // 文件
+			localFileCount++
+			response.TotalFiles++
+			localTotalSize += link.Size
+			response.TotalSize += link.Size
+
+			// 创建文件结果对象
+			result := &ScanFileResult{
+				Path:       fullPath,
+				Name:       link.Name,
+				Size:       link.Size,
+				Depth:      depth + 1,
+				ParentPath: dir,
+			}
+
+			// 提取文件信息
+			if strings.HasSuffix(link.Name, ".txt") {
+				result.FileType = ".txt"
+				// 尝试从文件名提取时间戳（如 gps_20260301180732.txt）
+				if strings.HasPrefix(link.Name, "gps_") {
+					result.Timestamp = strings.TrimSuffix(strings.TrimPrefix(link.Name, "gps_"), ".txt")
+				}
+			} else {
+				result.FileType = filepath.Ext(link.Name)
+			}
+
+			logger.IpfsLogger.Info("扫描文件", zap.Any("result", result))
+
+			//response.Files = append(response.Files, result)
+		}
+	}
+
+	// 更新当前目录下所有文件的统计信息
+	//for i := range response.Files {
+	//	if response.Files[i].ParentPath == dir {
+	//		response.Files[i].TotalFiles = localFileCount
+	//		response.Files[i].TotalDirs = localDirCount
+	//		response.Files[i].TotalSize = localTotalSize
+	//	}
+	//}
+
+	return nil
 }
 
 // DeleteFile 删除文件
@@ -473,6 +602,24 @@ func (s *Service) CalcDir(ctx context.Context, rootDir string, date string) (flo
 	logger.IpfsLogger.Info("save content to ipfs done", zap.String("ipfs_id", ipfsid))
 
 	return totalTurnover, nil
+}
+
+func (s *Service) ReadDirTest(path string) error {
+	lsLinks, err := s.client.FilesLs(s.session, path)
+	if err != nil {
+		logger.IpfsLogger.Error("ipfs ls failed", zap.Error(err))
+		return err
+	}
+
+	logger.IpfsLogger.Info("ipfs ls done", zap.Int("count", len(lsLinks)))
+
+	for _, link := range lsLinks {
+		if link.Type == 0 { // 1 dir 0 file
+
+		}
+	}
+
+	return nil
 }
 
 func (s *Service) CalcDirTest2() (any, error) {
