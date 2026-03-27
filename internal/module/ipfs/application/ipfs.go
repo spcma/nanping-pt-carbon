@@ -18,6 +18,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/dromara/carbon/v2"
@@ -179,6 +180,36 @@ type ScanFileResult struct {
 	ParentPath string `json:"parentPath"` // 父目录路径
 }
 
+// CalcDirResponse 计算目录响应
+type CalcDirResponse struct {
+	RootPath      string          `json:"rootPath"`      // 根目录路径
+	TotalFiles    int             `json:"totalFiles"`    // 总文件数
+	TotalDirs     int             `json:"totalDirs"`     // 总目录数
+	TotalDistance float64         `json:"totalDistance"` // 总里程(km)
+	TotalTurnover float64         `json:"totalTurnover"` // 总周转量
+	DeviceResults []*DeviceResult `json:"deviceResults"` // 设备计算结果
+	DurationMs    int64           `json:"durationMs"`    // 耗时（毫秒）
+}
+
+// DeviceResult 设备计算结果
+type DeviceResult struct {
+	DeviceCode      string  `json:"deviceCode"`      // 设备编号
+	TotalDistanceKm float64 `json:"totalDistanceKm"` // 总里程(km)
+	Turnover        float64 `json:"turnover"`        // 周转量
+	FileCount       int     `json:"fileCount"`       // 文件数
+}
+
+// CalcFileResult 计算文件结果
+type CalcFileResult struct {
+	Path           string  `json:"path"`           // 完整路径
+	Name           string  `json:"name"`           // 文件名
+	DeviceCode     string  `json:"deviceCode"`     // 设备编号
+	DistanceKm     float64 `json:"distanceKm"`     // 里程(km)
+	Timestamp      string  `json:"timestamp"`      // 时间戳
+	PassengerCount int64   `json:"passengerCount"` // 乘客数
+	Turnover       float64 `json:"turnover"`       // 周转量
+}
+
 // ScanDirResponse 扫描目录响应
 type ScanDirResponse struct {
 	RootPath   string            `json:"rootPath"`   // 根目录路径
@@ -191,6 +222,9 @@ type ScanDirResponse struct {
 
 // maxScanDepth 最大递归扫描深度
 const maxScanDepth = 50
+
+// maxConcurrentFiles 最大并发处理文件数
+const maxConcurrentFiles = 10
 
 // ScanDir 递归扫描目录，遍历所有子目录和文件
 func (s *Service) ScanDir(ctx context.Context, rootDir string) (*ScanDirResponse, error) {
@@ -261,8 +295,22 @@ func (s *Service) scanDirRecursive(ctx context.Context, dir string, response *Sc
 				logger.IpfsLogger.Warn("扫描子目录失败", zap.String("dir", fullPath), zap.Error(err))
 			}
 		} else if link.Type == 0 { // 文件
+
+			//	仅解析 gps 文件，gps_xxxx.txt
+			if !strings.HasPrefix(link.Name, "gps_") || !strings.HasSuffix(link.Name, ".txt") {
+				continue
+			}
+
 			response.TotalFiles++
 			response.TotalSize += link.Size
+
+			st := time.Now()
+			err = s.SaveFileToLocal(fullPath, "./tempfile/"+link.Name)
+			if err != nil {
+				logger.IpfsLogger.Error("保存文件失败", zap.String("file", fullPath), zap.Error(err))
+				return err
+			}
+			logger.IpfsLogger.Info("download file done", zap.Duration("cost", time.Since(st)), zap.String("fullPath", fullPath), zap.Int64("size", int64(link.Size)), zap.String("file", link.Name))
 
 			// 创建文件结果对象
 			result := &ScanFileResult{
@@ -442,6 +490,9 @@ type BusImageDetailCv struct {
 	DeviceCode        string        `json:"deviceCode" form:"deviceCode" gorm:"column:device_code" label:"设备编号"`
 }
 
+// CalcDir 递归扫描目录并计算周转量
+// rootDir: 要扫描的根目录（直接从此目录开始递归）
+// date: 日期，格式为 "2026-03-27"，用于查询数据库和生成报告
 func (s *Service) CalcDir(ctx context.Context, rootDir string, date string) (float64, error) {
 	//	解析日期
 	now := carbon.Parse(date, carbon.Shanghai).StartOfDay()
@@ -457,114 +508,34 @@ func (s *Service) CalcDir(ctx context.Context, rootDir string, date string) (flo
 	month := split[1]
 	day := split[2]
 
-	fullDir := fmt.Sprintf("%s/%s/%s/%s", rootDir, year, month, day)
+	// 直接使用传入的 rootDir 作为扫描起点
+	fullDir := rootDir
 
-	deviceCodes, err := s.client.FilesLs(s.session, fullDir)
+	startTime := now.Copy().Format(carbon.DateTimeFormat)
+	endTime := now.Copy().AddDay().Format(carbon.DateTimeFormat)
+
+	// 初始化计算结果
+	result := &CalcDirResult{
+		TotalTurnover: 0,
+		DeviceResults: make(map[string]*DeviceCalcResult),
+	}
+
+	logger.IpfsLogger.Info("开始递归扫描计算",
+		zap.String("rootDir", rootDir),
+		zap.String("date", date),
+		zap.String("fullDir", fullDir),
+		zap.String("startTime", startTime),
+		zap.String("endTime", endTime),
+	)
+
+	// 递归扫描目录并计算
+	err := s.calcDirRecursive(ctx, fullDir, date, startTime, endTime, result, 0)
 	if err != nil {
-		logger.IpfsLogger.Error("device_code ipfs ls failed", zap.String("full_dir", fullDir), zap.Error(err))
+		logger.IpfsLogger.Error("递归计算目录失败", zap.String("full_dir", fullDir), zap.Error(err))
 		return 0, err
 	}
 
-	startTime := now.Format(carbon.DateTimeFormat)
-	endTime := now.AddDay().Format(carbon.DateTimeFormat)
-
-	var totalTurnover = 0.0
-
-	for i, deviceCode := range deviceCodes {
-		// 记录剩余未处理设备数量
-		logger.IpfsLogger.Info("开始处理设备",
-			zap.Int("index", i),
-			zap.String("device_code", deviceCode.Name))
-		//	每台设备的存储路径
-		newFullPath := fmt.Sprintf("%s/%s", fullDir, deviceCode.Name)
-
-		//	读取设备路径下单日所有文件
-		gpsFiles, err := s.client.FilesLs(s.session, newFullPath)
-		if err != nil {
-			logger.IpfsLogger.Error("gps ipfs ls failed", zap.String("full_dir", newFullPath), zap.Error(err))
-			continue
-		}
-
-		//	查询某辆车某天所有的图片地址
-		var cvres []*BusImageDetailCv
-
-		//	查询图片对应的识别乘客人数
-		err = s.remoteDB.WithContext(context.Background()).
-			Table("bus_image_detail_cv").
-			Where("device_code = ? and collection_time >= ? and collection_time < ?", deviceCode.Name, startTime, endTime).
-			Find(&cvres).Error
-		if err != nil {
-			logger.IpfsLogger.Error("query bus_image_detail_cv failed",
-				zap.String("device_code", deviceCode.Name),
-				zap.Any("start_time", startTime),
-				zap.Any("end_time", endTime),
-				zap.Error(err))
-			continue
-		}
-
-		cvPassengers := make(map[string]int64)
-		for _, cv := range cvres {
-			t := cv.CollectionTime.ToTime().Format("20060102150405")
-			cvPassengers[t] = cv.BaiduResult
-		}
-
-		//	解析每个文件，计算里程与周转量
-		deviceTurnover := 0.0
-		for _, gpsFile := range gpsFiles {
-			//	仅解析 gps 文件，gps_xxxx.txt
-			if !strings.HasPrefix(gpsFile.Name, "gps_") || !strings.HasSuffix(gpsFile.Name, ".txt") {
-				continue
-			}
-
-			newNewFullPath := fmt.Sprintf("%s/%s", newFullPath, gpsFile.Name)
-
-			st := time.Now()
-			localPath := "./tempfile/" + gpsFile.Name
-			err = s.SaveFileToLocal(newNewFullPath, localPath)
-			if err != nil {
-				logger.IpfsLogger.Error("save file to local failed", zap.String("file", gpsFile.Name), zap.Error(err))
-				continue
-			}
-			logger.IpfsLogger.Info("download file done", zap.String("file", gpsFile.Name), zap.Duration("cost", time.Since(st)))
-
-			records, err := parseFile(localPath)
-			if err != nil {
-				logger.IpfsLogger.Error("parse file failed", zap.String("file", gpsFile.Name), zap.Error(err))
-				continue
-			}
-
-			//	删除本地临时文件
-			err = os.Remove(localPath)
-			if err != nil {
-				logger.IpfsLogger.Error("remove local file failed", zap.String("file", gpsFile.Name), zap.Error(err))
-			}
-
-			logger.IpfsLogger.Info("parse file", zap.String("file", gpsFile.Name), zap.Int("count", len(records)))
-
-			// 计算里程
-			calculator := NewDistanceCalculator()
-			summary := calculator.CalculateSummary(records)
-
-			logger.IpfsLogger.Info("distance calculation",
-				zap.String("file", gpsFile.Name),
-				zap.Float64("total_distance_m", summary.TotalDistance),
-				zap.Float64("total_distance_km", summary.TotalDistanceKm),
-				zap.Int("point_count", summary.PointCount),
-				zap.Float64("avg_speed_kmh", summary.AverageSpeed),
-			)
-
-			//	解析文件名 获取时间戳
-			timestamp := strings.TrimSuffix(strings.TrimPrefix(gpsFile.Name, "gps_"), ".txt")
-
-			// 查询对应的客流量，计算周转量
-			if v, ok := cvPassengers[timestamp]; ok {
-				tmpTurnover := cast.ToFloat64(v) * summary.TotalDistanceKm // 周转量 = 里程 * 乘客数
-				deviceTurnover += tmpTurnover
-			}
-		}
-
-		totalTurnover += deviceTurnover
-	}
+	totalTurnover := result.TotalTurnover
 
 	//	XX 日总周转量
 	logger.IpfsLogger.Info(fmt.Sprintf("%s, 总周转量为：%.4f", date, totalTurnover))
@@ -596,6 +567,295 @@ func (s *Service) CalcDir(ctx context.Context, rootDir string, date string) (flo
 	logger.IpfsLogger.Info("save content to ipfs done", zap.String("ipfs_id", ipfsid))
 
 	return totalTurnover, nil
+}
+
+// CalcDirResult 计算结果汇总
+type CalcDirResult struct {
+	TotalTurnover float64
+	DeviceResults map[string]*DeviceCalcResult // deviceCode -> result
+}
+
+// DeviceCalcResult 设备计算结果
+type DeviceCalcResult struct {
+	DeviceCode    string
+	Turnover      float64
+	FileCount     int
+	TotalDistance float64
+}
+
+// FileTask 文件处理任务
+type FileTask struct {
+	FullPath   string
+	FileName   string
+	DeviceCode string
+}
+
+// FileResult 文件处理结果
+type FileResult struct {
+	Task     FileTask
+	Turnover float64
+	Err      error
+}
+
+// calcDirRecursive 递归扫描目录并计算周转量（并发模式）
+func (s *Service) calcDirRecursive(ctx context.Context, dir string, date string, startTime string, endTime string, result *CalcDirResult, depth int) error {
+	// 检查 context 是否被取消
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	// 检查递归深度
+	if depth > maxScanDepth {
+		logger.IpfsLogger.Warn("达到最大递归深度", zap.String("dir", dir), zap.Int("depth", depth))
+		return nil
+	}
+
+	logger.IpfsLogger.Info("正在扫描目录", zap.String("dir", dir), zap.Int("depth", depth))
+
+	lsLinks, err := s.client.FilesLs(s.session, dir)
+	if err != nil {
+		logger.IpfsLogger.Error("列出目录失败", zap.String("dir", dir), zap.Error(err))
+		return err
+	}
+
+	// 收集所有文件任务
+	var fileTasks []FileTask
+
+	for _, link := range lsLinks {
+		fullPath := path.Join(dir, link.Name)
+
+		if link.Type == 1 { // 目录 - 递归处理
+			// 尝试从目录名解析设备编码（如果目录结构符合预期）
+			deviceCode := link.Name
+
+			// 递归扫描子目录
+			err := s.calcDirRecursive(ctx, fullPath, date, startTime, endTime, result, depth+1)
+			if err != nil {
+				logger.IpfsLogger.Warn("扫描子目录失败", zap.String("dir", fullPath), zap.Error(err))
+			}
+
+			// 如果子目录有计算结果，记录到设备结果中
+			if deviceResult, ok := result.DeviceResults[deviceCode]; ok && deviceResult != nil {
+				logger.IpfsLogger.Info("设备计算完成",
+					zap.String("device_code", deviceCode),
+					zap.Float64("turnover", deviceResult.Turnover),
+					zap.Int("file_count", deviceResult.FileCount),
+				)
+			}
+		} else if link.Type == 0 { // 文件 - 收集 gps 文件任务
+			//	仅解析 gps 文件，gps_xxxx.txt
+			if !strings.HasPrefix(link.Name, "gps_") || !strings.HasSuffix(link.Name, ".txt") {
+				continue
+			}
+
+			// 从路径中提取设备编码（假设路径结构为 .../year/month/day/deviceCode/gps_xxx.txt）
+			deviceCode := s.extractDeviceCodeFromPath(fullPath)
+			if deviceCode == "" {
+				logger.IpfsLogger.Warn("无法从路径提取设备编码", zap.String("path", fullPath))
+				continue
+			}
+
+			// 初始化设备结果
+			if _, ok := result.DeviceResults[deviceCode]; !ok {
+				result.DeviceResults[deviceCode] = &DeviceCalcResult{
+					DeviceCode: deviceCode,
+				}
+			}
+
+			// 收集文件任务
+			fileTasks = append(fileTasks, FileTask{
+				FullPath:   fullPath,
+				FileName:   link.Name,
+				DeviceCode: deviceCode,
+			})
+		}
+	}
+
+	// 并发处理文件任务
+	if len(fileTasks) > 0 {
+		s.processFilesConcurrent(ctx, fileTasks, startTime, endTime, result)
+	}
+
+	return nil
+}
+
+// processFilesConcurrent 并发处理文件任务
+func (s *Service) processFilesConcurrent(ctx context.Context, tasks []FileTask, startTime string, endTime string, result *CalcDirResult) {
+	taskCount := len(tasks)
+	logger.IpfsLogger.Info("开始并发处理文件",
+		zap.Int("totalTasks", taskCount),
+		zap.Int("maxConcurrent", maxConcurrentFiles),
+	)
+
+	// 创建任务通道和结果通道
+	taskChan := make(chan FileTask, taskCount)
+	resultChan := make(chan FileResult, taskCount)
+
+	// 启动 worker goroutines
+	workerCount := maxConcurrentFiles
+	if taskCount < workerCount {
+		workerCount = taskCount
+	}
+
+	var wg sync.WaitGroup
+	for i := 0; i < workerCount; i++ {
+		wg.Add(1)
+		go s.fileWorker(ctx, &wg, taskChan, resultChan, startTime, endTime)
+	}
+
+	// 发送任务到通道
+	go func() {
+		for _, task := range tasks {
+			taskChan <- task
+		}
+		close(taskChan)
+	}()
+
+	// 等待所有 worker 完成，然后关闭结果通道
+	go func() {
+		wg.Wait()
+		close(resultChan)
+	}()
+
+	// 收集结果
+	var processedCount int
+	for fileResult := range resultChan {
+		processedCount++
+		if fileResult.Err != nil {
+			logger.IpfsLogger.Error("处理 gps 文件失败",
+				zap.String("file", fileResult.Task.FileName),
+				zap.String("device_code", fileResult.Task.DeviceCode),
+				zap.Error(fileResult.Err),
+			)
+			continue
+		}
+
+		// 累加设备结果（需要加锁保护并发写入）
+		deviceCode := fileResult.Task.DeviceCode
+		result.DeviceResults[deviceCode].Turnover += fileResult.Turnover
+		result.DeviceResults[deviceCode].FileCount++
+		result.TotalTurnover += fileResult.Turnover
+
+		logger.IpfsLogger.Info("文件处理完成",
+			zap.String("file", fileResult.Task.FileName),
+			zap.String("device_code", deviceCode),
+			zap.Float64("turnover", fileResult.Turnover),
+			zap.Int("progress", processedCount),
+			zap.Int("total", taskCount),
+		)
+	}
+
+	logger.IpfsLogger.Info("并发处理文件完成",
+		zap.Int("processedCount", processedCount),
+		zap.Int("totalTasks", taskCount),
+	)
+}
+
+// fileWorker 文件处理 worker
+func (s *Service) fileWorker(ctx context.Context, wg *sync.WaitGroup, taskChan <-chan FileTask, resultChan chan<- FileResult, startTime string, endTime string) {
+	defer wg.Done()
+
+	for task := range taskChan {
+		// 检查 context 是否被取消
+		select {
+		case <-ctx.Done():
+			resultChan <- FileResult{
+				Task: task,
+				Err:  ctx.Err(),
+			}
+			continue
+		default:
+		}
+
+		// 处理文件
+		turnover, err := s.processGpsFile(ctx, task.FullPath, task.FileName, task.DeviceCode, startTime, endTime)
+		resultChan <- FileResult{
+			Task:     task,
+			Turnover: turnover,
+			Err:      err,
+		}
+	}
+}
+
+// extractDeviceCodeFromPath 从路径中提取设备编码
+// 路径格式: /root/year/month/day/deviceCode/gps_xxx.txt
+func (s *Service) extractDeviceCodeFromPath(filePath string) string {
+	parts := strings.Split(filePath, "/")
+	if len(parts) >= 2 {
+		// 设备编码是文件所在目录的名称
+		return parts[len(parts)-2]
+	}
+	return ""
+}
+
+// processGpsFile 处理单个 GPS 文件，返回该文件的周转量
+func (s *Service) processGpsFile(ctx context.Context, fullPath string, fileName string, deviceCode string, startTime string, endTime string) (float64, error) {
+	st := time.Now()
+	localPath := "./tempfile/" + fileName
+	err := s.SaveFileToLocal(fullPath, localPath)
+	if err != nil {
+		logger.IpfsLogger.Error("save file to local failed", zap.String("file", fileName), zap.Error(err))
+		return 0, err
+	}
+	logger.IpfsLogger.Info("download file done", zap.String("file", fileName), zap.Duration("cost", time.Since(st)))
+
+	records, err := parseFile(localPath)
+	if err != nil {
+		logger.IpfsLogger.Error("parse file failed", zap.String("file", fileName), zap.Error(err))
+		return 0, err
+	}
+
+	//	删除本地临时文件
+	err = os.Remove(localPath)
+	if err != nil {
+		logger.IpfsLogger.Error("remove local file failed", zap.String("file", fileName), zap.Error(err))
+	}
+
+	logger.IpfsLogger.Info("parse file", zap.String("file", fileName), zap.Int("count", len(records)))
+
+	// 计算里程
+	calculator := NewDistanceCalculator()
+	summary := calculator.CalculateSummary(records)
+
+	logger.IpfsLogger.Info("distance calculation",
+		zap.String("file", fileName),
+		zap.Float64("total_distance_m", summary.TotalDistance),
+		zap.Float64("total_distance_km", summary.TotalDistanceKm),
+		zap.Int("point_count", summary.PointCount),
+		zap.Float64("avg_speed_kmh", summary.AverageSpeed),
+	)
+
+	//	解析文件名 获取时间戳
+	timestamp := strings.TrimSuffix(strings.TrimPrefix(fileName, "gps_"), ".txt")
+
+	// 查询对应的客流量
+	var cvres []*BusImageDetailCv
+	err = s.remoteDB.WithContext(ctx).
+		Table("bus_image_detail_cv").
+		Where("device_code = ? and collection_time >= ? and collection_time < ?",
+			deviceCode, startTime, endTime).
+		Find(&cvres).Error
+	if err != nil {
+		logger.IpfsLogger.Error("query bus_image_detail_cv failed",
+			zap.String("device_code", deviceCode),
+			zap.Error(err))
+		// 查询失败不中断，只是没有乘客数据
+		return 0, nil
+	}
+
+	// 计算周转量
+	var deviceTurnover float64
+	for _, cv := range cvres {
+		t := cv.CollectionTime.ToTime().Format("20060102150405")
+		if t == timestamp {
+			tmpTurnover := cast.ToFloat64(cv.BaiduResult) * summary.TotalDistanceKm // 周转量 = 里程 * 乘客数
+			deviceTurnover += tmpTurnover
+		}
+	}
+
+	return deviceTurnover, nil
 }
 
 func (s *Service) ReadDirTest(path string) error {

@@ -5,6 +5,7 @@ import (
 	platform_http "app/internal/platform/http"
 	"app/internal/platform/http/response"
 	"app/internal/shared/logger"
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -213,19 +214,23 @@ func (h *IpfsHandler) ScanDir(c *gin.Context) {
 		return
 	}
 
-	result, err := h.appService.ScanDir(platform_http.Ctx(c), dto.RootDir)
-	if err != nil {
-		response.InternalError(c, err.Error())
-		return
-	}
+	go func() {
+		ctx := context.Background()
+		result, err := h.appService.ScanDir(ctx, dto.RootDir)
+		if err != nil {
+			response.InternalError(c, err.Error())
+			return
+		}
+		logger.IpfsLogger.Info("scanDir completed", zap.String("rootDir", dto.RootDir), zap.Any("result", result))
+	}()
 
-	response.Success(c, result)
+	response.Success(c, "scanDir task running...")
 }
 
 func (h *IpfsHandler) CalcDir(c *gin.Context) {
 	type CalcDirDto struct {
-		RootDir string `json:"rootDir" form:"rootDir"`
-		Date    string `json:"date" form:"date"`
+		RootDir string `json:"rootDir" form:"rootDir"` // 要扫描的根目录，如 "/aibk/26/03/27"
+		Date    string `json:"date" form:"date"`       // 日期，格式 "2026-03-27"
 	}
 
 	var dto CalcDirDto
@@ -245,19 +250,17 @@ func (h *IpfsHandler) CalcDir(c *gin.Context) {
 	}
 
 	go func() {
-		//ctx := context.Background()
-		//turnover, err := h.appService.CalcDirTest(ctx, dto.RootDir, dto.Date)
-		turnover, err := h.appService.CalcDirTest2()
+		ctx := context.Background()
+		turnover, err := h.appService.CalcDir(ctx, dto.RootDir, dto.Date)
 		if err != nil {
-			response.InternalError(c, err.Error())
+			logger.IpfsLogger.Error("calcDir failed", zap.String("rootDir", dto.RootDir), zap.String("date", dto.Date), zap.Error(err))
 			return
 		}
 
-		logger.IpfsLogger.Info("calcDir", zap.Any("rootDir", dto.RootDir), zap.Any("date", dto.Date), zap.Any("turnover", turnover))
-
+		logger.IpfsLogger.Info("calcDir completed", zap.String("rootDir", dto.RootDir), zap.String("date", dto.Date), zap.Float64("turnover", turnover))
 	}()
 
-	response.Success(c, "等待执行中")
+	response.Success(c, "计算任务已启动，请稍后查看结果")
 }
 
 func (h *IpfsHandler) SaveContentTest(c *gin.Context) {

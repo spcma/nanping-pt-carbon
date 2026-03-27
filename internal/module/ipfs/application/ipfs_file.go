@@ -260,12 +260,12 @@ func (s *Service) SaveFileToLocal(filePath, localPath string) error {
 		return err
 	}
 
-	_ = data
+	//_ = data
 
-	//err = os.WriteFile(localPath, data, os.ModePerm)
-	//if err != nil {
-	//	return err
-	//}
+	err = os.WriteFile(localPath, data, os.ModePerm)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
