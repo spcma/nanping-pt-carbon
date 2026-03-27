@@ -2,6 +2,7 @@ package http
 
 import (
 	"app/internal/platform/security"
+	"app/internal/shared/logger"
 	"context"
 
 	"github.com/gin-gonic/gin"
@@ -64,4 +65,14 @@ func RequirePermission(permissionChecker *security.DefaultPermissionChecker, c *
 		return false
 	}
 	return true
+}
+
+// GetTraceID 获取请求的追踪 ID
+func GetTraceID(c *gin.Context) string {
+	return logger.GetTraceID(c)
+}
+
+// GetTraceIDFromContext 从 Go context 获取追踪 ID
+func GetTraceIDFromContext(ctx context.Context) string {
+	return logger.TraceID(ctx)
 }

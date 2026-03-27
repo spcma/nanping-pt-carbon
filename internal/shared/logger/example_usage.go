@@ -9,7 +9,7 @@ package logger
    logger := NewSugarLogger("business")
    logger.WithUser(userID, username).
           WithTraceID(traceID).
-          Info("User performed action", zap.String("action", "login"))
+          Info("UserID performed action", zap.String("action", "login"))
 
 2. 从上下文获取 logger：
    func handler(c *gin.Context) {

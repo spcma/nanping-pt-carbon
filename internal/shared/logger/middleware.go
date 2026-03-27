@@ -9,12 +9,28 @@ import (
 	"go.uber.org/zap"
 )
 
+// TraceIDHeader 请求/响应头中 traceid 的 key
+const TraceIDHeader = "X-Trace-ID"
+
 // LoggingMiddleware 日志中间件，自动处理请求上下文和追踪
 func LoggingMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 生成追踪 ID
-		traceID := generateTraceID()
+		// 优先从请求头获取 traceid（支持分布式追踪）
+		traceID := c.GetHeader(TraceIDHeader)
+		if traceID == "" {
+			// 没有则生成新的 traceid
+			traceID = generateTraceID()
+		}
+
+		// 存储到 Gin 上下文
 		c.Set("trace_id", traceID)
+
+		// 同时存储到 Go context（便于跨层传递）
+		ctx := WithTrace(c.Request.Context(), traceID)
+		c.Request = c.Request.WithContext(ctx)
+
+		// 在响应头中返回 traceid（便于客户端追踪）
+		c.Header(TraceIDHeader, traceID)
 
 		// 记录请求开始时间
 		startTime := time.Now()
@@ -130,14 +146,24 @@ func TimeoutMiddleware(timeout time.Duration) gin.HandlerFunc {
 	}
 }
 
-// getTraceID 从上下文获取追踪 ID
-func getTraceID(c *gin.Context) string {
+// GetTraceID 从上下文获取追踪 ID（公共方法）
+func GetTraceID(c *gin.Context) string {
+	// 优先从 Go context 获取
+	if traceID := TraceID(c.Request.Context()); traceID != "" {
+		return traceID
+	}
+	// 其次从 Gin context 获取
 	if traceID, exists := c.Get("trace_id"); exists {
 		if tid, ok := traceID.(string); ok {
 			return tid
 		}
 	}
-	return "unknown"
+	return ""
+}
+
+// getTraceID 从上下文获取追踪 ID（内部兼容方法）
+func getTraceID(c *gin.Context) string {
+	return GetTraceID(c)
 }
 
 // CORSMiddleware CORS 中间件（带日志）

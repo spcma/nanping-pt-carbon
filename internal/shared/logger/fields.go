@@ -65,7 +65,7 @@ func WithClientIP(clientIP string) zap.Field {
 	return zap.String("client_ip", clientIP)
 }
 
-// WithUserAgent 添加 User-Agent
+// WithUserAgent 添加 UserID-Agent
 func WithUserAgent(userAgent string) zap.Field {
 	return zap.String("user_agent", userAgent)
 }

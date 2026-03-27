@@ -5,10 +5,12 @@ import (
 	"app/internal/module/iam/domain"
 	platform_http "app/internal/platform/http"
 	"app/internal/platform/http/response"
+	"app/internal/shared/logger"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 // RolesHandler system role handler
@@ -27,16 +29,18 @@ func NewRolesHandler(appService *application.SysRoleAppService) *RolesHandler {
 func (h *RolesHandler) Create(c *gin.Context) {
 	var cmd application.CreateSysRoleCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
+		response.BadRequest(c, err.Error())
 		return
 	}
 
-	user := platform_http.GetCurrentUser(c)
-	cmd.UserID = user.ID
+	if user := platform_http.GetCurrentUser(c); user != nil {
+		cmd.UserID = user.ID
+	}
 
 	id, err := h.appService.CreateSysRole(platform_http.Ctx(c), cmd)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
+		logger.RuntimeLogger.WithTraceID(platform_http.GetTraceID(c)).Error("角色创建失败", zap.Error(err))
+		response.InternalError(c, err.Error())
 		return
 	}
 
@@ -45,52 +49,64 @@ func (h *RolesHandler) Create(c *gin.Context) {
 
 // Update updates a system role
 func (h *RolesHandler) Update(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		response.Error(c, http.StatusBadRequest, "invalid id")
-		return
-	}
 
 	var cmd application.UpdateSysRoleCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
-	cmd.ID = id
 
-	user := platform_http.GetCurrentUser(c)
-	cmd.UserID = user.ID
+	if cmd.ID == 0 {
+		response.Error(c, http.StatusBadRequest, "id is required")
+		return
+	}
+
+	if user := platform_http.GetCurrentUser(c); user != nil {
+		cmd.UserID = user.ID
+	}
 
 	if err := h.appService.UpdateSysRole(platform_http.Ctx(c), cmd); err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	response.Success(c, nil)
+	response.Success(c, "修改成功")
 }
 
 // Delete deletes a system role
 func (h *RolesHandler) Delete(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		response.Error(c, http.StatusBadRequest, "invalid id")
+	type DeleteSysRoleCommand struct {
+		ID     int64 `json:"id"`
+		UserID int64 `json:"userid"`
+	}
+
+	var cmd DeleteSysRoleCommand
+	if err := c.ShouldBindJSON(&cmd); err != nil {
+		response.BadRequest(c, "invalid request")
 		return
 	}
 
-	user := platform_http.GetCurrentUser(c)
-	if user == nil {
-		response.Error(c, http.StatusInternalServerError, "user not found")
+	if cmd.ID == 0 {
+		response.BadRequest(c, "id is required")
 		return
 	}
 
-	if err := h.appService.DeleteSysRole(platform_http.Ctx(c), id, user.ID); err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
+	if user := platform_http.GetCurrentUser(c); user != nil {
+		cmd.UserID = user.ID
+	}
+
+	if cmd.UserID == 0 {
+		response.BadRequest(c, "user is required")
 		return
 	}
 
-	response.Success(c, nil)
+	if err := h.appService.DeleteSysRole(platform_http.Ctx(c), cmd.ID, cmd.UserID); err != nil {
+		logger.RuntimeLogger.WithTraceID(platform_http.GetTraceID(c)).Error("角色删除失败", zap.Error(err))
+		response.InternalError(c, "删除失败")
+		return
+	}
+
+	response.Success(c, "删除成功")
 }
 
 // GetByID gets system role by ID
