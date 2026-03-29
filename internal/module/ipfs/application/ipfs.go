@@ -18,7 +18,6 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/dromara/carbon/v2"
@@ -223,9 +222,6 @@ type ScanDirResponse struct {
 // maxScanDepth 最大递归扫描深度
 const maxScanDepth = 50
 
-// maxConcurrentFiles 最大并发处理文件数
-const maxConcurrentFiles = 1
-
 // ScanDir 递归扫描目录，遍历所有子目录和文件
 func (s *Service) ScanDir(ctx context.Context, rootDir string) (*ScanDirResponse, error) {
 	if rootDir == "" {
@@ -233,7 +229,7 @@ func (s *Service) ScanDir(ctx context.Context, rootDir string) (*ScanDirResponse
 	}
 
 	startTime := time.Now()
-	response := &ScanDirResponse{
+	res := &ScanDirResponse{
 		RootPath: rootDir,
 		Files:    make([]*ScanFileResult, 0),
 	}
@@ -241,23 +237,23 @@ func (s *Service) ScanDir(ctx context.Context, rootDir string) (*ScanDirResponse
 	logger.IpfsLogger.Info("正在扫描目录", zap.String("rootDir", rootDir))
 
 	// 递归扫描目录
-	err := s.scanDirRecursive(ctx, rootDir, response, 0, rootDir)
+	err := s.scanDirRecursive(ctx, rootDir, res, 0, rootDir)
 	if err != nil {
 		logger.IpfsLogger.Error("扫描目录失败", zap.String("rootDir", rootDir), zap.Error(err))
 		return nil, err
 	}
 
-	response.DurationMs = time.Since(startTime).Milliseconds()
+	res.DurationMs = time.Since(startTime).Milliseconds()
 
 	logger.IpfsLogger.Info("扫描目录完成",
 		zap.String("rootDir", rootDir),
-		zap.Int("totalFiles", response.TotalFiles),
-		zap.Int("totalDirs", response.TotalDirs),
-		zap.Uint64("totalSize", response.TotalSize),
-		zap.Int64("durationMs", response.DurationMs),
+		zap.Int("totalFiles", res.TotalFiles),
+		zap.Int("totalDirs", res.TotalDirs),
+		zap.Uint64("totalSize", res.TotalSize),
+		zap.Int64("durationMs", res.DurationMs),
 	)
 
-	return response, nil
+	return res, nil
 }
 
 // scanDirRecursive 递归扫描目录
@@ -673,110 +669,68 @@ func (s *Service) calcDirRecursive(ctx context.Context, dir string, date string,
 		}
 	}
 
-	// 并发处理文件任务
+	// 串行处理文件任务
 	if len(fileTasks) > 0 {
-		s.processFilesConcurrent(ctx, fileTasks, startTime, endTime, result)
+		s.processFilesSequential(ctx, fileTasks, startTime, endTime, result)
 	}
 
 	return nil
 }
 
-// processFilesConcurrent 并发处理文件任务
-func (s *Service) processFilesConcurrent(ctx context.Context, tasks []FileTask, startTime string, endTime string, result *CalcDirResult) {
+// processFilesSequential 串行处理文件任务
+func (s *Service) processFilesSequential(ctx context.Context, tasks []FileTask, startTime string, endTime string, result *CalcDirResult) {
 	taskCount := len(tasks)
-	logger.IpfsLogger.Info("开始并发处理文件",
+	logger.IpfsLogger.Info("开始串行处理文件",
 		zap.Int("totalTasks", taskCount),
-		zap.Int("maxConcurrent", maxConcurrentFiles),
 	)
 
-	// 创建任务通道和结果通道
-	taskChan := make(chan FileTask, taskCount)
-	resultChan := make(chan FileResult, taskCount)
-
-	// 启动 worker goroutines
-	workerCount := maxConcurrentFiles
-	if taskCount < workerCount {
-		workerCount = taskCount
-	}
-
-	var wg sync.WaitGroup
-	for i := 0; i < workerCount; i++ {
-		wg.Add(1)
-		go s.fileWorker(ctx, &wg, taskChan, resultChan, startTime, endTime)
-	}
-
-	// 发送任务到通道
-	go func() {
-		for _, task := range tasks {
-			taskChan <- task
-		}
-		close(taskChan)
-	}()
-
-	// 等待所有 worker 完成，然后关闭结果通道
-	go func() {
-		wg.Wait()
-		close(resultChan)
-	}()
-
-	// 收集结果
+	// 串行处理每个文件任务
 	var processedCount int
-	for fileResult := range resultChan {
-		processedCount++
-		if fileResult.Err != nil {
-			logger.IpfsLogger.Error("处理 gps 文件失败",
-				zap.String("file", fileResult.Task.FileName),
-				zap.String("device_code", fileResult.Task.DeviceCode),
-				zap.Error(fileResult.Err),
-			)
-			continue
-		}
-
-		// 累加设备结果（需要加锁保护并发写入）
-		deviceCode := fileResult.Task.DeviceCode
-		result.DeviceResults[deviceCode].Turnover += fileResult.Turnover
-		result.DeviceResults[deviceCode].FileCount++
-		result.TotalTurnover += fileResult.Turnover
-
-		logger.IpfsLogger.Info("文件处理完成",
-			zap.String("file", fileResult.Task.FileName),
-			zap.String("device_code", deviceCode),
-			zap.Float64("turnover", fileResult.Turnover),
-			zap.Int("progress", processedCount),
-			zap.Int("total", taskCount),
-		)
-	}
-
-	logger.IpfsLogger.Info("并发处理文件完成",
-		zap.Int("processedCount", processedCount),
-		zap.Int("totalTasks", taskCount),
-	)
-}
-
-// fileWorker 文件处理 worker
-func (s *Service) fileWorker(ctx context.Context, wg *sync.WaitGroup, taskChan <-chan FileTask, resultChan chan<- FileResult, startTime string, endTime string) {
-	defer wg.Done()
-
-	for task := range taskChan {
+	for _, task := range tasks {
 		// 检查 context 是否被取消
 		select {
 		case <-ctx.Done():
-			resultChan <- FileResult{
-				Task: task,
-				Err:  ctx.Err(),
-			}
+			logger.IpfsLogger.Error("处理 gps 文件被取消",
+				zap.String("file", task.FileName),
+				zap.String("device_code", task.DeviceCode),
+				zap.Error(ctx.Err()),
+			)
 			continue
 		default:
 		}
 
 		// 处理文件
 		turnover, err := s.processGpsFile(ctx, task.FullPath, task.FileName, task.DeviceCode, startTime, endTime)
-		resultChan <- FileResult{
-			Task:     task,
-			Turnover: turnover,
-			Err:      err,
+		processedCount++
+
+		if err != nil {
+			logger.IpfsLogger.Error("处理 gps 文件失败",
+				zap.String("file", task.FileName),
+				zap.String("device_code", task.DeviceCode),
+				zap.Error(err),
+			)
+			continue
 		}
+
+		// 累加设备结果
+		deviceCode := task.DeviceCode
+		result.DeviceResults[deviceCode].Turnover += turnover
+		result.DeviceResults[deviceCode].FileCount++
+		result.TotalTurnover += turnover
+
+		logger.IpfsLogger.Info("文件处理完成",
+			zap.String("file", task.FileName),
+			zap.String("device_code", deviceCode),
+			zap.Float64("turnover", turnover),
+			zap.Int("progress", processedCount),
+			zap.Int("total", taskCount),
+		)
 	}
+
+	logger.IpfsLogger.Info("串行处理文件完成",
+		zap.Int("processedCount", processedCount),
+		zap.Int("totalTasks", taskCount),
+	)
 }
 
 // extractDeviceCodeFromPath 从路径中提取设备编码
