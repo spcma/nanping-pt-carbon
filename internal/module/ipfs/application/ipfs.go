@@ -224,7 +224,7 @@ type ScanDirResponse struct {
 const maxScanDepth = 50
 
 // maxConcurrentFiles 最大并发处理文件数
-const maxConcurrentFiles = 10
+const maxConcurrentFiles = 1
 
 // ScanDir 递归扫描目录，遍历所有子目录和文件
 func (s *Service) ScanDir(ctx context.Context, rootDir string) (*ScanDirResponse, error) {
