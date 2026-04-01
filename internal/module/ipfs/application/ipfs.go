@@ -602,7 +602,7 @@ func (s *Service) calcDirRecursive(ctx context.Context, dir string, date string,
 	default:
 	}
 
-	// 检查递归深度
+	// 检查递归深度， 避免无限递归
 	if depth > maxScanDepth {
 		logger.IpfsLogger.Warn("达到最大递归深度", zap.String("dir", dir), zap.Int("depth", depth))
 		return nil
@@ -622,25 +622,8 @@ func (s *Service) calcDirRecursive(ctx context.Context, dir string, date string,
 	for _, link := range lsLinks {
 		fullPath := path.Join(dir, link.Name)
 
-		if link.Type == 1 { // 目录 - 递归处理
-			// 尝试从目录名解析设备编码（如果目录结构符合预期）
-			deviceCode := link.Name
-
-			// 递归扫描子目录
-			err := s.calcDirRecursive(ctx, fullPath, date, startTime, endTime, result, depth+1)
-			if err != nil {
-				logger.IpfsLogger.Warn("扫描子目录失败", zap.String("dir", fullPath), zap.Error(err))
-			}
-
-			// 如果子目录有计算结果，记录到设备结果中
-			if deviceResult, ok := result.DeviceResults[deviceCode]; ok && deviceResult != nil {
-				logger.IpfsLogger.Info("设备计算完成",
-					zap.String("device_code", deviceCode),
-					zap.Float64("turnover", deviceResult.Turnover),
-					zap.Int("file_count", deviceResult.FileCount),
-				)
-			}
-		} else if link.Type == 0 { // 文件 - 收集 gps 文件任务
+		switch link.Type {
+		case 0: // file
 			//	仅解析 gps 文件，gps_xxxx.txt
 			if !strings.HasPrefix(link.Name, "gps_") || !strings.HasSuffix(link.Name, ".txt") {
 				continue
@@ -666,6 +649,26 @@ func (s *Service) calcDirRecursive(ctx context.Context, dir string, date string,
 				FileName:   link.Name,
 				DeviceCode: deviceCode,
 			})
+		case 1: // dir
+			// 尝试从目录名解析设备编码（如果目录结构符合预期）
+			deviceCode := link.Name
+
+			// 递归扫描子目录
+			err := s.calcDirRecursive(ctx, fullPath, date, startTime, endTime, result, depth+1)
+			if err != nil {
+				logger.IpfsLogger.Warn("扫描子目录失败", zap.String("dir", fullPath), zap.Error(err))
+			}
+
+			// 如果子目录有计算结果，记录到设备结果中
+			if deviceResult, ok := result.DeviceResults[deviceCode]; ok && deviceResult != nil {
+				logger.IpfsLogger.Info("设备计算完成",
+					zap.String("device_code", deviceCode),
+					zap.Float64("turnover", deviceResult.Turnover),
+					zap.Int("file_count", deviceResult.FileCount),
+				)
+			}
+		default:
+			logger.IpfsLogger.Warn("未知的文件类型", zap.String("dir", dir), zap.String("name", link.Name))
 		}
 	}
 

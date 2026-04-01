@@ -229,6 +229,7 @@ func (s *Service) MustDirExists(path string, recursive bool) (bool, error) {
 	if !s.CheckDir(path) {
 		err := s.CreateDir(path)
 		if err != nil {
+			logger.IpfsLogger.Error("create dir failed", zap.String("dir", path), zap.Error(err))
 			return false, err
 		}
 
