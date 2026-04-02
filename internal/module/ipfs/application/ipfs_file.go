@@ -233,7 +233,7 @@ func (s *Service) MustDirExists(path string, recursive bool) (bool, error) {
 			return false, err
 		}
 
-		return false, nil
+		return true, nil
 	}
 
 	return true, nil
@@ -283,18 +283,17 @@ func (s *Service) ReadFileFromIpfs(filePath string) ([]byte, int64, error) {
 	defer s.client.MMClose(fsid)
 
 	// 获取文件大小
-	size, err := s.client.MFGetSize(fsid)
-	if err != nil {
-		return nil, 0, err
-	}
+	//size, err := s.client.MFGetSize(fsid)
+	//if err != nil {
+	//	return nil, 0, err
+	//}
 
 	// 读取文件数据
-	data, err := s.client.MFGetData(fsid, 0, int(size))
+	data, err := s.client.MFGetData(fsid, 0, -1)
 	if err != nil {
 		return nil, 0, err
 	}
-
-	return data, size, nil
+	return data, int64(len(data)), nil
 }
 
 func FileNotExist(err error) bool {
