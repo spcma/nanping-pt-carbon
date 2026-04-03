@@ -152,6 +152,9 @@ func (s *Service) ReadFile(ctx context.Context, path string) ([]byte, error) {
 }
 
 func (s *Service) SaveContentToIpfs(content, fsDir, filename string) (string, error) {
+
+	logger.IpfsLogger.Info("save content to file", zap.String("fsDir", fsDir), zap.String("filename", filename), zap.String("content", content))
+
 	// 打开临时文件
 	fsid, err := s.client.MFOpenTempFile(s.session)
 	if err != nil {

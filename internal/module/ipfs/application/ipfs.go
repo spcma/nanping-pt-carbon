@@ -28,6 +28,8 @@ import (
 	"go.uber.org/zap"
 )
 
+const baseline = 0.11564
+
 // Service IPFS 服务
 type Service struct {
 	db                        *gorm.DB
@@ -490,6 +492,8 @@ type BusImageDetailCv struct {
 // rootDir: 要扫描的根目录（直接从此目录开始递归）
 // date: 日期，格式为 "2026-03-27"，用于查询数据库和生成报告
 func (s *Service) CalcDir(ctx context.Context, rootDir string, date string) (float64, error) {
+	cst := time.Now()
+
 	//	解析日期
 	now := carbon.Parse(date, carbon.Shanghai).StartOfDay()
 
@@ -550,17 +554,29 @@ func (s *Service) CalcDir(ctx context.Context, rootDir string, date string) (flo
 	}
 
 	//	 保存周转量结果到文件中
-	saveDir := fmt.Sprintf("%s/%s/%s/%s", "tmpp", year, month, day)
+	saveDir := fmt.Sprintf("%s/%s/%s/%s", "/tmpp", year, month, day)
 
 	filename := fmt.Sprintf("%s.txt", now.Format(carbon.ShortDateTimeFormat))
 
-	ipfsid, err := s.SaveContentToIpfs(cast.ToString(totalTurnover), saveDir, filename)
+	//	计算节碳量
+	value := totalTurnover * baseline
+
+	saveContent := strings.Builder{}
+	saveContent.WriteString(now.ToDateString())
+	saveContent.WriteString("\t")
+	saveContent.WriteString(cast.ToString(totalTurnover))
+	saveContent.WriteString("\t")
+	saveContent.WriteString(cast.ToString(baseline))
+	saveContent.WriteString("\t")
+	saveContent.WriteString(cast.ToString(value))
+
+	ipfsid, err := s.SaveContentToIpfs(saveContent.String(), saveDir, filename)
 	if err != nil {
 		logger.IpfsLogger.Error("save content to ipfs failed", zap.Error(err))
 		return 0, err
 	}
 
-	logger.IpfsLogger.Info("save content to ipfs done", zap.String("ipfs_id", ipfsid))
+	logger.IpfsLogger.Info("save content to ipfs done", zap.String("ipfs_id", ipfsid), zap.Float64("cost", time.Now().Sub(cst).Minutes()))
 
 	return totalTurnover, nil
 }

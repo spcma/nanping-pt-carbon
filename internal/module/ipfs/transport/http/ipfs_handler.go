@@ -13,7 +13,6 @@ import (
 
 	"github.com/dromara/carbon/v2"
 	"github.com/gin-gonic/gin"
-	"github.com/spf13/cast"
 	"go.uber.org/zap"
 )
 
@@ -265,19 +264,19 @@ func (h *IpfsHandler) CalcDir(c *gin.Context) {
 
 func (h *IpfsHandler) SaveContentTest(c *gin.Context) {
 
-	value := c.Query("force")
-	force := cast.ToBool(value)
+	//value := c.Query("force")
+	//force := cast.ToBool(value)
 
 	now := carbon.Now().StartOfDay()
 
 	//	 保存周转量结果到文件中 /tmpp/26/03/14
-	saveDir := fmt.Sprintf("%s/%s/%s/%s", "/tmpp", "26", "03", "14")
+	saveDir := fmt.Sprintf("%s/%s/%s/%s", "/tmpp", "27", "03", "14")
 
 	filename := fmt.Sprintf("%s.txt", now.Format(carbon.ShortDateFormat))
 
-	if force {
-		h.appService.Remove()
-	}
+	//if force {
+	//	h.appService.Remove()
+	//}
 
 	ipfsid, err := h.appService.SaveContentToIpfs("hello world", saveDir, filename)
 	if err != nil {
