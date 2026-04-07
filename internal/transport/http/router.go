@@ -35,7 +35,7 @@ func InitRouter(db *gorm.DB, remoteDB *gorm.DB, redisClient *cache.RedisClient) 
 	}
 
 	tokenManager, err := token.NewManager(token.ConfigEx{
-		Type:        token.TokenTypeSnowflake,
+		Type:        token.TokenType_Snowflake,
 		RedisClient: redisClient.GetClient(),
 		ExpireTime:  time.Duration(config.GlobalConfig.Token.Expire) * time.Second,
 	})

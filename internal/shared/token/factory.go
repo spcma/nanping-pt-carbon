@@ -11,11 +11,11 @@ import (
 type TokenType int
 
 const (
-	// TokenTypeJWT 传统 JWT 模式（所有信息在 token 中）
-	TokenTypeJWT TokenType = iota
+	// TokenType_JWT 传统 JWT 模式（所有信息在 token 中）
+	TokenType_JWT TokenType = iota
 
-	// TokenTypeSnowflake 雪花 ID + 缓存模式（token 只是 ID，用户信息在 Redis 缓存）
-	TokenTypeSnowflake
+	// TokenType_Snowflake 雪花 ID + 缓存模式（token 只是 ID，用户信息在 Redis 缓存）
+	TokenType_Snowflake
 )
 
 // ConfigEx 扩展配置（用于创建 Token 管理器）
@@ -30,11 +30,11 @@ type ConfigEx struct {
 // NewManager 创建 Token 管理器（工厂方法）
 func NewManager(config ConfigEx) (Manager, error) {
 	switch config.Type {
-	case TokenTypeJWT:
+	case TokenType_JWT:
 		// 使用传统 JWT 模式
 		return NewJWTManager(config.JWTConfig), nil
 
-	case TokenTypeSnowflake:
+	case TokenType_Snowflake:
 		// 使用雪花 ID + 缓存模式
 		if config.RedisClient == nil {
 			return nil, ErrRedisClientRequired
