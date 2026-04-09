@@ -40,14 +40,14 @@ func InitRouter(db *gorm.DB, remoteDB *gorm.DB, redisClient *cache.RedisClient) 
 		ExpireTime:  time.Duration(config.GlobalConfig.Token.Expire) * time.Second,
 	})
 	if err != nil {
-		logger.HttpLogger.Error("Failed to create token manager: " + err.Error())
+		logger.HTTPL.Error("Failed to create token manager: " + err.Error())
 		panic(err)
 	}
 
 	// 3. 注册所有路由
 	registerAllRoutes(router, db, remoteDB, tokenManager)
 
-	logger.HttpLogger.Info("Router initialized")
+	logger.HTTPL.Info("Router initialized")
 
 	return router
 }
@@ -70,7 +70,7 @@ func registerAllRoutes(router *gin.Engine, db *gorm.DB, remoteDB *gorm.DB, token
 		registry.RegisterRoutes(apiGroup, middlewares)
 	}
 
-	logger.HttpLogger.Info("Router initialized with module-based registration")
+	logger.HTTPL.Info("Router initialized with module-based registration")
 }
 
 // getAllRouteRegistries 获取所有模块的路由注册器

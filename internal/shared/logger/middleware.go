@@ -59,7 +59,7 @@ func LoggingMiddleware() gin.HandlerFunc {
 		// 如果有错误，额外记录
 		if len(c.Errors) > 0 {
 			for _, err := range c.Errors {
-				ErrorLogger.Error("Request error occurred",
+				ErrorL.Error("Request error occurred",
 					zap.String("trace_id", traceID),
 					zap.String("path", c.Request.URL.Path),
 					zap.String("method", c.Request.Method),
@@ -80,7 +80,7 @@ func GetLoggerFromContext(c *gin.Context) Factory {
 		}
 	}
 	// 返回默认日志器
-	return defaultLogger
+	return defaultL
 }
 
 // generateTraceID 生成追踪 ID

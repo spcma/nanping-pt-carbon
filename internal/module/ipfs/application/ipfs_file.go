@@ -41,7 +41,7 @@ func (s *Service) saveDistanceResult(fileName string, summary DistanceSummary) e
 		return err
 	}
 
-	logger.IpfsLogger.Info("distance result saved",
+	logger.IpfsL.Info("distance result saved",
 		zap.String("source_file", fileName),
 		zap.String("result_file", resultPath),
 		zap.Float64("distance_km", summary.TotalDistanceKm),
@@ -75,7 +75,7 @@ func (s *Service) saveIpfsDetailToDB(deviceCode, fileName string, timestamp int6
 	// 检查文件是否已存在
 	existingDetail, _ := s.ipfsDetailAppService.GetIpfsDetailByFilename(context.Background(), fileName)
 	if existingDetail != nil {
-		logger.IpfsLogger.Warn("ipfs detail already exists, skip saving",
+		logger.IpfsL.Warn("ipfs detail already exists, skip saving",
 			zap.String("file", fileName),
 			zap.Int64("existing_id", existingDetail.Id),
 		)
@@ -124,7 +124,7 @@ func (s *Service) SaveContent(ctx context.Context, content, fsDir, filename stri
 // ReadFile 读取文件
 func (s *Service) ReadFile(ctx context.Context, path string) ([]byte, error) {
 
-	logger.IpfsLogger.Info("read file", zap.String("path", path))
+	logger.IpfsL.Info("read file", zap.String("path", path))
 
 	ext := filepath.Ext(path)
 
@@ -143,17 +143,17 @@ func (s *Service) ReadFile(ctx context.Context, path string) ([]byte, error) {
 	summary := calculator.CalculateSummary(rec)
 
 	for _, record := range rec {
-		logger.IpfsLogger.Info("read file", zap.Any("record", record))
+		logger.IpfsL.Info("read file", zap.Any("record", record))
 	}
 
-	logger.IpfsLogger.Info("readFile", zap.Any("summary", summary))
+	logger.IpfsL.Info("readFile", zap.Any("summary", summary))
 
 	return nil, nil
 }
 
 func (s *Service) SaveContentToIpfs(content, fsDir, filename string) (string, error) {
 
-	logger.IpfsLogger.Info("save content to file", zap.String("fsDir", fsDir), zap.String("filename", filename), zap.String("content", content))
+	logger.IpfsL.Info("save content to file", zap.String("fsDir", fsDir), zap.String("filename", filename), zap.String("content", content))
 
 	// 打开临时文件
 	fsid, err := s.client.MFOpenTempFile(s.session)
@@ -232,7 +232,7 @@ func (s *Service) MustDirExists(path string, recursive bool) (bool, error) {
 	if !s.CheckDir(path) {
 		err := s.CreateDir(path)
 		if err != nil {
-			logger.IpfsLogger.Error("create dir failed", zap.String("dir", path), zap.Error(err))
+			logger.IpfsL.Error("create dir failed", zap.String("dir", path), zap.Error(err))
 			return false, err
 		}
 
@@ -256,11 +256,11 @@ func (s *Service) Remove() {
 // localPath: 本地保存路径
 func (s *Service) SaveFileToLocal(filePath, localPath string) error {
 
-	logger.IpfsLogger.Info("save file to local", zap.String("file", filePath))
+	logger.IpfsL.Info("save file to local", zap.String("file", filePath))
 
 	data, _, err := s.ReadFileFromIpfs(filePath)
 	if err != nil {
-		logger.IpfsLogger.Error("read file from ipfs failed", zap.String("file", filePath), zap.Error(err))
+		logger.IpfsL.Error("read file from ipfs failed", zap.String("file", filePath), zap.Error(err))
 		return err
 	}
 

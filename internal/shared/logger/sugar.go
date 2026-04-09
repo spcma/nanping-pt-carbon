@@ -251,16 +251,16 @@ func formatDuration(d time.Duration) string {
 
 // 全局便捷函数
 var (
-	defaultLogger Factory // 默认分类的日志器
+	defaultL Factory // 默认分类的日志器
 
-	RuntimeLogger         Factory
-	ErrorLogger           Factory
-	DebugLogger           Factory
-	IAMLogger             Factory
-	TrafficResourceLogger Factory
-	HttpLogger            Factory
-	InitLogger            Factory
-	IpfsLogger            Factory
+	RuntimeL Factory
+	ErrorL   Factory
+	DebugL   Factory
+	IamL     Factory
+	TrafficL Factory
+	HTTPL    Factory
+	InitL    Factory
+	IpfsL    Factory
 )
 
 // InitGlobalLoggers 初始化全局日志器（应在应用启动时调用）
@@ -274,14 +274,14 @@ func InitGlobalLoggers() {
 
 // initGlobalLoggersInternal 内部初始化函数（由 Initialize() 调用）
 func initGlobalLoggersInternal() {
-	defaultLogger = NewSugarLogger("runtime")
-	RuntimeLogger = NewSugarLogger("runtime")
-	ErrorLogger = NewSugarLogger("error")
-	DebugLogger = NewSugarLogger("debug")
-	IAMLogger = NewSugarLogger("iam")
-	HttpLogger = NewSugarLogger("http")
-	InitLogger = NewSugarLogger("initializer")
-	IpfsLogger = NewSugarLogger("ipfs")
+	defaultL = NewSugarLogger("runtime")
+	RuntimeL = NewSugarLogger("runtime")
+	ErrorL = NewSugarLogger("error")
+	DebugL = NewSugarLogger("debug")
+	IamL = NewSugarLogger("iam")
+	HTTPL = NewSugarLogger("http")
+	InitL = NewSugarLogger("initializer")
+	IpfsL = NewSugarLogger("ipfs")
 }
 
 // WithCategory 全局 WithCategory 函数
@@ -291,7 +291,7 @@ func WithCategory(category string) Factory {
 
 // GlobalWarn 全局 Warn 函数
 func GlobalWarn(msg string, fields ...zap.Field) {
-	if defaultLogger != nil {
-		defaultLogger.Warn(msg, fields...)
+	if defaultL != nil {
+		defaultL.Warn(msg, fields...)
 	}
 }

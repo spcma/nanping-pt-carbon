@@ -39,7 +39,7 @@ func (h *RolesHandler) Create(c *gin.Context) {
 
 	id, err := h.appService.CreateSysRole(platform_http.Ctx(c), cmd)
 	if err != nil {
-		logger.RuntimeLogger.WithTraceID(platform_http.GetTraceID(c)).Error("角色创建失败", zap.Error(err))
+		logger.RuntimeL.WithTraceID(platform_http.GetTraceID(c)).Error("角色创建失败", zap.Error(err))
 		response.InternalError(c, err.Error())
 		return
 	}
@@ -101,7 +101,7 @@ func (h *RolesHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.appService.DeleteSysRole(platform_http.Ctx(c), cmd.ID, cmd.UserID); err != nil {
-		logger.RuntimeLogger.WithTraceID(platform_http.GetTraceID(c)).Error("角色删除失败", zap.Error(err))
+		logger.RuntimeL.WithTraceID(platform_http.GetTraceID(c)).Error("角色删除失败", zap.Error(err))
 		response.InternalError(c, "删除失败")
 		return
 	}

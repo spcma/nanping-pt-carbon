@@ -59,7 +59,7 @@ func (i *DataInitializer) initSuperAdminUser() error {
 	// 检查用户是否已存在
 	existingUser, err := userRepo.FindByUsername(ctx, "admin")
 	if err == nil && existingUser != nil {
-		logger.InitLogger.Info("admin user already exists",
+		logger.InitL.Info("admin user already exists",
 			zap.String("username", existingUser.Username),
 			zap.Int64("id", existingUser.Id))
 		return nil
@@ -76,7 +76,7 @@ func (i *DataInitializer) initSuperAdminUser() error {
 		return fmt.Errorf("failed to save super admin user: %w", err)
 	}
 
-	logger.InitLogger.Info("super admin user created successfully",
+	logger.InitL.Info("super admin user created successfully",
 		zap.Int64("user_id", user.Id),
 		zap.String("username", user.Username),
 	)
@@ -127,13 +127,13 @@ func (i *DataInitializer) Add_Methodology_20260323(c *gin.Context) {
 	for _, data := range datas {
 		p1, err := methodology_domain.NewMethodology(data.Name, data.Code, data.Icon, data.Description, 1, data.StartDate, data.EndDate)
 		if err != nil {
-			logger.RuntimeLogger.Error("new methodology error", zap.Any("data", data), zap.Error(err))
+			logger.RuntimeL.Error("new methodology error", zap.Any("data", data), zap.Error(err))
 			response.BadRequest(c, fmt.Errorf("new methodology error: %w", err).Error())
 			return
 		}
 		err = projectRepo.Create(ctx, p1)
 		if err != nil {
-			logger.RuntimeLogger.Error("add methodology error", zap.Any("data", data), zap.Error(err))
+			logger.RuntimeL.Error("add methodology error", zap.Any("data", data), zap.Error(err))
 			response.BadRequest(c, fmt.Errorf("add methodology error: %w", err).Error())
 			return
 		}
@@ -186,13 +186,13 @@ func (i *DataInitializer) Add_Project_20260323(c *gin.Context) {
 	for _, data := range datas {
 		p1, err := project_domain.NewProject(data.Name, data.Code, data.Icon, data.Description, 1, data.StartDate, data.EndDate)
 		if err != nil {
-			logger.RuntimeLogger.Error("add project error", zap.Any("data", data), zap.Error(err))
+			logger.RuntimeL.Error("add project error", zap.Any("data", data), zap.Error(err))
 			response.BadRequest(c, fmt.Errorf("add project error: %w", err).Error())
 			return
 		}
 		err = projectRepo.Create(ctx, p1)
 		if err != nil {
-			logger.RuntimeLogger.Error("add project error", zap.Any("data", data), zap.Error(err))
+			logger.RuntimeL.Error("add project error", zap.Any("data", data), zap.Error(err))
 			response.BadRequest(c, fmt.Errorf("add project error: %w", err).Error())
 			return
 		}

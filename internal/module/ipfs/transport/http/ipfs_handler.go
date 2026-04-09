@@ -113,6 +113,7 @@ func (h *IpfsHandler) UploadFile(c *gin.Context) {
 	// 保存上传的文件到临时位置
 	tmpPath := filepath.Join(os.TempDir(), file.Filename)
 	if err := c.SaveUploadedFile(file, tmpPath); err != nil {
+		logger.IpfsL.Error("save uploaded file failed", zap.String("tmpPath", tmpPath), zap.Error(err))
 		return
 	}
 	defer os.Remove(tmpPath)
@@ -154,7 +155,10 @@ func (h *IpfsHandler) DownloadFile(c *gin.Context) {
 		return
 	}
 
-	logger.IpfsLogger.Info("download file", zap.String("path", dto.Path), zap.String("filename", dto.Filename), zap.Any("data", string(data)))
+	logger.IpfsL.Info("download file",
+		zap.String("path", dto.Path),
+		zap.String("filename", dto.Filename),
+		zap.Any("data", string(data)))
 
 	// 设置响应头
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename*=UTF-8''%s", dto.Filename))
@@ -175,6 +179,7 @@ func (h *IpfsHandler) CheckDir(c *gin.Context) {
 	response.Success(c, exist)
 }
 
+// ReadIpfs 读取ipfs文件
 func (h *IpfsHandler) ReadIpfs(c *gin.Context) {
 	bytes, count, err := h.appService.ReadFileFromIpfs(c.Query("path"))
 	if err != nil {
@@ -182,18 +187,9 @@ func (h *IpfsHandler) ReadIpfs(c *gin.Context) {
 		return
 	}
 
-	logger.IpfsLogger.Info("readIpfs", zap.Any("count", count), zap.Any("bytes", bytes))
+	logger.IpfsL.Info("readIpfs", zap.Any("count", count), zap.Any("bytes", bytes))
 
 	response.Success(c, string(bytes))
-}
-
-func (h *IpfsHandler) ReadTest(c *gin.Context) {
-	path := c.Query("path")
-	if path == "" {
-		response.BadRequest(c, "请指定目录")
-		return
-	}
-
 }
 
 // ScanDir 递归扫描目录
@@ -220,7 +216,7 @@ func (h *IpfsHandler) ScanDir(c *gin.Context) {
 			response.InternalError(c, err.Error())
 			return
 		}
-		logger.IpfsLogger.Info("scanDir completed", zap.String("rootDir", dto.RootDir), zap.Any("result", result))
+		logger.IpfsL.Info("scanDir completed", zap.String("rootDir", dto.RootDir), zap.Any("result", result))
 	}()
 
 	response.Success(c, "scanDir task running...")
@@ -252,11 +248,11 @@ func (h *IpfsHandler) CalcDir(c *gin.Context) {
 		ctx := context.Background()
 		turnover, err := h.appService.CalcDir(ctx, dto.RootDir, dto.Date)
 		if err != nil {
-			logger.IpfsLogger.Error("calcDir failed", zap.String("rootDir", dto.RootDir), zap.String("date", dto.Date), zap.Error(err))
+			logger.IpfsL.Error("calcDir failed", zap.String("rootDir", dto.RootDir), zap.String("date", dto.Date), zap.Error(err))
 			return
 		}
 
-		logger.IpfsLogger.Info("calcDir completed", zap.String("rootDir", dto.RootDir), zap.String("date", dto.Date), zap.Float64("turnover", turnover))
+		logger.IpfsL.Info("calcDir completed", zap.String("rootDir", dto.RootDir), zap.String("date", dto.Date), zap.Float64("turnover", turnover))
 	}()
 
 	response.Success(c, "计算任务已启动，请稍后查看结果")

@@ -81,14 +81,14 @@ func (s *Service) CheckDir(dir string) bool {
 	stat, err := s.client.FilesStat(s.session, dir)
 	if err != nil {
 		if FileNotExist(err) {
-			logger.IpfsLogger.Warn("目录不存在", zap.String("dir", dir))
+			logger.IpfsL.Warn("目录不存在", zap.String("dir", dir))
 			return false
 		}
-		logger.IpfsLogger.Error("发生了错误", zap.Error(err))
+		logger.IpfsL.Error("发生了错误", zap.Error(err))
 		return false
 	}
 
-	logger.IpfsLogger.Info("检查目录",
+	logger.IpfsL.Info("检查目录",
 		zap.String("dir", dir),
 		zap.Any("stat", stat),
 		zap.Any("hash", stat.Hash),
@@ -112,11 +112,11 @@ func (s *Service) CreateDir(dir string) error {
 
 	err := s.client.FilesMkdir(s.session, dir, true)
 	if err != nil {
-		logger.IpfsLogger.Error("创建目录失败", zap.String("dir", dir), zap.Error(err))
+		logger.IpfsL.Error("创建目录失败", zap.String("dir", dir), zap.Error(err))
 		return err
 	}
 
-	logger.IpfsLogger.Info("创建目录成功", zap.String("dir", dir))
+	logger.IpfsL.Info("创建目录成功", zap.String("dir", dir))
 
 	return nil
 }
@@ -142,7 +142,7 @@ func (s *Service) ListDir(ctx context.Context, dir string) ([]*DirDto, error) {
 
 	lsLinks, err := s.client.FilesLs(s.session, dir)
 	if err != nil {
-		logger.IpfsLogger.Error("列出目录失败", zap.String("dir", dir), zap.Error(err))
+		logger.IpfsL.Error("列出目录失败", zap.String("dir", dir), zap.Error(err))
 		return nil, err
 	}
 
@@ -236,18 +236,18 @@ func (s *Service) ScanDir(ctx context.Context, rootDir string) (*ScanDirResponse
 		Files:    make([]*ScanFileResult, 0),
 	}
 
-	logger.IpfsLogger.Info("正在扫描目录", zap.String("rootDir", rootDir))
+	logger.IpfsL.Info("正在扫描目录", zap.String("rootDir", rootDir))
 
 	// 递归扫描目录
 	err := s.scanDirRecursive(ctx, rootDir, res, 0, rootDir)
 	if err != nil {
-		logger.IpfsLogger.Error("扫描目录失败", zap.String("rootDir", rootDir), zap.Error(err))
+		logger.IpfsL.Error("扫描目录失败", zap.String("rootDir", rootDir), zap.Error(err))
 		return nil, err
 	}
 
 	res.DurationMs = time.Since(startTime).Milliseconds()
 
-	logger.IpfsLogger.Info("扫描目录完成",
+	logger.IpfsL.Info("扫描目录完成",
 		zap.String("rootDir", rootDir),
 		zap.Int("totalFiles", res.TotalFiles),
 		zap.Int("totalDirs", res.TotalDirs),
@@ -269,15 +269,15 @@ func (s *Service) scanDirRecursive(ctx context.Context, dir string, response *Sc
 
 	// 检查递归深度
 	if depth > maxScanDepth {
-		logger.IpfsLogger.Warn("达到最大递归深度", zap.String("dir", dir), zap.Int("depth", depth))
+		logger.IpfsL.Warn("达到最大递归深度", zap.String("dir", dir), zap.Int("depth", depth))
 		return nil
 	}
 
-	logger.IpfsLogger.Info("正在扫描目录", zap.String("dir", dir), zap.Int("depth", depth))
+	logger.IpfsL.Info("正在扫描目录", zap.String("dir", dir), zap.Int("depth", depth))
 
 	lsLinks, err := s.client.FilesLs(s.session, dir)
 	if err != nil {
-		logger.IpfsLogger.Error("列出目录失败", zap.String("dir", dir), zap.Error(err))
+		logger.IpfsL.Error("列出目录失败", zap.String("dir", dir), zap.Error(err))
 		return err
 	}
 
@@ -290,7 +290,7 @@ func (s *Service) scanDirRecursive(ctx context.Context, dir string, response *Sc
 			// 递归扫描子目录
 			err := s.scanDirRecursive(ctx, fullPath, response, depth+1, dir)
 			if err != nil {
-				logger.IpfsLogger.Warn("扫描子目录失败", zap.String("dir", fullPath), zap.Error(err))
+				logger.IpfsL.Warn("扫描子目录失败", zap.String("dir", fullPath), zap.Error(err))
 			}
 		} else if link.Type == 0 { // 文件
 
@@ -305,10 +305,10 @@ func (s *Service) scanDirRecursive(ctx context.Context, dir string, response *Sc
 			st := time.Now()
 			err = s.SaveFileToLocal(fullPath, "./tempfile/"+link.Name)
 			if err != nil {
-				logger.IpfsLogger.Error("保存文件失败", zap.String("file", fullPath), zap.Error(err))
+				logger.IpfsL.Error("保存文件失败", zap.String("file", fullPath), zap.Error(err))
 				return err
 			}
-			logger.IpfsLogger.Info("download file done", zap.Duration("cost", time.Since(st)), zap.String("fullPath", fullPath), zap.Int64("size", int64(link.Size)), zap.String("file", link.Name))
+			logger.IpfsL.Info("download file done", zap.Duration("cost", time.Since(st)), zap.String("fullPath", fullPath), zap.Int64("size", int64(link.Size)), zap.String("file", link.Name))
 
 			// 创建文件结果对象
 			result := &ScanFileResult{
@@ -329,7 +329,7 @@ func (s *Service) scanDirRecursive(ctx context.Context, dir string, response *Sc
 				result.FileType = filepath.Ext(link.Name)
 			}
 
-			logger.IpfsLogger.Info("扫描文件", zap.Any("result", result))
+			logger.IpfsL.Info("扫描文件", zap.Any("result", result))
 		}
 	}
 
@@ -346,7 +346,7 @@ func (s *Service) DeleteFile(ctx context.Context, path string) error {
 	// force 强制删除
 	err := s.client.FilesRm(s.session, path, true, true)
 	if err != nil {
-		logger.IpfsLogger.Error("delete file error", zap.Error(err))
+		logger.IpfsL.Error("delete file error", zap.Error(err))
 		return err
 	}
 
@@ -362,7 +362,7 @@ func (s *Service) UploadFile(tmpfilePath, uploadDir, filename string) (string, e
 		return "", err
 	}
 
-	logger.IpfsLogger.Info("上传文件成功", zap.String("filename", filename), zap.String("ipfsid", ipfsid))
+	logger.IpfsL.Info("上传文件成功", zap.String("filename", filename), zap.String("ipfsid", ipfsid))
 
 	return ipfsid, nil
 }
@@ -385,7 +385,7 @@ func (s *Service) HandleWithDir(c *gin.Context) {
 	//	开始扫描目录
 	fullDir := fmt.Sprintf("%s/%s/%s/%s/%s", req.Dir, req.Year, req.Month, req.Day, req.DeviceCode)
 
-	logger.IpfsLogger.Info("handle with dir", zap.String("dir", req.Dir),
+	logger.IpfsL.Info("handle with dir", zap.String("dir", req.Dir),
 		zap.String("year", req.Year),
 		zap.String("month", req.Month),
 		zap.String("day", req.Day),
@@ -403,12 +403,12 @@ func (s *Service) HandleWithDir(c *gin.Context) {
 	for _, link := range lsLinks {
 
 		if link.Type == 1 {
-			logger.IpfsLogger.Info("skip dir", zap.String("dir", link.Name))
+			logger.IpfsL.Info("skip dir", zap.String("dir", link.Name))
 			continue
 		}
 
 		if strings.Contains(link.Name, ".jpg") {
-			logger.IpfsLogger.Info("skip image", zap.String("file", link.Name))
+			logger.IpfsL.Info("skip image", zap.String("file", link.Name))
 			continue
 		}
 
@@ -427,7 +427,7 @@ func (s *Service) HandleWithDir(c *gin.Context) {
 			return
 		}
 
-		logger.IpfsLogger.Info("parse file", zap.String("file", link.Name),
+		logger.IpfsL.Info("parse file", zap.String("file", link.Name),
 			zap.Int("count", len(records)),
 		)
 
@@ -435,7 +435,7 @@ func (s *Service) HandleWithDir(c *gin.Context) {
 		calculator := NewDistanceCalculator()
 		summary := calculator.CalculateSummary(records)
 
-		logger.IpfsLogger.Info("distance calculation",
+		logger.IpfsL.Info("distance calculation",
 			zap.String("file", link.Name),
 			zap.Float64("total_distance_m", summary.TotalDistance),
 			zap.Float64("total_distance_km", summary.TotalDistanceKm),
@@ -520,7 +520,7 @@ func (s *Service) CalcDir(ctx context.Context, rootDir string, date string) (flo
 		DeviceResults: make(map[string]*DeviceCalcResult),
 	}
 
-	logger.IpfsLogger.Info("开始递归扫描计算",
+	logger.IpfsL.Info("开始递归扫描计算",
 		zap.String("rootDir", rootDir),
 		zap.String("date", date),
 		zap.String("fullDir", fullDir),
@@ -531,14 +531,14 @@ func (s *Service) CalcDir(ctx context.Context, rootDir string, date string) (flo
 	// 递归扫描目录并计算
 	err := s.calcDirRecursive(ctx, fullDir, date, startTime, endTime, result, 0)
 	if err != nil {
-		logger.IpfsLogger.Error("递归计算目录失败", zap.String("full_dir", fullDir), zap.Error(err))
+		logger.IpfsL.Error("递归计算目录失败", zap.String("full_dir", fullDir), zap.Error(err))
 		return 0, err
 	}
 
 	totalTurnover := result.TotalTurnover
 
 	//	XX 日总周转量
-	logger.IpfsLogger.Info(fmt.Sprintf("%s, 总周转量为：%.4f", date, totalTurnover))
+	logger.IpfsL.Info(fmt.Sprintf("%s, 总周转量为：%.4f", date, totalTurnover))
 
 	//	创建碳报告日报
 	_, err = s.carbonReportDayAppService.CreateCarbonReportDay(ctx, carbonreportday_application.CreateCarbonReportDayCommand{
@@ -547,7 +547,7 @@ func (s *Service) CalcDir(ctx context.Context, rootDir string, date string) (flo
 		CollectionDate: timeutil.Now(now.StdTime()),
 	})
 	if err != nil {
-		logger.IpfsLogger.Error("create carbon report day failed",
+		logger.IpfsL.Error("create carbon report day failed",
 			zap.String("date", date),
 			zap.Error(err),
 		)
@@ -572,11 +572,11 @@ func (s *Service) CalcDir(ctx context.Context, rootDir string, date string) (flo
 
 	ipfsid, err := s.SaveContentToIpfs(saveContent.String(), saveDir, filename)
 	if err != nil {
-		logger.IpfsLogger.Error("save content to ipfs failed", zap.Error(err))
+		logger.IpfsL.Error("save content to ipfs failed", zap.Error(err))
 		return 0, err
 	}
 
-	logger.IpfsLogger.Info("save content to ipfs done", zap.String("ipfs_id", ipfsid), zap.Float64("cost", time.Now().Sub(cst).Minutes()))
+	logger.IpfsL.Info("save content to ipfs done", zap.String("ipfs_id", ipfsid), zap.Float64("cost", time.Now().Sub(cst).Minutes()))
 
 	return totalTurnover, nil
 }
@@ -620,15 +620,15 @@ func (s *Service) calcDirRecursive(ctx context.Context, dir string, date string,
 
 	// 检查递归深度， 避免无限递归
 	if depth > maxScanDepth {
-		logger.IpfsLogger.Warn("达到最大递归深度", zap.String("dir", dir), zap.Int("depth", depth))
+		logger.IpfsL.Warn("达到最大递归深度", zap.String("dir", dir), zap.Int("depth", depth))
 		return nil
 	}
 
-	logger.IpfsLogger.Info("正在扫描目录", zap.String("dir", dir), zap.Int("depth", depth))
+	logger.IpfsL.Info("正在扫描目录", zap.String("dir", dir), zap.Int("depth", depth))
 
 	lsLinks, err := s.client.FilesLs(s.session, dir)
 	if err != nil {
-		logger.IpfsLogger.Error("列出目录失败", zap.String("dir", dir), zap.Error(err))
+		logger.IpfsL.Error("列出目录失败", zap.String("dir", dir), zap.Error(err))
 		return err
 	}
 
@@ -648,7 +648,7 @@ func (s *Service) calcDirRecursive(ctx context.Context, dir string, date string,
 			// 从路径中提取设备编码（假设路径结构为 .../year/month/day/deviceCode/gps_xxx.txt）
 			deviceCode := s.extractDeviceCodeFromPath(fullPath)
 			if deviceCode == "" {
-				logger.IpfsLogger.Warn("无法从路径提取设备编码", zap.String("path", fullPath))
+				logger.IpfsL.Warn("无法从路径提取设备编码", zap.String("path", fullPath))
 				continue
 			}
 
@@ -672,19 +672,19 @@ func (s *Service) calcDirRecursive(ctx context.Context, dir string, date string,
 			// 递归扫描子目录
 			err := s.calcDirRecursive(ctx, fullPath, date, startTime, endTime, result, depth+1)
 			if err != nil {
-				logger.IpfsLogger.Warn("扫描子目录失败", zap.String("dir", fullPath), zap.Error(err))
+				logger.IpfsL.Warn("扫描子目录失败", zap.String("dir", fullPath), zap.Error(err))
 			}
 
 			// 如果子目录有计算结果，记录到设备结果中
 			if deviceResult, ok := result.DeviceResults[deviceCode]; ok && deviceResult != nil {
-				logger.IpfsLogger.Info("设备计算完成",
+				logger.IpfsL.Info("设备计算完成",
 					zap.String("device_code", deviceCode),
 					zap.Float64("turnover", deviceResult.Turnover),
 					zap.Int("file_count", deviceResult.FileCount),
 				)
 			}
 		default:
-			logger.IpfsLogger.Warn("未知的文件类型", zap.String("dir", dir), zap.String("name", link.Name))
+			logger.IpfsL.Warn("未知的文件类型", zap.String("dir", dir), zap.String("name", link.Name))
 		}
 	}
 
@@ -699,7 +699,7 @@ func (s *Service) calcDirRecursive(ctx context.Context, dir string, date string,
 // processFilesSequential 串行处理文件任务
 func (s *Service) processFilesSequential(ctx context.Context, tasks []FileTask, startTime string, endTime string, result *CalcDirResult) {
 	taskCount := len(tasks)
-	logger.IpfsLogger.Info("开始串行处理文件",
+	logger.IpfsL.Info("开始串行处理文件",
 		zap.Int("totalTasks", taskCount),
 	)
 
@@ -709,7 +709,7 @@ func (s *Service) processFilesSequential(ctx context.Context, tasks []FileTask, 
 		// 检查 context 是否被取消
 		select {
 		case <-ctx.Done():
-			logger.IpfsLogger.Error("处理 gps 文件被取消",
+			logger.IpfsL.Error("处理 gps 文件被取消",
 				zap.String("file", task.FileName),
 				zap.String("device_code", task.DeviceCode),
 				zap.Error(ctx.Err()),
@@ -723,7 +723,7 @@ func (s *Service) processFilesSequential(ctx context.Context, tasks []FileTask, 
 		processedCount++
 
 		if err != nil {
-			logger.IpfsLogger.Error("处理 gps 文件失败",
+			logger.IpfsL.Error("处理 gps 文件失败",
 				zap.String("file", task.FileName),
 				zap.String("device_code", task.DeviceCode),
 				zap.Error(err),
@@ -737,7 +737,7 @@ func (s *Service) processFilesSequential(ctx context.Context, tasks []FileTask, 
 		result.DeviceResults[deviceCode].FileCount++
 		result.TotalTurnover += turnover
 
-		logger.IpfsLogger.Info("文件处理完成",
+		logger.IpfsL.Info("文件处理完成",
 			zap.String("file", task.FileName),
 			zap.String("device_code", deviceCode),
 			zap.Float64("turnover", turnover),
@@ -746,10 +746,7 @@ func (s *Service) processFilesSequential(ctx context.Context, tasks []FileTask, 
 		)
 	}
 
-	logger.IpfsLogger.Info("串行处理文件完成",
-		zap.Int("processedCount", processedCount),
-		zap.Int("totalTasks", taskCount),
-	)
+	logger.IpfsL.Info("串行处理文件完成", zap.Int("processedCount", processedCount), zap.Int("totalTasks", taskCount))
 }
 
 // extractDeviceCodeFromPath 从路径中提取设备编码
@@ -769,30 +766,30 @@ func (s *Service) processGpsFile(ctx context.Context, fullPath string, fileName 
 	localPath := "./tempfile/" + fileName
 	err := s.SaveFileToLocal(fullPath, localPath)
 	if err != nil {
-		logger.IpfsLogger.Error("save file to local failed", zap.String("file", fileName), zap.Error(err))
+		logger.IpfsL.Error("save file to local failed", zap.String("file", fileName), zap.Error(err))
 		return 0, err
 	}
-	logger.IpfsLogger.Info("download file done", zap.String("file", fileName), zap.Duration("cost", time.Since(st)))
+	logger.IpfsL.Info("download file done", zap.String("file", fileName), zap.Duration("cost", time.Since(st)))
 
 	records, err := parseFile(localPath)
 	if err != nil {
-		logger.IpfsLogger.Error("parse file failed", zap.String("file", fileName), zap.Error(err))
+		logger.IpfsL.Error("parse file failed", zap.String("file", fileName), zap.Error(err))
 		return 0, err
 	}
 
 	//	删除本地临时文件
 	err = os.Remove(localPath)
 	if err != nil {
-		logger.IpfsLogger.Error("remove local file failed", zap.String("file", fileName), zap.Error(err))
+		logger.IpfsL.Error("remove local file failed", zap.String("file", fileName), zap.Error(err))
 	}
 
-	logger.IpfsLogger.Info("parse file", zap.String("file", fileName), zap.Int("count", len(records)))
+	logger.IpfsL.Info("parse file", zap.String("file", fileName), zap.Int("count", len(records)))
 
 	// 计算里程
 	calculator := NewDistanceCalculator()
 	summary := calculator.CalculateSummary(records)
 
-	logger.IpfsLogger.Info("distance calculation",
+	logger.IpfsL.Info("distance calculation",
 		zap.String("file", fileName),
 		zap.Float64("total_distance_m", summary.TotalDistance),
 		zap.Float64("total_distance_km", summary.TotalDistanceKm),
@@ -811,7 +808,7 @@ func (s *Service) processGpsFile(ctx context.Context, fullPath string, fileName 
 			deviceCode, startTime, endTime).
 		Find(&cvres).Error
 	if err != nil {
-		logger.IpfsLogger.Error("query bus_image_detail_cv failed",
+		logger.IpfsL.Error("query bus_image_detail_cv failed",
 			zap.String("device_code", deviceCode),
 			zap.Error(err))
 		// 查询失败不中断，只是没有乘客数据
@@ -834,11 +831,11 @@ func (s *Service) processGpsFile(ctx context.Context, fullPath string, fileName 
 func (s *Service) ReadDirTest(path string) error {
 	lsLinks, err := s.client.FilesLs(s.session, path)
 	if err != nil {
-		logger.IpfsLogger.Error("ipfs ls failed", zap.Error(err))
+		logger.IpfsL.Error("ipfs ls failed", zap.Error(err))
 		return err
 	}
 
-	logger.IpfsLogger.Info("ipfs ls done", zap.Int("count", len(lsLinks)))
+	logger.IpfsL.Info("ipfs ls done", zap.Int("count", len(lsLinks)))
 
 	for _, link := range lsLinks {
 		if link.Type == 0 { // 1 dir 0 file
@@ -853,28 +850,28 @@ func (s *Service) CalcDirTest2() (any, error) {
 
 	path := "/aibk/26/03/15/xNUr48spW1gR2bQTSRURMCl_cII"
 
-	logger.IpfsLogger.Info("ipfs ls", zap.String("path", path))
+	logger.IpfsL.Info("ipfs ls", zap.String("path", path))
 
 	files, err := s.client.FilesLs(s.session, path)
 	if err != nil {
-		logger.IpfsLogger.Error("ipfs ls failed", zap.Error(err))
+		logger.IpfsL.Error("ipfs ls failed", zap.Error(err))
 		return nil, err
 	}
 
-	logger.IpfsLogger.Info("ipfs ls done", zap.Int("count", len(files)))
+	logger.IpfsL.Info("ipfs ls done", zap.Int("count", len(files)))
 
 	for _, file := range files {
 		st := time.Now()
-		logger.IpfsLogger.Info("download file", zap.String("file", file.Name))
+		logger.IpfsL.Info("download file", zap.String("file", file.Name))
 		err = s.SaveFileToLocal("/aibk/26/03/15/xNUr48spW1gR2bQTSRURMCl_cII/"+file.Name, "./tmpfile/"+file.Name)
 		if err != nil {
-			logger.IpfsLogger.Error("save file to local failed", zap.String("file", file.Name), zap.Error(err))
+			logger.IpfsL.Error("save file to local failed", zap.String("file", file.Name), zap.Error(err))
 			continue
 		}
-		logger.IpfsLogger.Info("download file done", zap.String("file", file.Name), zap.Duration("cost", time.Since(st)))
+		logger.IpfsL.Info("download file done", zap.String("file", file.Name), zap.Duration("cost", time.Since(st)))
 	}
 
-	logger.IpfsLogger.Info("download file done")
+	logger.IpfsL.Info("download file done")
 	return nil, nil
 }
 
@@ -898,11 +895,11 @@ func (s *Service) CalcDirTest(ctx context.Context, rootDir string, date string) 
 	fmt.Println("full_dir", fullDir)
 	deviceCodes, err := s.client.FilesLs(s.session, fullDir)
 	if err != nil {
-		logger.IpfsLogger.Error("device_code ipfs ls failed", zap.String("full_dir", fullDir), zap.Error(err))
+		logger.IpfsL.Error("device_code ipfs ls failed", zap.String("full_dir", fullDir), zap.Error(err))
 		return 0, err
 	}
 
-	logger.IpfsLogger.Info("device_code ipfs ls done", zap.Int("count", len(deviceCodes)))
+	logger.IpfsL.Info("device_code ipfs ls done", zap.Int("count", len(deviceCodes)))
 
 	startTime := now.Format(carbon.DateTimeFormat)
 	endTime := now.AddDay().Format(carbon.DateTimeFormat)
@@ -911,7 +908,7 @@ func (s *Service) CalcDirTest(ctx context.Context, rootDir string, date string) 
 
 	for i, deviceCode := range deviceCodes {
 		// 记录剩余未处理设备数量
-		logger.IpfsLogger.Info("开始处理设备",
+		logger.IpfsL.Info("开始处理设备",
 			zap.Int("index", i),
 			zap.String("device_code", deviceCode.Name))
 		//	每台设备的存储路径
@@ -920,7 +917,7 @@ func (s *Service) CalcDirTest(ctx context.Context, rootDir string, date string) 
 		//	读取设备路径下单日所有文件
 		gpsFiles, err := s.client.FilesLs(s.session, newFullPath)
 		if err != nil {
-			logger.IpfsLogger.Error("gps ipfs ls failed", zap.String("full_dir", newFullPath), zap.Error(err))
+			logger.IpfsL.Error("gps ipfs ls failed", zap.String("full_dir", newFullPath), zap.Error(err))
 			continue
 		}
 
@@ -933,7 +930,7 @@ func (s *Service) CalcDirTest(ctx context.Context, rootDir string, date string) 
 			Where("device_code = ? and collection_time >= ? and collection_time < ?", deviceCode.Name, startTime, endTime).
 			Find(&cvres).Error
 		if err != nil {
-			logger.IpfsLogger.Error("query bus_image_detail_cv failed",
+			logger.IpfsL.Error("query bus_image_detail_cv failed",
 				zap.String("device_code", deviceCode.Name),
 				zap.Any("start_time", startTime),
 				zap.Any("end_time", endTime),
@@ -961,10 +958,10 @@ func (s *Service) CalcDirTest(ctx context.Context, rootDir string, date string) 
 			localPath := "./tempfile/" + gpsFile.Name
 			err = s.SaveFileToLocal(newNewFullPath, localPath)
 			if err != nil {
-				logger.IpfsLogger.Error("save file to local failed", zap.String("file", gpsFile.Name), zap.Error(err))
+				logger.IpfsL.Error("save file to local failed", zap.String("file", gpsFile.Name), zap.Error(err))
 				continue
 			}
-			logger.IpfsLogger.Info("download file done", zap.String("file", gpsFile.Name), zap.Duration("cost", time.Since(st)))
+			logger.IpfsL.Info("download file done", zap.String("file", gpsFile.Name), zap.Duration("cost", time.Since(st)))
 
 			//	删除本地临时文件
 			//err = os.Remove(localPath)
