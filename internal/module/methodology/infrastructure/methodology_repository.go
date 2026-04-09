@@ -80,9 +80,9 @@ func (r *MethodologyRepository) FindList(ctx context.Context) ([]*domain.Methodo
 	return methodologies, err
 }
 
-func (r *MethodologyRepository) FindPage(ctx context.Context, query *domain.MethodologyPageQuery) (*entity.PaginationResult[*domain.Methodology], error) {
+func (r *MethodologyRepository) FindPage(ctx context.Context, query *domain.MethodologyPageQuery) (*entity.PaginationResult[domain.Methodology], error) {
 	// 使用通用分页助手
-	helper := db.NewPaginationHelper[*domain.Methodology](r.GetDB(ctx))
+	helper := db.NewPaginationHelper[domain.Methodology](r.GetDB(ctx))
 	result, err := helper.PageQuery(int(query.PageNum), int(query.PageSize), func(dq *gorm.DB) *gorm.DB {
 		// 构建基础查询 - 使用 delete_by 条件
 		dq = dq.WithContext(ctx).

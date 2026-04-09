@@ -111,10 +111,8 @@ func (r *ProjectRepository) FindList(ctx context.Context) ([]*domain.Project, er
 	return projects, err
 }
 
-func (r *ProjectRepository) FindPage(ctx context.Context, query *domain.ProjectPageQuery) (*entity.PaginationResult[*domain.Project], error) {
-	// 使用通用分页助手
-	helper := db.NewPaginationHelper[*domain.Project](r.GetDB(ctx))
-	result, err := helper.PageQuery(query.PageNum, query.PageSize, func(dq *gorm.DB) *gorm.DB {
+func (r *ProjectRepository) FindPage(ctx context.Context, query *domain.ProjectPageQuery) (*entity.PaginationResult[domain.Project], error) {
+	pageQuery, err := r.PageQuery(ctx, query.PageNum, query.PageSize, func(dq *gorm.DB) *gorm.DB {
 		// 构建基础查询 - 使用 delete_by 条件
 		dq = dq.WithContext(ctx).
 			Table("project").
@@ -144,7 +142,7 @@ func (r *ProjectRepository) FindPage(ctx context.Context, query *domain.ProjectP
 	if err != nil {
 		return nil, err
 	}
-	return result, nil
+	return pageQuery, nil
 }
 
 func (r *ProjectRepository) FindListByStatus(ctx context.Context, status domain.ProjectStatus) ([]*domain.Project, error) {

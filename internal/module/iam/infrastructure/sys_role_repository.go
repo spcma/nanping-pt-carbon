@@ -66,10 +66,10 @@ func (r *RoleRepository) FindList(ctx context.Context) ([]*domain.SysRole, error
 	return SysRole, err
 }
 
-func (r *RoleRepository) FindPage(ctx context.Context, query *domain.SysRolePageQuery) (*entity.PaginationResult[*domain.SysRole], error) {
+func (r *RoleRepository) FindPage(ctx context.Context, query *domain.SysRolePageQuery) (*entity.PaginationResult[domain.SysRole], error) {
 	txDB := r.GetDB(ctx)
 	// 使用通用分页助手
-	helper := db.NewPaginationHelper[*domain.SysRole](txDB)
+	helper := db.NewPaginationHelper[domain.SysRole](txDB)
 	result, err := helper.PageQuery(int(query.PageNum), int(query.PageSize), func(dq *gorm.DB) *gorm.DB {
 		// 构建基础查询
 		dq = txDB.WithContext(ctx).

@@ -68,7 +68,7 @@ func (s *CarbonReportDayAppService) GetCarbonReportDayByID(ctx context.Context, 
 }
 
 // GetCarbonReportDayPage 分页查询碳报告日报
-func (s *CarbonReportDayAppService) GetCarbonReportDayPage(ctx context.Context, query *domain.CarbonReportDayPageQuery) (*entity.PaginationResult[*domain.CarbonReportDay], error) {
+func (s *CarbonReportDayAppService) GetCarbonReportDayPage(ctx context.Context, query *domain.CarbonReportDayPageQuery) (*entity.PaginationResult[domain.CarbonReportDay], error) {
 	res, err := s.repo.FindPage(ctx, query)
 	if err != nil {
 		return nil, err

@@ -88,9 +88,9 @@ func (r *ProjectMembersRepository) FindByProjectAndUser(ctx context.Context, pro
 	return &projectMember, nil
 }
 
-func (r *ProjectMembersRepository) FindPage(ctx context.Context, query *domain.ProjectMembersPageQuery) (*entity.PaginationResult[*domain.ProjectMembers], error) {
+func (r *ProjectMembersRepository) FindPage(ctx context.Context, query *domain.ProjectMembersPageQuery) (*entity.PaginationResult[domain.ProjectMembers], error) {
 	// 使用通用分页助手
-	helper := db.NewPaginationHelper[*domain.ProjectMembers](r.GetDB(ctx))
+	helper := db.NewPaginationHelper[domain.ProjectMembers](r.GetDB(ctx))
 	result, err := helper.PageQuery(query.PageNum, query.PageSize, func(dq *gorm.DB) *gorm.DB {
 		// 构建基础查询 - 使用 delete_by 条件
 		dq = dq.WithContext(ctx).

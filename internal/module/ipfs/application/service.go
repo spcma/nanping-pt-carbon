@@ -102,6 +102,6 @@ func (s *IpfsDetailAppService) GetIpfsDetailByFilename(ctx context.Context, file
 }
 
 // GetIpfsDetailPage 分页查询 IPFS 详情
-func (s *IpfsDetailAppService) GetIpfsDetailPage(ctx context.Context, query *domain.IpfsDetailPageQuery) (*entity.PaginationResult[*domain.IpfsDetail], error) {
+func (s *IpfsDetailAppService) GetIpfsDetailPage(ctx context.Context, query *domain.IpfsDetailPageQuery) (*entity.PaginationResult[domain.IpfsDetail], error) {
 	return s.repo.FindPage(ctx, query)
 }

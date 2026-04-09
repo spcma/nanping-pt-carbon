@@ -134,7 +134,7 @@ func (s *ProjectAppService) GetList(ctx context.Context) ([]*domain.Project, err
 }
 
 // GetPage 分页查询项目
-func (s *ProjectAppService) GetPage(ctx context.Context, query *domain.ProjectPageQuery) (*entity.PaginationResult[*domain.Project], error) {
+func (s *ProjectAppService) GetPage(ctx context.Context, query *domain.ProjectPageQuery) (*entity.PaginationResult[domain.Project], error) {
 	res, err := s.repo.FindPage(ctx, query)
 	if err != nil {
 		return nil, err

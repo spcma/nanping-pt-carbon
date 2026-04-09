@@ -7,11 +7,13 @@ import (
 	"app/internal/shared/db"
 	idgen "app/internal/shared/idgen"
 	"app/internal/shared/logger"
+	"app/internal/shared/token"
 	transport_http "app/internal/transport/http"
 	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -86,8 +88,26 @@ func Initialize() (*Server, error) {
 	}
 	redisClient.SetDefault()
 
+	// 设置默认数据库实例
+	db.SetDefault(dbInstance)
+	db.SetRemote(dbInstance2)
+
+	// 初始化 Token 管理器并设置为默认实例
+	if config.GlobalConfig.Token.Expire <= 0 {
+		config.GlobalConfig.Token.Expire = 7 * 24 * 60 * 60 // 默认7天
+	}
+	tokenManager, err := token.NewManager(token.ConfigEx{
+		Type:        token.TokenType_Snowflake,
+		RedisClient: redisClient.GetClient(),
+		ExpireTime:  time.Duration(config.GlobalConfig.Token.Expire) * time.Second,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create token manager: %v", err)
+	}
+	token.SetDefault(tokenManager)
+
 	// 初始化 HTTP 路由
-	router := transport_http.InitRouter(dbInstance, dbInstance2, redisClient)
+	router := transport_http.InitRouter()
 
 	return &Server{
 		config:   config.GlobalConfig,

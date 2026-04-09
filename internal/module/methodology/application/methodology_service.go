@@ -103,7 +103,7 @@ func (s *MethodologyAppService) GetList(ctx context.Context) ([]*domain.Methodol
 }
 
 // GetPage 分页查询方法学
-func (s *MethodologyAppService) GetPage(ctx context.Context, query *domain.MethodologyPageQuery) (*entity.PaginationResult[*domain.Methodology], error) {
+func (s *MethodologyAppService) GetPage(ctx context.Context, query *domain.MethodologyPageQuery) (*entity.PaginationResult[domain.Methodology], error) {
 	return s.repo.FindPage(ctx, query)
 }
 

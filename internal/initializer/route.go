@@ -1,10 +1,10 @@
 package initializer
 
 import (
+	"app/internal/shared/db"
 	shared_http "app/internal/shared/http"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 var dataInitializer *DataInitializer
@@ -13,8 +13,9 @@ type Routes struct {
 	handler *DataInitializer
 }
 
-func NewInitializerRoutes(db *gorm.DB) shared_http.RouteRegistry {
-	handler := NewDataInitializer(db)
+func NewInitializerRoutes() shared_http.RouteRegistry {
+	dbInst := db.Default()
+	handler := NewDataInitializer(dbInst)
 	return &Routes{
 		handler: handler,
 	}

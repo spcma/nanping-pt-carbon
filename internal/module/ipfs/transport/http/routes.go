@@ -3,18 +3,20 @@ package http
 import (
 	"app/internal/config"
 	"app/internal/module/ipfs/application"
+	"app/internal/shared/db"
 	shared_http "app/internal/shared/http"
 	"app/internal/shared/logger"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 type ipfsRoutes struct {
 	ipfsHandler *IpfsHandler
 }
 
-func NewIpfsRoutes(db *gorm.DB, remoteDB *gorm.DB) shared_http.RouteRegistry {
+func NewIpfsRoutes() shared_http.RouteRegistry {
+	dbt := db.Default()
+	remoteDB := db.Remote()
 
 	var appService *application.Service
 	//	是否开启ipfs本地服务
@@ -24,9 +26,9 @@ func NewIpfsRoutes(db *gorm.DB, remoteDB *gorm.DB) shared_http.RouteRegistry {
 			logger.Error("http", "Failed to create IPFS client: "+err.Error())
 			panic(err)
 		}
-		appService = application.NewService(db, remoteDB, fsClient, sessionId)
+		appService = application.NewService(dbt, remoteDB, fsClient, sessionId)
 	} else {
-		appService = application.NewService(db, remoteDB, nil, "")
+		appService = application.NewService(dbt, remoteDB, nil, "")
 	}
 
 	ipfsHandler, err := NewIpfsHandler(appService)

@@ -3,9 +3,8 @@ package http
 import (
 	"app/internal/module/methodology/application"
 	"app/internal/module/methodology/infrastructure"
+	"app/internal/shared/db"
 	shared_http "app/internal/shared/http"
-
-	"gorm.io/gorm"
 
 	"github.com/gin-gonic/gin"
 )
@@ -16,8 +15,9 @@ type methodologyRoutes struct {
 }
 
 // NewMethodologyRoutes 创建 Methodology 模块的路由注册器
-func NewMethodologyRoutes(db *gorm.DB) shared_http.RouteRegistry {
-	repo := infrastructure.NewMethodologyRepository(db)
+func NewMethodologyRoutes() shared_http.RouteRegistry {
+	dbInst := db.Default()
+	repo := infrastructure.NewMethodologyRepository(dbInst)
 	appService := application.NewMethodologyAppService(repo)
 	methodologyHandler := NewMethodologyHandler(appService)
 

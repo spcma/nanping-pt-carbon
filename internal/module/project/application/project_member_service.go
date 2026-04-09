@@ -108,6 +108,6 @@ func (s *ProjectMembersService) GetProjectMemberByProjectAndUser(ctx context.Con
 }
 
 // GetProjectMemberPage 分页查询项目成员
-func (s *ProjectMembersService) GetProjectMemberPage(ctx context.Context, query *domain.ProjectMembersPageQuery) (*entity.PaginationResult[*domain.ProjectMembers], error) {
+func (s *ProjectMembersService) GetProjectMemberPage(ctx context.Context, query *domain.ProjectMembersPageQuery) (*entity.PaginationResult[domain.ProjectMembers], error) {
 	return s.repo.FindPage(ctx, query)
 }

@@ -99,9 +99,9 @@ func (u *UserRepository) FindList(ctx context.Context) ([]*domain.Users, error) 
 	return users, err
 }
 
-func (u *UserRepository) FindPage(ctx context.Context, query *domain.UsersPageQuery) (*entity.PaginationResult[*domain.Users], error) {
+func (u *UserRepository) FindPage(ctx context.Context, query *domain.UsersPageQuery) (*entity.PaginationResult[domain.Users], error) {
 	// 使用通用分页助手
-	helper := db.NewPaginationHelper[*domain.Users](u.GetDB(ctx))
+	helper := db.NewPaginationHelper[domain.Users](u.GetDB(ctx))
 	result, err := helper.PageQuery(int(query.PageNum), int(query.PageSize), func(dq *gorm.DB) *gorm.DB {
 		// 构建基础查询 - 使用 delete_by 条件
 		dq = dq.WithContext(ctx).

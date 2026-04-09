@@ -3,10 +3,9 @@ package http
 import (
 	"app/internal/module/iam/application"
 	"app/internal/module/iam/infrastructure"
+	"app/internal/shared/db"
 	shared_http "app/internal/shared/http"
 	"app/internal/shared/token"
-
-	"gorm.io/gorm"
 
 	"github.com/gin-gonic/gin"
 )
@@ -19,14 +18,17 @@ type iamRoutes struct {
 }
 
 // NewIAMRoutes 创建 IAM 模块的路由注册器
-func NewIAMRoutes(db *gorm.DB, tokenManager token.Manager) shared_http.RouteRegistry {
+func NewIAMRoutes() shared_http.RouteRegistry {
+	dbInst := db.Default()
+	tokenManager := token.Default()
+
 	//	初始化 users 模块
-	usersRepo := infrastructure.NewUserRepository(db)
+	usersRepo := infrastructure.NewUserRepository(dbInst)
 	usersService := application.NewUsersService(usersRepo)
 	usersHandler := NewUsersHandler(usersService)
 
 	//	初始化 roles 模块
-	roleRepo := infrastructure.NewRoleRepository(db)
+	roleRepo := infrastructure.NewRoleRepository(dbInst)
 	roleService := application.NewSysRoleAppService(roleRepo)
 	rolesHandler := NewRolesHandler(roleService)
 

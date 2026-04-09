@@ -103,8 +103,8 @@ func (r *IpfsDetailRepository) FindList(ctx context.Context) ([]*domain.IpfsDeta
 }
 
 // FindPage 分页查询 IPFS 详情
-func (r *IpfsDetailRepository) FindPage(ctx context.Context, query *domain.IpfsDetailPageQuery) (*entity.PaginationResult[*domain.IpfsDetail], error) {
-	helper := db.NewPaginationHelper[*domain.IpfsDetail](r.GetDB(ctx))
+func (r *IpfsDetailRepository) FindPage(ctx context.Context, query *domain.IpfsDetailPageQuery) (*entity.PaginationResult[domain.IpfsDetail], error) {
+	helper := db.NewPaginationHelper[domain.IpfsDetail](r.GetDB(ctx))
 	result, err := helper.PageQuery(int(query.PageNum), int(query.PageSize), func(dq *gorm.DB) *gorm.DB {
 		dq = dq.WithContext(ctx).
 			Table("ipfs_detail").

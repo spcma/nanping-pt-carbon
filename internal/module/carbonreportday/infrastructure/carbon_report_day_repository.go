@@ -64,9 +64,9 @@ func (u *CarbonReportDayRepository) FindList(ctx context.Context) ([]*domain.Car
 	return CarbonReportDays, err
 }
 
-func (u *CarbonReportDayRepository) FindPage(ctx context.Context, query *domain.CarbonReportDayPageQuery) (*entity.PaginationResult[*domain.CarbonReportDay], error) {
+func (u *CarbonReportDayRepository) FindPage(ctx context.Context, query *domain.CarbonReportDayPageQuery) (*entity.PaginationResult[domain.CarbonReportDay], error) {
 	// 使用通用分页助手
-	helper := db.NewPaginationHelper[*domain.CarbonReportDay](u.GetDB(ctx))
+	helper := db.NewPaginationHelper[domain.CarbonReportDay](u.GetDB(ctx))
 	result, err := helper.PageQuery(int(query.PageNum), int(query.PageSize), func(dq *gorm.DB) *gorm.DB {
 		// 构建基础查询 - 使用 delete_by 条件
 		dq = dq.WithContext(ctx).
