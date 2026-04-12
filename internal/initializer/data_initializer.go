@@ -3,10 +3,8 @@ package initializer
 import (
 	users_domain "app/internal/module/iam/domain"
 	users_infrastructure "app/internal/module/iam/infrastructure"
-	methodology_domain "app/internal/module/methodology/domain"
-	methodology_infrastructure "app/internal/module/methodology/infrastructure"
-	project_domain "app/internal/module/project/domain"
-	project_infrastructure "app/internal/module/project/infrastructure"
+	methodology_domain "app/internal/module/methodology"
+	project_domain "app/internal/module/project"
 	"app/internal/platform/http"
 	"app/internal/platform/http/response"
 	"app/internal/shared/entity"
@@ -85,7 +83,7 @@ func (i *DataInitializer) initSuperAdminUser() error {
 
 func (i *DataInitializer) Add_Methodology_20260323(c *gin.Context) {
 	ctx := http.Ctx(c)
-	projectRepo := methodology_infrastructure.NewMethodologyRepository(i.db)
+	projectRepo := methodology_domain.NewMethodologyRepository(i.db)
 
 	var datas []methodology_domain.Methodology
 	datas = append(datas,
@@ -144,7 +142,7 @@ func (i *DataInitializer) Add_Methodology_20260323(c *gin.Context) {
 
 func (i *DataInitializer) Add_Project_20260323(c *gin.Context) {
 	ctx := http.Ctx(c)
-	projectRepo := project_infrastructure.NewProjectRepository(i.db)
+	projectRepo := project_domain.NewProjectRepository(i.db)
 
 	var datas []project_domain.Project
 	datas = append(datas,

@@ -2,11 +2,11 @@ package http
 
 import (
 	initializer_http "app/internal/initializer"
-	carbonreportday_http "app/internal/module/carbonreportday/transport/http"
+	carbonreportday_http "app/internal/module/carbonreportday"
 	iam_http "app/internal/module/iam/transport/http"
 	ipfs_http "app/internal/module/ipfs/transport/http"
-	methodology_http "app/internal/module/methodology/transport/http"
-	project_http "app/internal/module/project/transport/http"
+	methodology_http "app/internal/module/methodology"
+	project_http "app/internal/module/project"
 	shared_http "app/internal/shared/http"
 	"app/internal/shared/logger"
 	"app/internal/shared/token"

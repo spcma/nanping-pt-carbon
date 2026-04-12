@@ -2,8 +2,7 @@ package application
 
 import (
 	"app/internal/config"
-	carbonreportday_application "app/internal/module/carbonreportday/application"
-	carbonreportday_infrastructure "app/internal/module/carbonreportday/infrastructure"
+	carbonreportday_application "app/internal/module/carbonreportday"
 	"app/internal/module/ipfs/infrastructure"
 	"app/internal/module/ipfs/rpc"
 	"app/internal/platform/http/response"
@@ -47,7 +46,7 @@ func NewService(db *gorm.DB, remoteDB *gorm.DB, client *rpc.LApiStub, session st
 	ipfsDetailAppService := NewIpfsDetailAppService(ipfsDetailRepo)
 
 	// 初始化碳报告应用服务
-	carbonReportDayRepo := carbonreportday_infrastructure.NewCarbonReportDayRepository(db)
+	carbonReportDayRepo := carbonreportday_application.NewCarbonReportDayRepository(db)
 	carbonReportDayAppService := carbonreportday_application.NewCarbonReportDayAppService(carbonReportDayRepo)
 
 	return &Service{
