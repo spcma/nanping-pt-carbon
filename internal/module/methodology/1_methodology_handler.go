@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/spf13/cast"
 	"go.uber.org/zap"
 
 	"github.com/gin-gonic/gin"
@@ -105,20 +106,22 @@ func (h *MethodologyHandler) Delete(c *gin.Context) {
 
 // GetById gets methodology by ID
 func (h *MethodologyHandler) GetById(c *gin.Context) {
-	var query MethodologyQuery
-	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
+
+	idStr := c.Query("id")
+	if idStr == "" {
+		response.BadRequest(c, "id is required")
 		return
 	}
 
-	if query.ID == 0 {
-		response.Error(c, http.StatusBadRequest, "invalid id")
+	id := cast.ToInt64(idStr)
+	if id == 0 {
+		response.BadRequest(c, "invalid id")
 		return
 	}
 
-	methodology, err := h.appService.GetByQuery(platform_http.Ctx(c), &query)
+	methodology, err := h.appService.GetByID(platform_http.Ctx(c), id)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
+		response.InternalError(c, err.Error())
 		return
 	}
 
