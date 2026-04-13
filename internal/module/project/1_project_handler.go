@@ -30,14 +30,16 @@ func NewProjectHandler(appService *ProjectAppService) *ProjectHandler {
 func (h *ProjectHandler) Create(c *gin.Context) {
 	var cmd CreateProjectCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
-		logger.Warn("project", "create project - invalid request",
-			zap.String("error", err.Error()),
-		)
-		response.Error(c, http.StatusBadRequest, err.Error())
+		logger.RuntimeL.Error("create project failed", zap.Error(err))
+		response.BadRequest(c, "invalid request")
 		return
 	}
 
 	securityUser := platform_http.GetCurrentUser(c)
+	if securityUser == nil {
+		response.BadRequest(c, "unauthorized")
+		return
+	}
 	cmd.UserID = securityUser.ID
 
 	id, err := h.appService.Create(platform_http.Ctx(c), cmd)

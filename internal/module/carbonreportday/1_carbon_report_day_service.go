@@ -8,8 +8,6 @@ import (
 
 // CreateCarbonReportDayCommand 创建碳报告日报命令
 type CreateCarbonReportDayCommand struct {
-	// TODO: 根据实际业务需求添加字段
-	// ReportDate string `json:"report_date"`
 	UserID          int64         `json:"userId"`
 	Turnover        float64       `json:"turnover"`
 	Baseline        float64       `json:"baseline" gorm:"column:baseline"`                // 基准值
@@ -21,7 +19,6 @@ type CreateCarbonReportDayCommand struct {
 type UpdateCarbonReportDayCommand struct {
 	ID     int64 `json:"id"`
 	UserID int64 `json:"userId"`
-	// TODO: 根据实际业务需求添加字段
 }
 
 // CarbonReportDayAppService 碳报告日报应用服务

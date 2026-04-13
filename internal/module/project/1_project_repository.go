@@ -11,25 +11,22 @@ import (
 )
 
 type ProjectRepository struct {
-	*db.BaseRepository[Project]
 }
 
 func NewProjectRepository(_db *gorm.DB) *ProjectRepository {
-	return &ProjectRepository{
-		BaseRepository: db.NewBaseRepository[Project](_db),
-	}
+	return &ProjectRepository{}
 }
 
 func (r *ProjectRepository) Create(ctx context.Context, project *Project) error {
-	return r.GetDB(ctx).WithContext(ctx).Create(project).Error
+	return db.GetDB(ctx).WithContext(ctx).Create(project).Error
 }
 
 func (r *ProjectRepository) Update(ctx context.Context, project *Project) error {
-	return r.GetDB(ctx).WithContext(ctx).Save(project).Error
+	return db.GetDB(ctx).WithContext(ctx).Save(project).Error
 }
 
 func (r *ProjectRepository) UpdateFields(ctx context.Context, id int64, updates map[string]interface{}) error {
-	return r.GetDB(ctx).WithContext(ctx).Model(&Project{}).Where("id = ? AND "+entity.FieldDeleteBy+" = 0", id).Updates(updates).Error
+	return db.GetDB(ctx).WithContext(ctx).Model(&Project{}).Where("id = ? AND "+entity.FieldDeleteBy+" = 0", id).Updates(updates).Error
 }
 
 func (r *ProjectRepository) Delete(ctx context.Context, id, uid int64) error {
@@ -38,12 +35,12 @@ func (r *ProjectRepository) Delete(ctx context.Context, id, uid int64) error {
 		"deleteBy":   uid,
 		"deleteTime": timeutil.Now(),
 	}
-	return r.GetDB(ctx).WithContext(ctx).Model(&Project{}).Where("id = ?", id).Updates(updates).Error
+	return db.GetDB(ctx).WithContext(ctx).Model(&Project{}).Where("id = ?", id).Updates(updates).Error
 }
 
 func (r *ProjectRepository) FindByID(ctx context.Context, id int64) (*Project, error) {
 	var project Project
-	err := r.GetDB(ctx).WithContext(ctx).
+	err := db.GetDB(ctx).WithContext(ctx).
 		Table("project").
 		Where("id = ?", id).
 		Where(entity.FieldDeleteBy + " = 0").
@@ -59,7 +56,7 @@ func (r *ProjectRepository) FindByID(ctx context.Context, id int64) (*Project, e
 
 func (r *ProjectRepository) FindByCode(ctx context.Context, code string) (*Project, error) {
 	var project Project
-	err := r.GetDB(ctx).WithContext(ctx).
+	err := db.GetDB(ctx).WithContext(ctx).
 		Table("project").
 		Where("code = ?", code).
 		Where(entity.FieldDeleteBy + " = 0").
@@ -75,7 +72,7 @@ func (r *ProjectRepository) FindByCode(ctx context.Context, code string) (*Proje
 
 // FindByQuery 根据条件查询项目（支持多条件组合）
 func (r *ProjectRepository) FindByQuery(ctx context.Context, query *ProjectQuery) (*Project, error) {
-	txDB := r.GetDB(ctx).WithContext(ctx).
+	txDB := db.GetDB(ctx).WithContext(ctx).
 		Table("project").
 		Where(entity.FieldDeleteBy + " = 0")
 
@@ -106,12 +103,14 @@ func (r *ProjectRepository) FindByQuery(ctx context.Context, query *ProjectQuery
 
 func (r *ProjectRepository) FindList(ctx context.Context) ([]*Project, error) {
 	var projects []*Project
-	err := r.GetDB(ctx).WithContext(ctx).Find(&projects).Error
+	err := db.GetDB(ctx).WithContext(ctx).Find(&projects).Error
 	return projects, err
 }
 
-func (r *ProjectRepository) FindPage(ctx context.Context, query *ProjectPageQuery) (*entity.PaginationResult[Project], error) {
-	pageQuery, err := r.PageQuery(ctx, query.PageNum, query.PageSize, func(dq *gorm.DB) *gorm.DB {
+func (r *ProjectRepository) FindPage(ctx context.Context, query *ProjectPageQuery) (*entity.PaginationResult[*Project], error) {
+	helper := db.NewPaginationHelper[*Project](db.GetDB(ctx))
+
+	pageQuery, err := helper.PageQuery(query.PageNum, query.PageSize, func(dq *gorm.DB) *gorm.DB {
 		// 构建基础查询 - 使用 delete_by 条件
 		dq = dq.WithContext(ctx).
 			Table("project").
@@ -146,7 +145,7 @@ func (r *ProjectRepository) FindPage(ctx context.Context, query *ProjectPageQuer
 
 func (r *ProjectRepository) FindListByStatus(ctx context.Context, status ProjectStatus) ([]*Project, error) {
 	var projects []*Project
-	err := r.GetDB(ctx).WithContext(ctx).
+	err := db.GetDB(ctx).WithContext(ctx).
 		Table("project").
 		Where("status = ? AND "+entity.FieldDeleteBy+" = 0", status).
 		Find(&projects).Error

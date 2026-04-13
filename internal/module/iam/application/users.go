@@ -134,7 +134,7 @@ func (u *UsersService) GetList(ctx context.Context) ([]*domain.Users, error) {
 }
 
 // GetPage queries system users with pagination
-func (u *UsersService) GetPage(ctx context.Context, query *domain.UsersPageQuery) (*entity.PaginationResult[domain.Users], error) {
+func (u *UsersService) GetPage(ctx context.Context, query *domain.UsersPageQuery) (*entity.PaginationResult[*domain.Users], error) {
 	result, err := u.repo.FindPage(ctx, query)
 	if err != nil {
 		return nil, err

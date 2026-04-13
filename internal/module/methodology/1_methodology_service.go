@@ -76,13 +76,6 @@ func (s *MethodologyAppService) GetByID(ctx context.Context, id int64) (*Methodo
 	return s.repo.FindByID(ctx, id)
 }
 
-type MethodologyQuery struct {
-	ID     int64  `json:"id"`
-	Code   string `json:"code"`
-	Name   string `json:"name"`
-	Status string `json:"status"`
-}
-
 // GetByQuery 综合查询
 func (s *MethodologyAppService) GetByQuery(ctx context.Context, query *MethodologyQuery) (*Methodology, error) {
 
@@ -90,7 +83,7 @@ func (s *MethodologyAppService) GetByQuery(ctx context.Context, query *Methodolo
 		ID:     query.ID,
 		Code:   query.Code,
 		Name:   query.Name,
-		Status: MethodologyStatus(query.Status),
+		Status: query.Status,
 	}
 
 	return s.repo.FindByQuery(ctx, domainQuery)

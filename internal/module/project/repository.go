@@ -21,7 +21,7 @@ type ProjectRepo interface {
 
 	// 列表/分页
 	FindList(ctx context.Context) ([]*Project, error)
-	FindPage(ctx context.Context, query *ProjectPageQuery) (*entity.PaginationResult[Project], error)
+	FindPage(ctx context.Context, query *ProjectPageQuery) (*entity.PaginationResult[*Project], error)
 	FindListByStatus(ctx context.Context, status ProjectStatus) ([]*Project, error)
 }
 
@@ -33,5 +33,5 @@ type ProjectMembersRepo interface {
 	FindByProjectID(ctx context.Context, projectID int64) ([]*ProjectMembers, error)
 	FindByUserID(ctx context.Context, userID int64) ([]*ProjectMembers, error)
 	FindByProjectAndUser(ctx context.Context, projectID, userID int64) (*ProjectMembers, error)
-	FindPage(ctx context.Context, query *ProjectMembersPageQuery) (*entity.PaginationResult[ProjectMembers], error)
+	FindPage(ctx context.Context, query *ProjectMembersPageQuery) (*entity.PaginationResult[*ProjectMembers], error)
 }

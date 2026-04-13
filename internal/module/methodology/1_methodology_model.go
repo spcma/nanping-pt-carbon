@@ -90,8 +90,8 @@ type MethodologyPageQuery struct {
 }
 
 type MethodologyQuery struct {
-	ID     int64             `json:"id"`
-	Code   string            `json:"code"`
-	Name   string            `json:"name"`
-	Status MethodologyStatus `json:"status"`
+	ID     *int64             `json:"id"`
+	Code   *string            `json:"code"`
+	Name   *string            `json:"name"`
+	Status *MethodologyStatus `json:"status"`
 }

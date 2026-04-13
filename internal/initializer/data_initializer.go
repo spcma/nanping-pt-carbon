@@ -83,7 +83,7 @@ func (i *DataInitializer) initSuperAdminUser() error {
 
 func (i *DataInitializer) Add_Methodology_20260323(c *gin.Context) {
 	ctx := http.Ctx(c)
-	projectRepo := methodology_domain.NewMethodologyRepository(i.db)
+	projectRepo := methodology_domain.NewMethodologyRepository()
 
 	var datas []methodology_domain.Methodology
 	datas = append(datas,

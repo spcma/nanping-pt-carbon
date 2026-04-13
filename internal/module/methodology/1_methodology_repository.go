@@ -10,26 +10,22 @@ import (
 	"gorm.io/gorm"
 )
 
-type MethodologyRepository struct {
-	*db.BaseRepository[Methodology]
-}
+type MethodologyRepository struct{}
 
-func NewMethodologyRepository(_db *gorm.DB) *MethodologyRepository {
-	return &MethodologyRepository{
-		BaseRepository: db.NewBaseRepository[Methodology](_db),
-	}
+func NewMethodologyRepository() *MethodologyRepository {
+	return &MethodologyRepository{}
 }
 
 func (r *MethodologyRepository) Create(ctx context.Context, methodology *Methodology) error {
-	return r.GetDB(ctx).WithContext(ctx).Create(methodology).Error
+	return db.GetDB(ctx).WithContext(ctx).Create(methodology).Error
 }
 
 func (r *MethodologyRepository) Update(ctx context.Context, methodology *Methodology) error {
-	return r.GetDB(ctx).WithContext(ctx).Save(methodology).Error
+	return db.GetDB(ctx).WithContext(ctx).Save(methodology).Error
 }
 
 func (r *MethodologyRepository) UpdateFields(ctx context.Context, id int64, updates map[string]interface{}) error {
-	return r.GetDB(ctx).WithContext(ctx).Model(&Methodology{}).Where("id = ? AND "+entity.FieldDeleteBy+" = 0", id).Updates(updates).Error
+	return db.GetDB(ctx).WithContext(ctx).Model(&Methodology{}).Where("id = ? AND "+entity.FieldDeleteBy+" = 0", id).Updates(updates).Error
 }
 
 func (r *MethodologyRepository) Delete(ctx context.Context, id, uid int64) error {
@@ -38,12 +34,12 @@ func (r *MethodologyRepository) Delete(ctx context.Context, id, uid int64) error
 		"deleteBy":   uid,
 		"deleteTime": timeutil.Now(),
 	}
-	return r.GetDB(ctx).WithContext(ctx).Model(&Methodology{}).Where("id = ?", id).Updates(updates).Error
+	return db.GetDB(ctx).WithContext(ctx).Model(&Methodology{}).Where("id = ?", id).Updates(updates).Error
 }
 
 func (r *MethodologyRepository) FindByID(ctx context.Context, id int64) (*Methodology, error) {
 	var methodology Methodology
-	err := r.GetDB(ctx).WithContext(ctx).
+	err := db.GetDB(ctx).WithContext(ctx).
 		Table("methodology").
 		Where("id = ?", id).
 		Where(entity.FieldDeleteBy + " = 0").
@@ -59,7 +55,7 @@ func (r *MethodologyRepository) FindByID(ctx context.Context, id int64) (*Method
 
 func (r *MethodologyRepository) FindByQuery(ctx context.Context, query *MethodologyQuery) (*Methodology, error) {
 	var methodology Methodology
-	err := r.GetDB(ctx).WithContext(ctx).
+	err := db.GetDB(ctx).WithContext(ctx).
 		Table("methodology").
 		Where("code = ?", query.Code).
 		Where(entity.FieldDeleteBy + " = 0").
@@ -75,13 +71,19 @@ func (r *MethodologyRepository) FindByQuery(ctx context.Context, query *Methodol
 
 func (r *MethodologyRepository) FindList(ctx context.Context) ([]*Methodology, error) {
 	var methodologies []*Methodology
-	err := r.GetDB(ctx).WithContext(ctx).Find(&methodologies).Error
+	err := db.GetDB(ctx).WithContext(ctx).Find(&methodologies).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
 	return methodologies, err
 }
 
 func (r *MethodologyRepository) FindPage(ctx context.Context, query *MethodologyPageQuery) (*entity.PaginationResult[Methodology], error) {
 	// 使用通用分页助手
-	helper := db.NewPaginationHelper[Methodology](r.GetDB(ctx))
+	helper := db.NewPaginationHelper[Methodology](db.GetDB(ctx))
 	result, err := helper.PageQuery(int(query.PageNum), int(query.PageSize), func(dq *gorm.DB) *gorm.DB {
 		// 构建基础查询 - 使用 delete_by 条件
 		dq = dq.WithContext(ctx).
@@ -117,9 +119,15 @@ func (r *MethodologyRepository) FindPage(ctx context.Context, query *Methodology
 
 func (r *MethodologyRepository) FindListByStatus(ctx context.Context, status MethodologyStatus) ([]*Methodology, error) {
 	var methodologies []*Methodology
-	err := r.GetDB(ctx).WithContext(ctx).
+	err := db.GetDB(ctx).WithContext(ctx).
 		Table("methodology").
 		Where("status = ? AND "+entity.FieldDeleteBy+" = 0", status).
 		Find(&methodologies).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
 	return methodologies, err
 }

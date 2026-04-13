@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -16,6 +17,7 @@ type Config struct {
 	Password   string
 	DbName     string
 	SearchPath string
+	NotDefault bool
 }
 
 func NewGormDB(cfg Config) *gorm.DB {
@@ -29,5 +31,19 @@ func NewGormDB(cfg Config) *gorm.DB {
 		log.Fatal("failed to connect db:", err)
 		return nil
 	}
+
+	if !cfg.NotDefault {
+		defaultDB = db
+	}
+
 	return db
+}
+
+func GetDB(ctx context.Context) *gorm.DB {
+	// 检查context中是否有事务DB
+	if txDB, ok := ctx.Value("tx_db").(*gorm.DB); ok {
+		return txDB
+	}
+	// 否则使用普通DB
+	return defaultDB
 }

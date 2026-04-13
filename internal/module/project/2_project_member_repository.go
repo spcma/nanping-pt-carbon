@@ -10,22 +10,18 @@ import (
 	"gorm.io/gorm"
 )
 
-type ProjectMembersRepository struct {
-	*db.BaseRepository[ProjectMembers]
-}
+type ProjectMembersRepository struct{}
 
 func NewProjectMembersRepository(_db *gorm.DB) ProjectMembersRepo {
-	return &ProjectMembersRepository{
-		BaseRepository: db.NewBaseRepository[ProjectMembers](_db),
-	}
+	return &ProjectMembersRepository{}
 }
 
 func (r *ProjectMembersRepository) Create(ctx context.Context, projectMembers *ProjectMembers) error {
-	return r.GetDB(ctx).WithContext(ctx).Create(projectMembers).Error
+	return db.GetDB(ctx).WithContext(ctx).Create(projectMembers).Error
 }
 
 func (r *ProjectMembersRepository) Update(ctx context.Context, projectMembers *ProjectMembers) error {
-	return r.GetDB(ctx).WithContext(ctx).Save(projectMembers).Error
+	return db.GetDB(ctx).WithContext(ctx).Save(projectMembers).Error
 }
 
 func (r *ProjectMembersRepository) Delete(ctx context.Context, id, uid int64) error {
@@ -34,12 +30,12 @@ func (r *ProjectMembersRepository) Delete(ctx context.Context, id, uid int64) er
 		"deleteBy":   uid,
 		"deleteTime": timeutil.Now(),
 	}
-	return r.GetDB(ctx).WithContext(ctx).Model(&ProjectMembers{}).Where("id = ?", id).Updates(updates).Error
+	return db.GetDB(ctx).WithContext(ctx).Model(&ProjectMembers{}).Where("id = ?", id).Updates(updates).Error
 }
 
 func (r *ProjectMembersRepository) FindByID(ctx context.Context, id int64) (*ProjectMembers, error) {
 	var projectMember ProjectMembers
-	err := r.GetDB(ctx).WithContext(ctx).
+	err := db.GetDB(ctx).WithContext(ctx).
 		Table("project_members").
 		Where("id = ?", id).
 		Where(entity.FieldDeleteBy + " = 0").
@@ -55,7 +51,7 @@ func (r *ProjectMembersRepository) FindByID(ctx context.Context, id int64) (*Pro
 
 func (r *ProjectMembersRepository) FindByProjectID(ctx context.Context, projectID int64) ([]*ProjectMembers, error) {
 	var projectMembers []*ProjectMembers
-	err := r.GetDB(ctx).WithContext(ctx).
+	err := db.GetDB(ctx).WithContext(ctx).
 		Table("project_members").
 		Where("project_id = ? AND "+entity.FieldDeleteBy+" = 0", projectID).
 		Find(&projectMembers).Error
@@ -64,7 +60,7 @@ func (r *ProjectMembersRepository) FindByProjectID(ctx context.Context, projectI
 
 func (r *ProjectMembersRepository) FindByUserID(ctx context.Context, userID int64) ([]*ProjectMembers, error) {
 	var projectMembers []*ProjectMembers
-	err := r.GetDB(ctx).WithContext(ctx).
+	err := db.GetDB(ctx).WithContext(ctx).
 		Table("project_members").
 		Where("user_id = ? AND "+entity.FieldDeleteBy+" = 0", userID).
 		Find(&projectMembers).Error
@@ -73,7 +69,7 @@ func (r *ProjectMembersRepository) FindByUserID(ctx context.Context, userID int6
 
 func (r *ProjectMembersRepository) FindByProjectAndUser(ctx context.Context, projectID, userID int64) (*ProjectMembers, error) {
 	var projectMember ProjectMembers
-	err := r.GetDB(ctx).WithContext(ctx).
+	err := db.GetDB(ctx).WithContext(ctx).
 		Table("project_members").
 		Where("project_id = ? AND user_id = ? AND "+entity.FieldDeleteBy+" = 0", projectID, userID).
 		Take(&projectMember).Error
@@ -86,9 +82,9 @@ func (r *ProjectMembersRepository) FindByProjectAndUser(ctx context.Context, pro
 	return &projectMember, nil
 }
 
-func (r *ProjectMembersRepository) FindPage(ctx context.Context, query *ProjectMembersPageQuery) (*entity.PaginationResult[ProjectMembers], error) {
+func (r *ProjectMembersRepository) FindPage(ctx context.Context, query *ProjectMembersPageQuery) (*entity.PaginationResult[*ProjectMembers], error) {
 	// 使用通用分页助手
-	helper := db.NewPaginationHelper[ProjectMembers](r.GetDB(ctx))
+	helper := db.NewPaginationHelper[*ProjectMembers](db.GetDB(ctx))
 	result, err := helper.PageQuery(query.PageNum, query.PageSize, func(dq *gorm.DB) *gorm.DB {
 		// 构建基础查询 - 使用 delete_by 条件
 		dq = dq.WithContext(ctx).

@@ -38,7 +38,8 @@ func (h *PaginationHelper[T]) PageQuery(pageNum, pageSize int, queryBuilder func
 
 	// 获取总数
 	var total int64
-	err := baseQuery.Count(&total).Error
+	countQuery := baseQuery.Session(&gorm.Session{})
+	err := countQuery.Count(&total).Error
 	if err != nil {
 		return nil, fmt.Errorf("count query failed: %w", err)
 	}

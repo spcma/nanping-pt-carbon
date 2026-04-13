@@ -17,5 +17,5 @@ type IpfsDetailRepo interface {
 	FindByDeviceCode(ctx context.Context, deviceCode string) ([]*domain.IpfsDetail, error)
 	FindByFilename(ctx context.Context, filename string) (*domain.IpfsDetail, error)
 	FindList(ctx context.Context) ([]*domain.IpfsDetail, error)
-	FindPage(ctx context.Context, query *domain.IpfsDetailPageQuery) (*entity.PaginationResult[domain.IpfsDetail], error)
+	FindPage(ctx context.Context, query *domain.IpfsDetailPageQuery) (*entity.PaginationResult[*domain.IpfsDetail], error)
 }

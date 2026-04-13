@@ -13,29 +13,26 @@ import (
 
 // IpfsDetailRepository IPFS 详情仓储实现
 type IpfsDetailRepository struct {
-	*db.BaseRepository[domain.IpfsDetail]
 }
 
 // NewIpfsDetailRepository 创建 IPFS 详情仓储
 func NewIpfsDetailRepository(_db *gorm.DB) *IpfsDetailRepository {
-	return &IpfsDetailRepository{
-		BaseRepository: db.NewBaseRepository[domain.IpfsDetail](_db),
-	}
+	return &IpfsDetailRepository{}
 }
 
 // Create 创建 IPFS 详情
 func (r *IpfsDetailRepository) Create(ctx context.Context, ipfsDetail *domain.IpfsDetail) error {
-	return r.GetDB(ctx).WithContext(ctx).Create(ipfsDetail).Error
+	return db.GetDB(ctx).WithContext(ctx).Create(ipfsDetail).Error
 }
 
 // Update 更新 IPFS 详情
 func (r *IpfsDetailRepository) Update(ctx context.Context, ipfsDetail *domain.IpfsDetail) error {
-	return r.GetDB(ctx).WithContext(ctx).Updates(ipfsDetail).Error
+	return db.GetDB(ctx).WithContext(ctx).Updates(ipfsDetail).Error
 }
 
 // UpdateFields 部分更新 IPFS 详情字段
 func (r *IpfsDetailRepository) UpdateFields(ctx context.Context, id int64, updates map[string]interface{}) error {
-	return r.GetDB(ctx).WithContext(ctx).Model(&domain.IpfsDetail{}).Where("id = ? AND "+entity.FieldDeleteBy+" = 0", id).Updates(updates).Error
+	return db.GetDB(ctx).WithContext(ctx).Model(&domain.IpfsDetail{}).Where("id = ? AND "+entity.FieldDeleteBy+" = 0", id).Updates(updates).Error
 }
 
 // Delete 逻辑删除 IPFS 详情
@@ -44,13 +41,13 @@ func (r *IpfsDetailRepository) Delete(ctx context.Context, id, uid int64) error 
 		"deleteBy":   uid,
 		"deleteTime": timeutil.Now(),
 	}
-	return r.GetDB(ctx).WithContext(ctx).Model(&domain.IpfsDetail{}).Where("id = ?", id).Updates(updates).Error
+	return db.GetDB(ctx).WithContext(ctx).Model(&domain.IpfsDetail{}).Where("id = ?", id).Updates(updates).Error
 }
 
 // FindByID 根据 ID 查询 IPFS 详情
 func (r *IpfsDetailRepository) FindByID(ctx context.Context, id int64) (*domain.IpfsDetail, error) {
 	var ipfsDetail domain.IpfsDetail
-	err := r.GetDB(ctx).WithContext(ctx).
+	err := db.GetDB(ctx).WithContext(ctx).
 		Table("ipfs_detail").
 		Where("id = ?", id).
 		Where(entity.FieldDeleteBy + " = 0").
@@ -67,7 +64,7 @@ func (r *IpfsDetailRepository) FindByID(ctx context.Context, id int64) (*domain.
 // FindByDeviceCode 根据设备编码查询 IPFS 详情列表
 func (r *IpfsDetailRepository) FindByDeviceCode(ctx context.Context, deviceCode string) ([]*domain.IpfsDetail, error) {
 	var ipfsDetails []*domain.IpfsDetail
-	err := r.GetDB(ctx).WithContext(ctx).
+	err := db.GetDB(ctx).WithContext(ctx).
 		Table("ipfs_detail").
 		Where("device_code = ?", deviceCode).
 		Where(entity.FieldDeleteBy + " = 0").
@@ -78,7 +75,7 @@ func (r *IpfsDetailRepository) FindByDeviceCode(ctx context.Context, deviceCode 
 // FindByFilename 根据文件名查询 IPFS 详情
 func (r *IpfsDetailRepository) FindByFilename(ctx context.Context, filename string) (*domain.IpfsDetail, error) {
 	var ipfsDetail domain.IpfsDetail
-	err := r.GetDB(ctx).WithContext(ctx).
+	err := db.GetDB(ctx).WithContext(ctx).
 		Table("ipfs_detail").
 		Where("filename = ?", filename).
 		Where(entity.FieldDeleteBy + " = 0").
@@ -95,7 +92,7 @@ func (r *IpfsDetailRepository) FindByFilename(ctx context.Context, filename stri
 // FindList 查询 IPFS 详情列表
 func (r *IpfsDetailRepository) FindList(ctx context.Context) ([]*domain.IpfsDetail, error) {
 	var ipfsDetails []*domain.IpfsDetail
-	err := r.GetDB(ctx).WithContext(ctx).
+	err := db.GetDB(ctx).WithContext(ctx).
 		Table("ipfs_detail").
 		Where(entity.FieldDeleteBy + " = 0").
 		Find(&ipfsDetails).Error
@@ -103,9 +100,9 @@ func (r *IpfsDetailRepository) FindList(ctx context.Context) ([]*domain.IpfsDeta
 }
 
 // FindPage 分页查询 IPFS 详情
-func (r *IpfsDetailRepository) FindPage(ctx context.Context, query *domain.IpfsDetailPageQuery) (*entity.PaginationResult[domain.IpfsDetail], error) {
-	helper := db.NewPaginationHelper[domain.IpfsDetail](r.GetDB(ctx))
-	result, err := helper.PageQuery(int(query.PageNum), int(query.PageSize), func(dq *gorm.DB) *gorm.DB {
+func (r *IpfsDetailRepository) FindPage(ctx context.Context, query *domain.IpfsDetailPageQuery) (*entity.PaginationResult[*domain.IpfsDetail], error) {
+	helper := db.NewPaginationHelper[*domain.IpfsDetail](db.GetDB(ctx))
+	result, err := helper.PageQuery(query.PageNum, query.PageSize, func(dq *gorm.DB) *gorm.DB {
 		dq = dq.WithContext(ctx).
 			Table("ipfs_detail").
 			Where(entity.FieldDeleteBy + " = 0")

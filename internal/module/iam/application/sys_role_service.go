@@ -77,7 +77,7 @@ func (s *SysRoleAppService) GetSysRoleByCode(ctx context.Context, code string) (
 }
 
 // GetSysRolePage queries system roles with pagination
-func (s *SysRoleAppService) GetSysRolePage(ctx context.Context, query *domain.SysRolePageQuery) (*entity.PaginationResult[domain.SysRole], error) {
+func (s *SysRoleAppService) GetSysRolePage(ctx context.Context, query *domain.SysRolePageQuery) (*entity.PaginationResult[*domain.SysRole], error) {
 	result, err := s.repo.FindPage(ctx, query)
 	if err != nil {
 		return nil, err

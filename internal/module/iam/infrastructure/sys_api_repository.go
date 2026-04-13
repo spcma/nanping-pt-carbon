@@ -12,25 +12,22 @@ import (
 )
 
 type ApiRepository struct {
-	*db.BaseRepository[domain.SysApi]
 }
 
 func NewApiRepository(_db *gorm.DB) *ApiRepository {
-	return &ApiRepository{
-		BaseRepository: db.NewBaseRepository[domain.SysApi](_db),
-	}
+	return &ApiRepository{}
 }
 
 func (u *ApiRepository) Create(ctx context.Context, user *domain.SysApi) error {
-	return u.GetDB(ctx).WithContext(ctx).Create(user).Error
+	return db.GetDB(ctx).WithContext(ctx).Create(user).Error
 }
 
 func (u *ApiRepository) Update(ctx context.Context, user *domain.SysApi) error {
-	return u.GetDB(ctx).WithContext(ctx).Updates(user).Error
+	return db.GetDB(ctx).WithContext(ctx).Updates(user).Error
 }
 
 func (u *ApiRepository) UpdateFields(ctx context.Context, id int64, updates map[string]interface{}) error {
-	return u.GetDB(ctx).WithContext(ctx).Model(&domain.SysApi{}).Where("id = ? AND "+entity.FieldDeleteBy+" = 0", id).Updates(updates).Error
+	return db.GetDB(ctx).WithContext(ctx).Model(&domain.SysApi{}).Where("id = ? AND "+entity.FieldDeleteBy+" = 0", id).Updates(updates).Error
 }
 
 func (u *ApiRepository) Delete(ctx context.Context, id int64) error {
@@ -39,12 +36,12 @@ func (u *ApiRepository) Delete(ctx context.Context, id int64) error {
 		"deleteBy":   0,
 		"deleteTime": timeutil.Now(),
 	}
-	return u.GetDB(ctx).WithContext(ctx).Model(&domain.SysApi{}).Where("id = ?", id).Updates(updates).Error
+	return db.GetDB(ctx).WithContext(ctx).Model(&domain.SysApi{}).Where("id = ?", id).Updates(updates).Error
 }
 
 func (u *ApiRepository) FindByID(ctx context.Context, id int64) (*domain.SysApi, error) {
 	var user domain.SysApi
-	err := u.GetDB(ctx).WithContext(ctx).
+	err := db.GetDB(ctx).WithContext(ctx).
 		Table("apis").
 		Where("id = ?", id).
 		Where(entity.FieldDeleteBy + " = 0").
@@ -60,7 +57,7 @@ func (u *ApiRepository) FindByID(ctx context.Context, id int64) (*domain.SysApi,
 
 func (u *ApiRepository) FindByUsername(ctx context.Context, username string) (*domain.SysApi, error) {
 	var user domain.SysApi
-	err := u.GetDB(ctx).WithContext(ctx).
+	err := db.GetDB(ctx).WithContext(ctx).
 		Table("apis").
 		Where("username = ?", username).
 		Where(entity.FieldDeleteBy + " = 0").
@@ -76,15 +73,14 @@ func (u *ApiRepository) FindByUsername(ctx context.Context, username string) (*d
 
 func (u *ApiRepository) FindList(ctx context.Context) ([]*domain.SysApi, error) {
 	var users []*domain.SysApi
-	err := u.GetDB(ctx).WithContext(ctx).Find(&users).Error
+	err := db.GetDB(ctx).WithContext(ctx).Find(&users).Error
 	return users, err
 }
 
 func (u *ApiRepository) FindPage(ctx context.Context, pageNum, pageSize int64, name string) ([]*domain.SysApi, int64, error) {
 	// 使用通用分页助手
-	helper := db.NewPaginationHelper[*domain.SysApi](u.GetDB(ctx))
+	helper := db.NewPaginationHelper[*domain.SysApi](db.GetDB(ctx))
 	result, err := helper.PageQuery(int(pageNum), int(pageSize), func(dq *gorm.DB) *gorm.DB {
-		// 构建基础查询 - 使用 delete_by 条件
 		dq = dq.WithContext(ctx).
 			Table("apis").
 			Where(entity.FieldDeleteBy + " = 0")
@@ -104,16 +100,22 @@ func (u *ApiRepository) FindPage(ctx context.Context, pageNum, pageSize int64, n
 
 func (u *ApiRepository) FindAll(ctx context.Context) ([]*domain.SysApi, error) {
 	var apis []*domain.SysApi
-	err := u.GetDB(ctx).WithContext(ctx).
+	err := db.GetDB(ctx).WithContext(ctx).
 		Table("apis").
 		Where(entity.FieldDeleteBy + " = 0").
 		Find(&apis).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
 	return apis, err
 }
 
 func (u *ApiRepository) FindByCode(ctx context.Context, code string) (*domain.SysApi, error) {
 	var api domain.SysApi
-	err := u.GetDB(ctx).WithContext(ctx).
+	err := db.GetDB(ctx).WithContext(ctx).
 		Table("apis").
 		Where("code = ?", code).
 		Where(entity.FieldDeleteBy + " = 0").
