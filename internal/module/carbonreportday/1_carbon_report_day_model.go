@@ -9,6 +9,7 @@ import (
 // CarbonReportDay 碳报告日报聚合根
 type CarbonReportDay struct {
 	entity.BaseEntity
+	Hash            string        `json:"hash" gorm:"column:hash"`
 	Turnover        float64       `json:"turnover" gorm:"column:turnover"`                // 营业额
 	Baseline        float64       `json:"baseline" gorm:"column:baseline"`                // 基准值
 	CarbonReduction float64       `json:"carbonReduction" gorm:"column:carbon_reduction"` // 碳减排量

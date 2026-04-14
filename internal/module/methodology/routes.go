@@ -1,7 +1,6 @@
 package methodology
 
 import (
-	"app/internal/shared/db"
 	shared_http "app/internal/shared/http"
 
 	"github.com/gin-gonic/gin"
@@ -14,8 +13,7 @@ type methodologyRoutes struct {
 
 // NewMethodologyRoutes 创建 Methodology 模块的路由注册器
 func NewMethodologyRoutes() shared_http.RouteRegistry {
-	dbInst := db.Default()
-	repo := NewMethodologyRepository(dbInst)
+	repo := NewMethodologyRepository()
 	appService := NewMethodologyAppService(repo)
 	methodologyHandler := NewMethodologyHandler(appService)
 

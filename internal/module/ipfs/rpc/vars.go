@@ -3,6 +3,7 @@ package rpc
 // vars.go
 
 import (
+	"strings"
 	"time"
 
 	"github.com/shirou/gopsutil/disk"
@@ -96,4 +97,13 @@ type MMInfo struct {
 type MiMeiInfo struct {
 	MMInfo
 	Right uint64 //权限 在这里不恰当
+}
+
+func CheckDisconnet(err error) bool {
+	return strings.Index(err.Error(), "connection reset by peer") >= 0 ||
+		strings.Index(err.Error(), "The Client is already closed") >= 0 ||
+		strings.Index(err.Error(), "no addresses") >= 0 ||
+		strings.Index(err.Error(), "No connection could be made because the target machine actively refused it.") >= 0 ||
+		strings.Index(err.Error(), "An existing connection was forcibly closed by the remote host.") >= 0 ||
+		strings.Index(err.Error(), "websocket: close 1006 (abnormal closure): unexpected EOF") >= 0
 }

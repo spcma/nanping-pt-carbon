@@ -17,6 +17,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/dromara/carbon/v2"
@@ -31,16 +32,21 @@ const baseline = 0.11564
 
 // Service IPFS 服务
 type Service struct {
+	ppt                       string    // 通行证
+	ppt_expire_time           time.Time // 过期时间
+	session                   string    // 会话token
 	db                        *gorm.DB
 	remoteDB                  *gorm.DB
 	client                    *rpc.LApiStub
-	session                   string
 	ipfsDetailAppService      *IpfsDetailAppService
 	carbonReportDayAppService *carbonreportday_application.CarbonReportDayAppService
+	clientGuardianStop        chan struct{} // 客户端守护程序停止信号
+	clientReconnectTrigger    chan struct{} // 重连触发信号
+	clientMutex               sync.Mutex    // 客户端操作互斥锁
 }
 
 // NewService 创建 IPFS 服务
-func NewService(db *gorm.DB, remoteDB *gorm.DB, client *rpc.LApiStub, session string) *Service {
+func NewService(db *gorm.DB, remoteDB *gorm.DB) *Service {
 	// 初始化仓储和應用服務
 	ipfsDetailRepo := infrastructure.NewIpfsDetailRepository(db)
 	ipfsDetailAppService := NewIpfsDetailAppService(ipfsDetailRepo)
@@ -49,34 +55,70 @@ func NewService(db *gorm.DB, remoteDB *gorm.DB, client *rpc.LApiStub, session st
 	carbonReportDayRepo := carbonreportday_application.NewCarbonReportDayRepository(db)
 	carbonReportDayAppService := carbonreportday_application.NewCarbonReportDayAppService(carbonReportDayRepo)
 
-	return &Service{
+	s := &Service{
 		db:                        db,
 		remoteDB:                  remoteDB,
-		client:                    client,
-		session:                   session,
 		ipfsDetailAppService:      ipfsDetailAppService,
 		carbonReportDayAppService: carbonReportDayAppService,
 	}
+
+	if config.GlobalConfig.Ipfs.Status {
+		// 获取通行证，并自动开启守护程序
+		err := s.GetLocalPassport()
+		if err != nil {
+			logger.IpfsL.Error("IPFS get passport failed", zap.Error(err))
+			return nil
+		}
+
+		go s.startClientGuardian()
+	}
+
+	return s
 }
 
-// CreateFsClient 创建文件系统客户端
-func CreateFsClient() (*rpc.LApiStub, string, error) {
-	strPPT, err := rpc.GetLocalPassport(config.GlobalConfig.Ipfs.Port, 24)
-	if err != nil {
-		return nil, "", err
+func (s *Service) GetLocalPassport() error {
+	// 如果通行证有效，直接返回
+	if s.ppt != "" && s.ppt_expire_time.After(time.Now()) {
+		return nil
 	}
 
-	client := rpc.InitLApiStubByUrl(fmt.Sprintf("127.0.0.1:%d", config.GlobalConfig.Ipfs.Port))
-
-	loginReply, err := client.LoginWithPPT(strPPT)
+	//	刷新通行证
+	err := s.refreshPassport()
 	if err != nil {
-		return nil, "", err
+		return err
 	}
 
-	return client, loginReply.Sid, nil
+	go s.startPassportGuardian()
+
+	return nil
+}
+
+var sessionInvalid = "2:session id is not safe!"
+
+func (s *Service) Auth() error {
+	if s.ppt == "" {
+		logger.IpfsL.Error("IPFS passport is empty")
+		return errors.New("IPFS passport is empty")
+	}
+
+	//	获取会话通信证, 1h 内没有操作则默认失效
+	loginReply, err := s.client.LoginWithPPT(s.ppt)
+	if err != nil {
+		logger.IpfsL.Error("IPFS login failed", zap.Error(err))
+		return err
+	}
+
+	s.session = loginReply.Sid
+
+	return nil
 }
 
 func (s *Service) CheckDir(dir string) bool {
+	err := s.Auth()
+	if err != nil {
+		return false
+	}
+
 	stat, err := s.client.FilesStat(s.session, dir)
 	if err != nil {
 		if FileNotExist(err) {
@@ -109,7 +151,12 @@ func (s *Service) CreateDir(dir string) error {
 		return errors.New("目录为空")
 	}
 
-	err := s.client.FilesMkdir(s.session, dir, true)
+	err := s.Auth()
+	if err != nil {
+		return err
+	}
+
+	err = s.client.FilesMkdir(s.session, dir, true)
 	if err != nil {
 		logger.IpfsL.Error("创建目录失败", zap.String("dir", dir), zap.Error(err))
 		return err
@@ -137,6 +184,11 @@ type DirDto struct {
 func (s *Service) ListDir(ctx context.Context, dir string) ([]*DirDto, error) {
 	if dir == "" {
 		return nil, errors.New("目录为空")
+	}
+
+	err := s.Auth()
+	if err != nil {
+		return nil, err
 	}
 
 	lsLinks, err := s.client.FilesLs(s.session, dir)
@@ -237,8 +289,13 @@ func (s *Service) ScanDir(ctx context.Context, rootDir string) (*ScanDirResponse
 
 	logger.IpfsL.Info("正在扫描目录", zap.String("rootDir", rootDir))
 
+	err := s.Auth()
+	if err != nil {
+		return nil, err
+	}
+
 	// 递归扫描目录
-	err := s.scanDirRecursive(ctx, rootDir, res, 0, rootDir)
+	err = s.scanDirRecursive(ctx, rootDir, res, 0, rootDir)
 	if err != nil {
 		logger.IpfsL.Error("扫描目录失败", zap.String("rootDir", rootDir), zap.Error(err))
 		return nil, err
@@ -341,9 +398,14 @@ func (s *Service) DeleteFile(ctx context.Context, path string) error {
 		return errors.New("文件路径为空")
 	}
 
+	err := s.Auth()
+	if err != nil {
+		return err
+	}
+
 	// recursive 递归
 	// force 强制删除
-	err := s.client.FilesRm(s.session, path, true, true)
+	err = s.client.FilesRm(s.session, path, true, true)
 	if err != nil {
 		logger.IpfsL.Error("delete file error", zap.Error(err))
 		return err
@@ -507,6 +569,20 @@ func (s *Service) CalcDir(ctx context.Context, rootDir string, date string) (flo
 	month := split[1]
 	day := split[2]
 
+	checkDir := fmt.Sprintf("/aibk/%s/%s/", year, month)
+	ls, err := s.client.FilesLs(s.session, checkDir)
+	if err != nil {
+		logger.IpfsL.Error("list directory failed", zap.String("dir", checkDir), zap.Error(err))
+		return 0, err
+	}
+
+	var hash string
+	for _, l := range ls {
+		if l.Name == day {
+			hash = l.Hash
+		}
+	}
+
 	// 直接使用传入的 rootDir 作为扫描起点
 	fullDir := rootDir
 
@@ -528,7 +604,7 @@ func (s *Service) CalcDir(ctx context.Context, rootDir string, date string) (flo
 	)
 
 	// 递归扫描目录并计算
-	err := s.calcDirRecursive(ctx, fullDir, date, startTime, endTime, result, 0)
+	err = s.calcDirRecursive(ctx, fullDir, date, startTime, endTime, result, 0)
 	if err != nil {
 		logger.IpfsL.Error("递归计算目录失败", zap.String("full_dir", fullDir), zap.Error(err))
 		return 0, err
@@ -542,6 +618,7 @@ func (s *Service) CalcDir(ctx context.Context, rootDir string, date string) (flo
 	//	创建碳报告日报
 	_, err = s.carbonReportDayAppService.CreateCarbonReportDay(ctx, carbonreportday_application.CreateCarbonReportDayCommand{
 		Turnover:       totalTurnover,
+		Hash:           hash,
 		Baseline:       0,
 		CollectionDate: timeutil.Now(now.StdTime()),
 	})
@@ -571,7 +648,7 @@ func (s *Service) CalcDir(ctx context.Context, rootDir string, date string) (flo
 
 	ipfsid, err := s.SaveContentToIpfs(saveContent.String(), saveDir, filename)
 	if err != nil {
-		logger.IpfsL.Error("save content to ipfs failed", zap.Error(err))
+		logger.IpfsL.Error("save content to ipfs failed", zap.Float64("cost", time.Now().Sub(cst).Minutes()), zap.Error(err))
 		return 0, err
 	}
 
@@ -615,6 +692,11 @@ func (s *Service) calcDirRecursive(ctx context.Context, dir string, date string,
 	case <-ctx.Done():
 		return ctx.Err()
 	default:
+	}
+
+	err := s.Auth()
+	if err != nil {
+		return err
 	}
 
 	// 检查递归深度， 避免无限递归
@@ -978,7 +1060,189 @@ func (s *Service) CalcDirTest(ctx context.Context, rootDir string, date string) 
 
 // Close 关闭连接
 func (s *Service) Close() {
+	// 停止客户端守护程序
+	if s.clientGuardianStop != nil {
+		close(s.clientGuardianStop)
+		logger.IpfsL.Info("IPFS 客户端守护程序停止信号已发送")
+	}
+
+	// 关闭重连触发通道
+	if s.clientReconnectTrigger != nil {
+		close(s.clientReconnectTrigger)
+	}
+
+	// 关闭客户端连接
 	if s.client != nil {
 		s.client.Logout(s.session, "")
+		logger.IpfsL.Info("IPFS 客户端连接已关闭")
+	}
+}
+
+// startPassportGuardian 启动通行证自动守护程序
+// 定时检查通行证是否即将过期，并自动刷新
+func (s *Service) startPassportGuardian() {
+	// 每 30 分钟检查一次通行证状态
+	ticker := time.NewTicker(30 * time.Minute)
+	defer ticker.Stop()
+
+	logger.IpfsL.Info("通行证自动守护程序已启动")
+
+	for range ticker.C {
+		// 检查通行证是否将在 1 小时内过期
+		if s.ppt != "" && s.ppt_expire_time.Sub(time.Now()) < 1*time.Hour {
+			logger.IpfsL.Info("通行证即将过期，正在自动刷新...")
+
+			// 重新获取通行证
+			err := s.refreshPassport()
+			if err != nil {
+				logger.IpfsL.Error("自动刷新通行证失败", zap.Error(err))
+				// 如果刷新失败，10 分钟后重试
+				continue
+			}
+
+			logger.IpfsL.Info("通行证自动刷新成功")
+		}
+	}
+}
+
+// refreshPassport 刷新通行证
+func (s *Service) refreshPassport() error {
+	passport, err := rpc.GetLocalPassport(config.GlobalConfig.Ipfs.Port, 24)
+	if err != nil {
+		logger.IpfsL.Error("IPFS refresh passport failed", zap.Error(err))
+		return err
+	}
+
+	s.ppt = passport
+	s.ppt_expire_time = time.Now().Add(24 * time.Hour)
+
+	logger.IpfsL.Info("通行证已刷新", zap.Time("expire_time", s.ppt_expire_time))
+	return nil
+}
+
+// startClientGuardian 启动客户端连接守护程序
+// 定时检测连接状态，发现断开自动重连
+func (s *Service) startClientGuardian() {
+
+	s.executeReconnect()
+
+	// 初始化通道
+	if s.clientGuardianStop == nil {
+		s.clientGuardianStop = make(chan struct{})
+	}
+	if s.clientReconnectTrigger == nil {
+		s.clientReconnectTrigger = make(chan struct{}, 1) // 缓冲为1，避免阻塞
+	}
+
+	// 每 1 分钟检查一次连接状态
+	ticker := time.NewTicker(5 * time.Minute)
+	defer ticker.Stop()
+
+	logger.IpfsL.Info("IPFS 客户端守护程序已启动")
+
+	for {
+		select {
+		case <-s.clientGuardianStop:
+			logger.IpfsL.Info("IPFS 客户端守护程序已停止")
+			return
+		case <-s.clientReconnectTrigger:
+			// 收到重连触发信号，立即重连
+			logger.IpfsL.Info("收到重连触发信号，正在重连...")
+			s.executeReconnect()
+		case <-ticker.C:
+			// 定时检查连接状态
+			if s.client == nil {
+				logger.IpfsL.Warn("IPFS 客户端未初始化，尝试重连...")
+				s.executeReconnect()
+				continue
+			}
+
+			// 测试连接是否正常
+			_, err := s.client.FilesLs(s.session, "/")
+			if err == nil {
+				// 连接正常
+				continue
+			}
+
+			// 连接异常，尝试重连
+			if err.Error() == sessionInvalid {
+				logger.IpfsL.Warn("IPFS session 已失效，正在重连...")
+			} else {
+				logger.IpfsL.Warn("IPFS 连接异常，正在重连...", zap.Error(err))
+			}
+
+			s.executeReconnect()
+		}
+	}
+}
+
+// executeReconnect 执行重连操作（带锁保护）
+func (s *Service) executeReconnect() {
+	s.clientMutex.Lock()
+	defer s.clientMutex.Unlock()
+
+	if err := s.reconnectClient(); err != nil {
+		logger.IpfsL.Error("IPFS 重连失败", zap.Error(err))
+	} else {
+		logger.IpfsL.Info("IPFS 重连成功")
+	}
+}
+
+// reconnectClient 重新连接客户端
+func (s *Service) reconnectClient() error {
+	// 获取服务连接
+	client := rpc.InitLApiStubByUrl(fmt.Sprintf("127.0.0.1:%d", config.GlobalConfig.Ipfs.Port))
+	s.client = client
+
+	// 使用通行证登录获取新 session
+	err := s.Auth()
+	if err != nil {
+		logger.IpfsL.Error("IPFS 重连登录失败", zap.Error(err))
+		return err
+	}
+
+	logger.IpfsL.Info("IPFS 客户端重连成功")
+	return nil
+}
+
+// TriggerReconnect 触发立即重连（供其他方法调用）
+// 当其他方法检测到连接断开时，可以调用此方法立即触发重连
+func (s *Service) TriggerReconnect() {
+	if s.clientReconnectTrigger != nil {
+		// 非阻塞发送，如果通道已满则忽略（避免重复触发）
+		select {
+		case s.clientReconnectTrigger <- struct{}{}:
+			logger.IpfsL.Info("已发送重连触发信号")
+		default:
+			logger.IpfsL.Debug("重连信号已在队列中，忽略重复触发")
+		}
+	} else {
+		logger.IpfsL.Warn("重连通道未初始化，无法触发重连")
+	}
+}
+
+// formatDateByPort 根据端口号返回不同的日期格式化路径
+func formatDateByPort(port int) (string, error) {
+	now := time.Now()
+
+	// 获取年月日
+	year := now.Year() % 100 // 取两位年份
+	month := int(now.Month())
+	day := now.Day()
+
+	// 格式化为两位数
+	yearStr := fmt.Sprintf("%02d", year)
+	monthStr := fmt.Sprintf("%02d", month)
+	dayStr := fmt.Sprintf("%02d", day)
+
+	switch port {
+	case 4080:
+		// 格式: /aibk/26/01/01/
+		return fmt.Sprintf("/aibk/%s/%s/%s/", yearStr, monthStr, dayStr), nil
+	case 4800:
+		// 格式: /npbk/260101/
+		return fmt.Sprintf("/npbus/%s%s%s/", yearStr, monthStr, dayStr), nil
+	default:
+		return "", fmt.Errorf("不支持的端口号: %d", port)
 	}
 }

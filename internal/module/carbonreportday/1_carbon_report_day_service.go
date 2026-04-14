@@ -8,6 +8,7 @@ import (
 
 // CreateCarbonReportDayCommand 创建碳报告日报命令
 type CreateCarbonReportDayCommand struct {
+	Hash            string        `json:"hash"`
 	UserID          int64         `json:"userId"`
 	Turnover        float64       `json:"turnover"`
 	Baseline        float64       `json:"baseline" gorm:"column:baseline"`                // 基准值
@@ -37,6 +38,8 @@ func (s *CarbonReportDayAppService) CreateCarbonReportDay(ctx context.Context, c
 	if err != nil {
 		return 0, err
 	}
+
+	report.Hash = cmd.Hash
 	err = s.repo.Create(ctx, report)
 	if err != nil {
 		return 0, err

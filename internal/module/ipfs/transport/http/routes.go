@@ -1,7 +1,6 @@
 package http
 
 import (
-	"app/internal/config"
 	"app/internal/module/ipfs/application"
 	"app/internal/shared/db"
 	shared_http "app/internal/shared/http"
@@ -19,16 +18,11 @@ func NewIpfsRoutes() shared_http.RouteRegistry {
 	remoteDB := db.Remote()
 
 	var appService *application.Service
-	//	是否开启ipfs本地服务
-	if config.GlobalConfig.Ipfs.Status {
-		fsClient, sessionId, err := application.CreateFsClient()
-		if err != nil {
-			logger.Error("http", "Failed to create IPFS client: "+err.Error())
-			panic(err)
-		}
-		appService = application.NewService(dbt, remoteDB, fsClient, sessionId)
-	} else {
-		appService = application.NewService(dbt, remoteDB, nil, "")
+
+	appService = application.NewService(dbt, remoteDB)
+	if appService == nil {
+		logger.Error("http", "Failed to create IPFS service")
+		panic("failed to create IPFS service")
 	}
 
 	ipfsHandler, err := NewIpfsHandler(appService)
