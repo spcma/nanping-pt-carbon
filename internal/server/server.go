@@ -3,6 +3,7 @@ package server
 import (
 	"app/internal/config"
 	"app/internal/initializer"
+	"app/internal/module/scheduler"
 	"app/internal/shared/cache"
 	"app/internal/shared/db"
 	idgen "app/internal/shared/idgen"
@@ -21,10 +22,11 @@ import (
 
 // Server 服务器实例
 type Server struct {
-	config   *config.Config
-	db       *gorm.DB
-	remoteDb *gorm.DB
-	router   *gin.Engine
+	config    *config.Config
+	db        *gorm.DB
+	remoteDb  *gorm.DB
+	router    *gin.Engine
+	scheduler *scheduler.Scheduler
 }
 
 // Initialize 初始化服务器所有组件
@@ -109,11 +111,16 @@ func Initialize() (*Server, error) {
 	// 初始化 HTTP 路由
 	router := transport_http.InitRouter()
 
+	// 初始化定时任务调度器
+	sched := scheduler.Default()
+	sched.Start()
+
 	return &Server{
-		config:   config.GlobalConfig,
-		db:       dbInstance,
-		remoteDb: dbInstance2,
-		router:   router,
+		config:    config.GlobalConfig,
+		db:        dbInstance,
+		remoteDb:  dbInstance2,
+		router:    router,
+		scheduler: sched,
 	}, nil
 }
 
@@ -168,6 +175,11 @@ func (s *Server) WaitForShutdown() {
 
 // Close 关闭服务器资源
 func (s *Server) Close() error {
+	// 关闭定时任务调度器
+	if s.scheduler != nil {
+		s.scheduler.Stop()
+	}
+
 	// 在这里添加资源清理逻辑
 	// 例如：关闭数据库连接、清理缓存等
 	if s.db != nil {

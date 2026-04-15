@@ -1,0 +1,36 @@
+### Scheduler 定时任务 API 测试
+
+@baseUrl = http://localhost:8080/api/scheduler
+@token = your_token_here
+
+### 1. 列出所有定时任务
+GET {{baseUrl}}/tasks
+Authorization: Bearer {{token}}
+
+### 2. 获取任务状态 - example_every_minute
+GET {{baseUrl}}/tasks/example_every_minute
+Authorization: Bearer {{token}}
+
+### 3. 获取任务状态 - example_daily_2am
+GET {{baseUrl}}/tasks/example_daily_2am
+Authorization: Bearer {{token}}
+
+### 4. 获取任务状态 - example_every_5min
+GET {{baseUrl}}/tasks/example_every_5min
+Authorization: Bearer {{token}}
+
+### 5. 禁用任务 - example_every_minute
+PUT {{baseUrl}}/tasks/example_every_minute/disable
+Authorization: Bearer {{token}}
+
+### 6. 启用任务 - example_every_5min
+PUT {{baseUrl}}/tasks/example_every_5min/enable
+Authorization: Bearer {{token}}
+
+### 7. 删除任务 - example_every_5min
+DELETE {{baseUrl}}/tasks/example_every_5min
+Authorization: Bearer {{token}}
+
+### 8. 再次列出所有任务（验证删除）
+GET {{baseUrl}}/tasks
+Authorization: Bearer {{token}}

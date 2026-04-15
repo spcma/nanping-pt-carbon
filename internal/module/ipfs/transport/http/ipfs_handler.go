@@ -168,20 +168,32 @@ func (h *IpfsHandler) DownloadFile(c *gin.Context) {
 	c.Data(http.StatusOK, "application/octet-stream", data)
 }
 
-func (h *IpfsHandler) CheckDir(c *gin.Context) {
-	dir := c.Query("dir")
-	if dir == "" {
+// Stat 获取目录/文件信息
+func (h *IpfsHandler) Stat(c *gin.Context) {
+	path := c.Query("path")
+	if path == "" {
 		response.BadRequest(c, "请指定目录")
 		return
 	}
-	exist := h.appService.CheckDir(dir)
 
-	response.Success(c, exist)
+	fileStat, err := h.appService.FileStat(path)
+	if err != nil {
+		response.InternalError(c, err.Error())
+		return
+	}
+
+	response.Success(c, fileStat)
 }
 
-// ReadIpfs 读取ipfs文件
-func (h *IpfsHandler) ReadIpfs(c *gin.Context) {
-	bytes, count, err := h.appService.ReadFileFromIpfs(c.Query("path"))
+// Read 读取ipfs文件
+func (h *IpfsHandler) Read(c *gin.Context) {
+	path := c.Query("path")
+	if path == "" {
+		response.BadRequest(c, "请指定目录")
+		return
+	}
+
+	bytes, count, err := h.appService.ReadFileFromIpfs(path)
 	if err != nil {
 		response.InternalError(c, err.Error())
 		return

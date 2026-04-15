@@ -5,14 +5,12 @@ import (
 	carbonreportday_application "app/internal/module/carbonreportday"
 	"app/internal/module/ipfs/infrastructure"
 	"app/internal/module/ipfs/rpc"
-	"app/internal/platform/http/response"
 	"app/internal/shared/entity"
 	"app/internal/shared/logger"
 	"app/internal/shared/timeutil"
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -23,7 +21,6 @@ import (
 	"github.com/dromara/carbon/v2"
 	"gorm.io/gorm"
 
-	"github.com/gin-gonic/gin"
 	"github.com/spf13/cast"
 	"go.uber.org/zap"
 )
@@ -143,6 +140,33 @@ func (s *Service) CheckDir(dir string) bool {
 	)
 
 	return true
+}
+
+func (s *Service) FileStat(dir string) (any, error) {
+	stat, err := s.client.FilesStat(s.session, dir)
+	if err != nil {
+		if FileNotExist(err) {
+			logger.IpfsL.Warn("目录不存在", zap.String("dir", dir))
+			return nil, err
+		}
+		logger.IpfsL.Error("检查目录发生了错误", zap.Error(err))
+		return nil, err
+	}
+
+	logger.IpfsL.Info("检查目录",
+		zap.String("dir", dir),
+		zap.Any("stat", stat),
+		zap.Any("hash", stat.Hash),
+		zap.Any("size", stat.Size),
+		zap.Any("cumulativeSize", stat.CumulativeSize),
+		zap.Any("blocks", stat.Blocks),
+		zap.Any("type", stat.Type),
+		zap.Any("withLocality", stat.WithLocality),
+		zap.Any("local", stat.Local),
+		zap.Any("sizeLocal", stat.SizeLocal),
+	)
+
+	return stat, nil
 }
 
 // CreateDir 创建目录
@@ -426,116 +450,6 @@ func (s *Service) UploadFile(tmpfilePath, uploadDir, filename string) (string, e
 	logger.IpfsL.Info("上传文件成功", zap.String("filename", filename), zap.String("ipfsid", ipfsid))
 
 	return ipfsid, nil
-}
-
-func (s *Service) HandleWithDir(c *gin.Context) {
-	type Param struct {
-		Dir        string `json:"dir" form:"dir"` // 目录
-		Year       string `json:"year" form:"year"`
-		Month      string `json:"month" form:"month"`
-		Day        string `json:"day" form:"day"`
-		DeviceCode string `json:"device_code" form:"device_code"`
-	}
-
-	var req Param
-	if err := c.ShouldBindQuery(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	//	开始扫描目录
-	fullDir := fmt.Sprintf("%s/%s/%s/%s/%s", req.Dir, req.Year, req.Month, req.Day, req.DeviceCode)
-
-	logger.IpfsL.Info("handle with dir", zap.String("dir", req.Dir),
-		zap.String("year", req.Year),
-		zap.String("month", req.Month),
-		zap.String("day", req.Day),
-		zap.String("device_code", req.DeviceCode),
-		zap.String("full_dir", fullDir),
-	)
-
-	lsLinks, err := s.client.FilesLs(s.session, fullDir)
-	if err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	var list []DirDto
-	for _, link := range lsLinks {
-
-		if link.Type == 1 {
-			logger.IpfsL.Info("skip dir", zap.String("dir", link.Name))
-			continue
-		}
-
-		if strings.Contains(link.Name, ".jpg") {
-			logger.IpfsL.Info("skip image", zap.String("file", link.Name))
-			continue
-		}
-
-		fullPath := fmt.Sprintf("%s/%s", fullDir, link.Name)
-
-		localPath := "./tempfile/" + link.Name
-		err := s.SaveFileToLocal(fullPath, localPath)
-		if err != nil {
-			response.Error(c, http.StatusInternalServerError, err.Error())
-			return
-		}
-
-		records, err := parseFile(localPath)
-		if err != nil {
-			response.Error(c, http.StatusInternalServerError, err.Error())
-			return
-		}
-
-		logger.IpfsL.Info("parse file", zap.String("file", link.Name),
-			zap.Int("count", len(records)),
-		)
-
-		// 计算里程并保存到数据库
-		calculator := NewDistanceCalculator()
-		summary := calculator.CalculateSummary(records)
-
-		logger.IpfsL.Info("distance calculation",
-			zap.String("file", link.Name),
-			zap.Float64("total_distance_m", summary.TotalDistance),
-			zap.Float64("total_distance_km", summary.TotalDistanceKm),
-			zap.Int("point_count", summary.PointCount),
-			zap.Float64("avg_speed_kmh", summary.AverageSpeed),
-		)
-
-		dirDto := DirDto{
-			Name: link.Name,
-			Hash: link.Hash,
-			Size: link.Size,
-			Type: link.Type,
-		}
-
-		if strings.HasPrefix(link.Name, "gps_") && strings.HasSuffix(link.Name, ".txt") {
-			//	截取文件名中的时间戳 20260301180452
-			timestamp := strings.TrimSuffix(strings.TrimPrefix(link.Name, "gps_"), ".txt")
-			dirDto.Timestamp = timestamp
-			//	文件类型, 截取文件后缀
-			dirDto.FileType = filepath.Ext(link.Name)
-		}
-
-		// 保存里程计算结果到数据库
-		//err = s.saveIpfsDetailToDB(fullDir, link.Name, dir.Timestamp, records, summary)
-		//if err != nil {
-		//	logger.IpfsLogger.Warn("save ipfs detail to database failed",
-		//		zap.String("file", link.Name),
-		//		zap.Error(err),
-		//	)
-		//} else {
-		//	logger.IpfsLogger.Info("ipfs detail saved to database",
-		//		zap.String("file", link.Name),
-		//		zap.Float64("total_distance_km", summary.TotalDistanceKm),
-		//		zap.Int("point_count", summary.PointCount),
-		//	)
-		//}
-
-		list = append(list, dirDto)
-	}
 }
 
 type BusImageDetailCv struct {
@@ -925,137 +839,6 @@ func (s *Service) ReadDirTest(path string) error {
 	}
 
 	return nil
-}
-
-func (s *Service) CalcDirTest2() (any, error) {
-
-	path := "/aibk/26/03/15/xNUr48spW1gR2bQTSRURMCl_cII"
-
-	logger.IpfsL.Info("ipfs ls", zap.String("path", path))
-
-	files, err := s.client.FilesLs(s.session, path)
-	if err != nil {
-		logger.IpfsL.Error("ipfs ls failed", zap.Error(err))
-		return nil, err
-	}
-
-	logger.IpfsL.Info("ipfs ls done", zap.Int("count", len(files)))
-
-	for _, file := range files {
-		st := time.Now()
-		logger.IpfsL.Info("download file", zap.String("file", file.Name))
-		err = s.SaveFileToLocal("/aibk/26/03/15/xNUr48spW1gR2bQTSRURMCl_cII/"+file.Name, "./tmpfile/"+file.Name)
-		if err != nil {
-			logger.IpfsL.Error("save file to local failed", zap.String("file", file.Name), zap.Error(err))
-			continue
-		}
-		logger.IpfsL.Info("download file done", zap.String("file", file.Name), zap.Duration("cost", time.Since(st)))
-	}
-
-	logger.IpfsL.Info("download file done")
-	return nil, nil
-}
-
-func (s *Service) CalcDirTest(ctx context.Context, rootDir string, date string) (float64, error) {
-	//	解析日期
-	now := carbon.Parse(date, carbon.Shanghai).StartOfDay()
-
-	onlyDate := now.Format(carbon.DateFormat)
-
-	split := strings.Split(onlyDate, "-")
-	if len(split) < 3 {
-		return 0, fmt.Errorf("日期格式错误 %v", date)
-	}
-
-	year := split[0][2:]
-	month := split[1]
-	day := split[2]
-
-	fullDir := fmt.Sprintf("%s/%s/%s/%s", rootDir, year, month, day)
-
-	fmt.Println("full_dir", fullDir)
-	deviceCodes, err := s.client.FilesLs(s.session, fullDir)
-	if err != nil {
-		logger.IpfsL.Error("device_code ipfs ls failed", zap.String("full_dir", fullDir), zap.Error(err))
-		return 0, err
-	}
-
-	logger.IpfsL.Info("device_code ipfs ls done", zap.Int("count", len(deviceCodes)))
-
-	startTime := now.Format(carbon.DateTimeFormat)
-	endTime := now.AddDay().Format(carbon.DateTimeFormat)
-
-	var totalTurnover = 0.0
-
-	for i, deviceCode := range deviceCodes {
-		// 记录剩余未处理设备数量
-		logger.IpfsL.Info("开始处理设备",
-			zap.Int("index", i),
-			zap.String("device_code", deviceCode.Name))
-		//	每台设备的存储路径
-		newFullPath := fmt.Sprintf("%s/%s", fullDir, deviceCode.Name)
-
-		//	读取设备路径下单日所有文件
-		gpsFiles, err := s.client.FilesLs(s.session, newFullPath)
-		if err != nil {
-			logger.IpfsL.Error("gps ipfs ls failed", zap.String("full_dir", newFullPath), zap.Error(err))
-			continue
-		}
-
-		//	查询某辆车某天所有的图片地址
-		var cvres []*BusImageDetailCv
-
-		//	查询图片对应的识别乘客人数
-		err = s.remoteDB.WithContext(context.Background()).
-			Table("bus_image_detail_cv").
-			Where("device_code = ? and collection_time >= ? and collection_time < ?", deviceCode.Name, startTime, endTime).
-			Find(&cvres).Error
-		if err != nil {
-			logger.IpfsL.Error("query bus_image_detail_cv failed",
-				zap.String("device_code", deviceCode.Name),
-				zap.Any("start_time", startTime),
-				zap.Any("end_time", endTime),
-				zap.Error(err))
-			continue
-		}
-
-		cvPassengers := make(map[string]int64)
-		for _, cv := range cvres {
-			t := cv.CollectionTime.ToTime().Format("20060102150405")
-			cvPassengers[t] = cv.BaiduResult
-		}
-
-		//	解析每个文件，计算里程与周转量
-		deviceTurnover := 0.0
-		for _, gpsFile := range gpsFiles {
-			//	仅解析 gps 文件，gps_xxxx.txt
-			if !strings.HasPrefix(gpsFile.Name, "gps_") || !strings.HasSuffix(gpsFile.Name, ".txt") {
-				continue
-			}
-
-			newNewFullPath := fmt.Sprintf("%s/%s", newFullPath, gpsFile.Name)
-
-			st := time.Now()
-			localPath := "./tempfile/" + gpsFile.Name
-			err = s.SaveFileToLocal(newNewFullPath, localPath)
-			if err != nil {
-				logger.IpfsL.Error("save file to local failed", zap.String("file", gpsFile.Name), zap.Error(err))
-				continue
-			}
-			logger.IpfsL.Info("download file done", zap.String("file", gpsFile.Name), zap.Duration("cost", time.Since(st)))
-
-			//	删除本地临时文件
-			//err = os.Remove(localPath)
-			//if err != nil {
-			//	logger.IpfsLogger.Error("remove local file failed", zap.String("file", gpsFile.Name), zap.Error(err))
-			//}
-
-		}
-
-		totalTurnover += deviceTurnover
-	}
-
-	return totalTurnover, nil
 }
 
 // Close 关闭连接

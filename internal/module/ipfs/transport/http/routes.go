@@ -49,7 +49,7 @@ func (i *ipfsRoutes) RegisterRoutes(group *gin.RouterGroup, middlewares map[shar
 			dirRoute.POST("", i.ipfsHandler.CreateDir)
 			dirRoute.DELETE("", i.ipfsHandler.DeleteFile)
 			dirRoute.GET("list", i.ipfsHandler.ListDir)
-			dirRoute.GET("check", i.ipfsHandler.CheckDir)
+			dirRoute.GET("filestat", i.ipfsHandler.Stat)
 			dirRoute.GET("scan", i.ipfsHandler.ScanDir) // 递归扫描目录
 		}
 
@@ -57,7 +57,7 @@ func (i *ipfsRoutes) RegisterRoutes(group *gin.RouterGroup, middlewares map[shar
 		{
 			fileRoute.POST("upload", i.ipfsHandler.UploadFile)
 			fileRoute.GET("download", i.ipfsHandler.DownloadFile)
-			fileRoute.GET("read", i.ipfsHandler.ReadIpfs)
+			fileRoute.GET("read", i.ipfsHandler.Read)
 		}
 
 		calcRoute := group.Group("calc")

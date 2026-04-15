@@ -1,0 +1,42 @@
+### Carbon Report Month API 测试
+
+@baseUrl = http://localhost:8080/api/carbonReportMonth
+@token = your_token_here
+
+### 1. 创建碳报告月报
+POST {{baseUrl}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "collection_date": "2026-03-01 00:00:00",
+  "turnover": 45000.50,
+  "baseline": 36000.00,
+  "energyConsumption": 8500.25,
+  "carbonReduction": 9000.50
+}
+
+### 2. 更新碳报告月报
+PUT {{baseUrl}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "id": 1234567890
+}
+
+### 3. 删除碳报告月报
+DELETE {{baseUrl}}?id=1234567890
+Authorization: Bearer {{token}}
+
+### 4. 根据ID查询碳报告月报
+GET {{baseUrl}}?id=1234567890
+Authorization: Bearer {{token}}
+
+### 5. 分页查询碳报告月报
+GET {{baseUrl}}s/page?pageNum=1&pageSize=10&sortBy=collection_date&sortOrder=desc
+Authorization: Bearer {{token}}
+
+### 6. 分页查询 - 带日期范围
+GET {{baseUrl}}s/page?pageNum=1&pageSize=10&startDate=2026-01-01&endDate=2026-12-31&sortBy=collection_date&sortOrder=desc
+Authorization: Bearer {{token}}

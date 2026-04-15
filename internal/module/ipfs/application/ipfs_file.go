@@ -243,6 +243,7 @@ func (s *Service) MustDirExists(path string, recursive bool) (bool, error) {
 }
 
 func (s *Service) Remove() {
+	//	recursive 递归 flush 直接删除
 	err := s.client.FilesRm(s.session, "/tmpp/26/03/14/20260324.txt", true, true)
 	if err != nil {
 		return
