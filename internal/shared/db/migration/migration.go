@@ -2,6 +2,7 @@ package migration
 
 import (
 	"app/internal/module/iam/domain"
+	"app/internal/module/scheduler"
 
 	"gorm.io/gorm"
 )
@@ -22,6 +23,12 @@ func MigrateTables(db *gorm.DB) error {
 
 	// 迁移用户角色关联表
 	err = db.AutoMigrate(&domain.SysUserRole{})
+	if err != nil {
+		return err
+	}
+
+	// 迁移定时任务配置表
+	err = db.AutoMigrate(&scheduler.ScheduledTask{})
 	if err != nil {
 		return err
 	}

@@ -6,6 +6,7 @@ import (
 	"app/internal/shared/timeutil"
 	"context"
 	"errors"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -82,4 +83,27 @@ func (r *CarbonReportMonthRepository) FindPage(ctx context.Context, query *Carbo
 	}
 
 	return result, nil
+}
+
+// FindByMonth 根据年月查询月报
+func (r *CarbonReportMonthRepository) FindByMonth(ctx context.Context, year int, month int) (*CarbonReportMonth, error) {
+	var carbonReportMonth CarbonReportMonth
+
+	date := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.Local)
+	startDate := date
+	endDate := date.AddDate(0, 1, 0)
+
+	err := db.GetDB(ctx).WithContext(ctx).
+		Table("carbon_report_month").
+		Where(entity.FieldDeleteBy+" = 0").
+		Where("collection_date >= ? AND collection_date < ?", startDate, endDate).
+		Take(&carbonReportMonth).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &carbonReportMonth, nil
 }

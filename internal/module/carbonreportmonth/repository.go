@@ -15,4 +15,6 @@ type CarbonReportMonthRepo interface {
 	FindByID(ctx context.Context, id int64) (*CarbonReportMonth, error)
 	FindList(ctx context.Context) ([]*CarbonReportMonth, error)
 	FindPage(ctx context.Context, query *CarbonReportMonthPageQuery) (*entity.PaginationResult[*CarbonReportMonth], error)
+	// FindByMonth 根据年月查询月报
+	FindByMonth(ctx context.Context, year int, month int) (*CarbonReportMonth, error)
 }

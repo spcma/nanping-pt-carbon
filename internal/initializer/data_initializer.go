@@ -5,6 +5,7 @@ import (
 	users_infrastructure "app/internal/module/iam/infrastructure"
 	methodology_domain "app/internal/module/methodology"
 	project_domain "app/internal/module/project"
+	"app/internal/module/scheduler"
 	"app/internal/platform/http"
 	"app/internal/platform/http/response"
 	"app/internal/shared/entity"
@@ -45,6 +46,11 @@ func (i *DataInitializer) Initialize() error {
 		return fmt.Errorf("failed to init super admin user: %w", err)
 	}
 
+	// 初始化默认调度任务配置
+	if err := i.initDefaultScheduledTasks(); err != nil {
+		return fmt.Errorf("failed to init default scheduled tasks: %w", err)
+	}
+
 	logger.Info("initialize", "data initialization completed successfully")
 	return nil
 }
@@ -78,6 +84,71 @@ func (i *DataInitializer) initSuperAdminUser() error {
 		zap.Int64("user_id", user.Id),
 		zap.String("username", user.Username),
 	)
+	return nil
+}
+
+// initDefaultScheduledTasks 初始化默认调度任务配置
+func (i *DataInitializer) initDefaultScheduledTasks() error {
+	ctx := context.Background()
+	repo := scheduler.NewScheduledTaskRepository(i.db)
+
+	// 定义默认任务配置
+	defaultTasks := []*scheduler.ScheduledTask{
+		{
+			Name:        "carbon_report_monthly_aggregation",
+			CronSpec:    "0 0 1 3 * *", // 每月3号凌晨1点
+			Description: "每月3号汇总上月碳日报数据生成月报",
+			Enabled:     true,
+			TaskType:    "carbon_report_monthly_aggregation",
+			BaseEntity: entity.BaseEntity{
+				CreateBy: 1,
+			},
+		},
+		{
+			Name:        "daily_log_output",
+			CronSpec:    "0 0 0 * * *", // 每天凌晨0点
+			Description: "每天输出调度任务运行日志",
+			Enabled:     true,
+			TaskType:    "daily_log_output",
+			BaseEntity: entity.BaseEntity{
+				CreateBy: 1,
+			},
+		},
+	}
+
+	for _, task := range defaultTasks {
+		// 检查任务是否已存在
+		existing, err := repo.FindByName(ctx, task.Name)
+		if err != nil {
+			logger.InitL.Warn("Failed to check existing task",
+				zap.String("task_name", task.Name),
+				zap.Error(err),
+			)
+			continue
+		}
+
+		if existing != nil {
+			logger.InitL.Info("Task already exists, skipping",
+				zap.String("task_name", task.Name),
+			)
+			continue
+		}
+
+		// 创建任务配置
+		if err := repo.Create(ctx, task); err != nil {
+			logger.InitL.Warn("Failed to create default task",
+				zap.String("task_name", task.Name),
+				zap.Error(err),
+			)
+			continue
+		}
+
+		logger.InitL.Info("Default task created",
+			zap.String("task_name", task.Name),
+			zap.String("cron_spec", task.CronSpec),
+		)
+	}
+
 	return nil
 }
 

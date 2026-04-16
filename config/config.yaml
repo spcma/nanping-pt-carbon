@@ -29,6 +29,8 @@ logger:
       level: info
     - name: ipfs
       level: info
+    - name: scheduler
+      level: info
 
 # 主业务数据库
 database:

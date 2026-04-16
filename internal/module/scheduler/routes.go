@@ -1,9 +1,12 @@
 package scheduler
 
 import (
+	"app/internal/module/carbonreportmonth"
+	"app/internal/shared/db"
 	shared_http "app/internal/shared/http"
 	"app/internal/shared/logger"
 	"context"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -58,51 +61,90 @@ func NewSchedulerRoutes() shared_http.RouteRegistry {
 	scheduler := Default()
 	handler := NewSchedulerHandler(scheduler)
 
-	// 注册示例任务
-	registerExampleTasks(scheduler)
+	// 设置仓储
+	repo := NewScheduledTaskRepository(db.Default())
+	scheduler.SetRepository(repo)
+
+	// 注册业务任务函数到注册表(不直接添加到调度器)
+	registerTaskFunctions()
+
+	// 从数据库加载已启用的任务
+	if err := scheduler.LoadTasksFromDatabase(defaultRegistry); err != nil {
+		logger.SchedulerL.Error("Failed to load tasks from database",
+			zap.Error(err),
+		)
+	}
 
 	return &routes{
 		handler: handler,
 	}
 }
 
-// registerExampleTasks 注册示例任务
-func registerExampleTasks(scheduler *Scheduler) {
-	// 示例任务1：每分钟执行一次
-	scheduler.AddTask(&TaskConfig{
-		Name:     "example_every_minute",
-		CronSpec: "0 * * * * *", // 每分钟
-		TaskFunc: func(ctx context.Context) error {
-			logger.SchedulerL.Info("Example task: every minute")
+// registerTaskFunctions 注册任务函数到注册表(不直接添加到调度器)
+func registerTaskFunctions() {
+	// 注册每月碳日报汇总任务
+	RegisterTask("carbon_report_monthly_aggregation", func(ctx context.Context) error {
+		logger.SchedulerL.Info("执行每月碳日报汇总任务")
+
+		// 获取上个月的年份和月份
+		now := time.Now()
+		lastMonth := now.AddDate(0, -1, 0)
+		year := lastMonth.Year()
+		month := int(lastMonth.Month())
+
+		// 调用汇总服务
+		service := carbonreportmonth.DefaultService()
+		if service == nil {
+			logger.SchedulerL.Error("碳报告月报服务未初始化")
 			return nil
-		},
-		Description: "示例任务：每分钟执行一次",
-		Enabled:     true,
+		}
+
+		err := service.AggregateMonthlyReport(ctx, year, month)
+		if err != nil {
+			logger.SchedulerL.Error("碳日报汇总任务执行失败",
+				zap.Int("year", year),
+				zap.Int("month", month),
+				zap.Error(err),
+			)
+			return err
+		}
+
+		logger.SchedulerL.Info("碳日报汇总任务执行成功",
+			zap.Int("year", year),
+			zap.Int("month", month),
+		)
+		return nil
 	})
 
-	// 示例任务2：每天凌晨2点执行
-	scheduler.AddTask(&TaskConfig{
-		Name:     "example_daily_2am",
-		CronSpec: "0 0 2 * * *", // 每天凌晨2点
-		TaskFunc: func(ctx context.Context) error {
-			logger.SchedulerL.Info("Example task: daily at 2 AM")
-			return nil
-		},
-		Description: "示例任务：每天凌晨2点执行",
-		Enabled:     true,
+	// 注册每天日志输出任务
+	RegisterTask("daily_log_output", func(ctx context.Context) error {
+		now := time.Now()
+		logger.SchedulerL.Info("调度任务运行中",
+			zap.String("current_time", now.Format("2006-01-02 15:04:05")),
+			zap.String("message", "调度任务运行中"),
+		)
+		return nil
 	})
 
-	// 示例任务3：每5分钟执行一次
-	scheduler.AddTask(&TaskConfig{
-		Name:     "example_every_5min",
-		CronSpec: "0 */5 * * * *", // 每5分钟
-		TaskFunc: func(ctx context.Context) error {
-			logger.SchedulerL.Info("Example task: every 5 minutes")
-			return nil
-		},
-		Description: "示例任务：每5分钟执行一次",
-		Enabled:     false, // 默认禁用
+	// 注册示例任务1：每分钟执行一次
+	RegisterTask("example_every_minute", func(ctx context.Context) error {
+		logger.SchedulerL.Info("Example task: every minute")
+		return nil
 	})
+
+	// 注册示例任务2：每天凌晨2点执行
+	RegisterTask("example_daily_2am", func(ctx context.Context) error {
+		logger.SchedulerL.Info("Example task: daily at 2 AM")
+		return nil
+	})
+
+	// 注册示例任务3：每5分钟执行一次
+	RegisterTask("example_every_5min", func(ctx context.Context) error {
+		logger.SchedulerL.Info("Example task: every 5 minutes")
+		return nil
+	})
+
+	logger.SchedulerL.Info("Task functions registered")
 }
 
 // RegisterRoutes 注册路由

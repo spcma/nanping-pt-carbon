@@ -6,6 +6,7 @@ import (
 	"app/internal/shared/timeutil"
 	"context"
 	"errors"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -82,4 +83,28 @@ func (u *CarbonReportDayRepository) FindPage(ctx context.Context, query *CarbonR
 	}
 
 	return result, nil
+}
+
+// FindByMonth 根据年月查询该月的所有日报数据
+func (u *CarbonReportDayRepository) FindByMonth(ctx context.Context, year int, month int) ([]*CarbonReportDay, error) {
+	var carbonReportDays []*CarbonReportDay
+
+	// 计算该月的开始和结束日期
+	startDate := timeutil.FromGoTime(time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.Local))
+	endDate := timeutil.FromGoTime(time.Date(year, time.Month(month+1), 1, 0, 0, 0, 0, time.Local))
+
+	err := db.GetDB(ctx).WithContext(ctx).
+		Table("carbon_report_day").
+		Where(entity.FieldDeleteBy+" = 0").
+		Where("collection_date >= ? AND collection_date < ?", startDate, endDate).
+		Order("collection_date ASC").
+		Find(&carbonReportDays).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return carbonReportDays, nil
 }

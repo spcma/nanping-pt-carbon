@@ -1,10 +1,30 @@
 # 定时任务模块使用说明
 
+## 核心特性
+
+✅ **自动持久化**: 任务配置自动保存到数据库，应用重启后自动加载
+✅ **动态管理**: 通过 API 动态添加、修改、启用/禁用任务
+✅ **任务注册表**: 支持注册任务函数，与任务配置解耦
+✅ **完整监控**: 查看任务执行状态、最后执行时间、下次执行时间等
+
+---
+
 ## 快速开始
 
 ### 1. 模块已自动启动
 
 定时任务模块已在服务器启动时自动初始化和启动，无需额外配置。
+
+**首次启动流程：**
+1. 系统自动创建 `sys_scheduled_task` 表
+2. 初始化默认任务配置到数据库
+3. 注册所有任务函数到注册表
+4. 从数据库加载已启用的任务并启动调度
+
+**重启流程：**
+1. 注册所有任务函数到注册表
+2. 从数据库加载已启用的任务配置
+3. 根据配置自动重新注册并启动任务
 
 ### 2. 查看现有任务
 
@@ -15,20 +35,21 @@ curl -X GET http://localhost:8080/api/scheduler/tasks \
   -H "Authorization: Bearer <your_token>"
 ```
 
-### 3. 内置示例任务
+### 3. 默认任务配置
 
-系统默认包含3个示例任务：
-- `example_every_minute` - 每分钟执行（已启用）
-- `example_daily_2am` - 每天凌晨2点执行（已启用）
-- `example_every_5min` - 每5分钟执行（默认禁用）
+系统首次启动时会自动创建以下默认任务：
+- `carbon_report_monthly_aggregation` - 每月3号凌晨1点执行，汇总上月碳日报数据生成月报（已启用）
+- `daily_log_output` - 每天凌晨0点执行，输出调度任务运行日志（已启用）
+
+**注意**: 示例任务不再自动创建，需要时可手动添加。
 
 ---
 
 ## 自定义任务开发
 
-### 方式一：使用任务注册表（推荐）
+### 步骤一：注册任务函数
 
-在你的模块中注册任务函数：
+在你的模块中注册任务函数到全局注册表：
 
 ```go
 package yourmodule
@@ -42,8 +63,8 @@ import (
 )
 
 func init() {
-    // 注册任务函数
-    scheduler.RegisterTask("my_task", func(ctx context.Context) error {
+    // 注册任务函数（不直接添加到调度器）
+    scheduler.RegisterTask("my_task_type", func(ctx context.Context) error {
         logger.SchedulerL.Info("My task is running")
         
         // 实现你的业务逻辑
@@ -59,7 +80,42 @@ func init() {
 }
 ```
 
-### 方式二：直接添加到调度器
+**重要**: `RegisterTask` 只是注册任务函数，不会立即启动任务。任务的执行时间、是否启用等配置存储在数据库中。
+
+### 步骤二：添加任务配置
+
+通过 API 或直接在数据库中添加任务配置：
+
+#### 方式 A: 通过 API 添加（推荐）
+
+```bash
+curl -X POST http://localhost:8080/api/scheduler/tasks \
+  -H "Authorization: Bearer <your_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "my_custom_task",
+    "cron_spec": "0 */10 * * * *",
+    "description": "每10分钟执行的自定义任务",
+    "enabled": true,
+    "task_type": "my_task_type"
+  }'
+```
+
+系统会自动：
+1. 将任务配置保存到数据库
+2. 从注册表中查找对应的任务函数
+3. 注册并启动任务
+
+#### 方式 B: 直接在数据库中添加
+
+```sql
+INSERT INTO sys_scheduled_task (name, cron_spec, description, enabled, task_type, create_by, create_time, update_time, delete_by, delete_time)
+VALUES ('my_custom_task', '0 */10 * * * *', '每10分钟执行的自定义任务', true, 'my_task_type', 1, NOW(), NOW(), 0, '1970-01-01 00:00:00+08');
+```
+
+然后重启应用，系统会自动加载并启动该任务。
+
+### 完整示例：碳报告每日生成
 
 ```go
 package yourmodule
@@ -286,15 +342,37 @@ A:
 3. 在开发环境测试
 4. 使用 context 传递调试信息
 
+### Q: 应用重启后任务会自动加载吗？
+A: **是的！** 这是本模块的核心特性：
+- 所有任务配置都保存在数据库的 `sys_scheduled_task` 表中
+- 应用启动时，系统会：
+  1. 注册所有任务函数到注册表
+  2. 从数据库读取所有启用的任务配置
+  3. 根据配置自动重新注册并启动任务
+- 你无需任何额外操作，任务会自动恢复运行
+
+### Q: 如何修改任务的执行时间？
+A: 有两种方式：
+1. **通过 API**（推荐）：调用更新接口修改 cron 表达式
+2. **直接修改数据库**：更新 `sys_scheduled_task` 表中的 `cron_spec` 字段，然后重启应用
+
+### Q: 如何永久删除一个任务？
+A: 
+1. 通过 API 删除任务（会逻辑删除数据库记录）
+2. 或直接删除数据库中的记录
+3. 重启应用后该任务将不再加载
+
 ---
 
 ## 示例：碳报告自动生成
+
+### 1. 注册任务函数
 
 ```go
 package scheduler
 
 import (
-    "app/internal/shared/db"
+    "app/internal/module/carbonreportday"
     "app/internal/shared/logger"
     "context"
     "time"
@@ -303,23 +381,58 @@ import (
 )
 
 func init() {
+    // 注册任务函数
     RegisterTask("carbon_report_daily", func(ctx context.Context) error {
         logger.SchedulerL.Info("Generating daily carbon report")
         
         // 获取昨天的日期
         yesterday := time.Now().AddDate(0, 0, -1)
+        year := yesterday.Year()
+        month := int(yesterday.Month())
+        day := yesterday.Day()
         
-        // 查询昨天的数据
-        dbInst := db.Default()
-        // ... 查询和处理逻辑
+        // 调用业务服务生成报告
+        service := carbonreportday.DefaultService()
+        if service == nil {
+            logger.SchedulerL.Error("Carbon report service not initialized")
+            return nil
+        }
         
-        logger.SchedulerL.Info("Daily carbon report generated",
-            zap.Time("report_date", yesterday),
+        err := service.GenerateDailyReport(ctx, year, month, day)
+        if err != nil {
+            logger.SchedulerL.Error("Failed to generate daily report",
+                zap.Int("year", year),
+                zap.Int("month", month),
+                zap.Int("day", day),
+                zap.Error(err),
+            )
+            return err
+        }
+        
+        logger.SchedulerL.Info("Daily carbon report generated successfully",
+            zap.Int("year", year),
+            zap.Int("month", month),
+            zap.Int("day", day),
         )
         
         return nil
     })
 }
+```
+
+### 2. 添加任务配置
+
+```bash
+curl -X POST http://localhost:8080/api/scheduler/tasks \
+  -H "Authorization: Bearer <your_token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "carbon_report_daily",
+    "cron_spec": "0 0 1 * * *",
+    "description": "每天凌晨1点生成昨日碳报告",
+    "enabled": true,
+    "task_type": "carbon_report_daily"
+  }'
 ```
 
 ---
@@ -338,3 +451,26 @@ func init() {
 
 - API 文档：[api.md](./api.md)
 - HTTP 测试：[scheduler.http](./scheduler.http)
+
+---
+
+## 数据库表结构
+
+### sys_scheduled_task 表
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | BIGINT | 主键ID |
+| name | VARCHAR | 任务名称（唯一） |
+| cron_spec | VARCHAR | Cron表达式 |
+| description | VARCHAR | 任务描述 |
+| enabled | BOOLEAN | 是否启用 |
+| task_type | VARCHAR | 任务类型（对应注册表中的函数名） |
+| create_by | BIGINT | 创建人ID |
+| update_by | BIGINT | 更新人ID |
+| delete_by | BIGINT | 删除人ID（0表示未删除） |
+| create_time | TIMESTAMP | 创建时间 |
+| update_time | TIMESTAMP | 更新时间 |
+| delete_time | TIMESTAMP | 删除时间 |
+
+**注意**: `task_type` 必须与通过 `RegisterTask` 注册的任务函数名称一致。
