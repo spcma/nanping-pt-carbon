@@ -3,6 +3,7 @@ package scheduler
 import (
 	"app/internal/platform/http/response"
 	"app/internal/shared/logger"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -41,20 +42,20 @@ type UpdateTaskRequest struct {
 func (h *SchedulerHandler) AddTask(c *gin.Context) {
 	var req AddTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, "invalid request: "+err.Error())
+		response.BadRequest(c, "invalid request "+err.Error())
 		return
 	}
 
 	// 注意：这里需要注册具体的任务函数
 	// 实际使用时，应该通过任务注册表来获取任务函数
-	response.Error(c, http.StatusBadRequest, "task function not registered")
+	response.InternalError(c, "task function not registered")
 }
 
 // RemoveTask 移除定时任务
 func (h *SchedulerHandler) RemoveTask(c *gin.Context) {
 	taskName := c.Param("name")
 	if taskName == "" {
-		response.Error(c, http.StatusBadRequest, "task name is required")
+		response.BadRequest(c, "task name is required")
 		return
 	}
 
@@ -63,13 +64,13 @@ func (h *SchedulerHandler) RemoveTask(c *gin.Context) {
 			zap.String("task_name", taskName),
 			zap.Error(err),
 		)
-		response.Error(c, http.StatusInternalServerError, err.Error())
+
+		response.InternalError(c, fmt.Sprintf("Failed to remove task: %v", err))
 		return
 	}
 
-	logger.SchedulerL.Info("Task removed via API",
-		zap.String("task_name", taskName),
-	)
+	logger.SchedulerL.Info("Task removed via API", zap.String("task_name", taskName))
+
 	response.Success(c, nil)
 }
 
@@ -77,13 +78,13 @@ func (h *SchedulerHandler) RemoveTask(c *gin.Context) {
 func (h *SchedulerHandler) GetTaskStatus(c *gin.Context) {
 	taskName := c.Param("name")
 	if taskName == "" {
-		response.Error(c, http.StatusBadRequest, "task name is required")
+		response.BadRequest(c, "task name is required")
 		return
 	}
 
 	status, err := h.scheduler.GetStatus(taskName)
 	if err != nil {
-		response.Error(c, http.StatusNotFound, err.Error())
+		response.InternalError(c, "get task status failed")
 		return
 	}
 
@@ -100,12 +101,16 @@ func (h *SchedulerHandler) ListTasks(c *gin.Context) {
 func (h *SchedulerHandler) EnableTask(c *gin.Context) {
 	taskName := c.Param("name")
 	if taskName == "" {
-		response.Error(c, http.StatusBadRequest, "task name is required")
+		response.BadRequest(c, "task name is required")
 		return
 	}
 
 	if err := h.scheduler.EnableTask(taskName); err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
+		logger.SchedulerL.Error("Failed to enable task",
+			zap.String("task_name", taskName),
+			zap.Error(err),
+		)
+		response.InternalError(c, "enable task failed")
 		return
 	}
 

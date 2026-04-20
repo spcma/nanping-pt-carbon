@@ -5,6 +5,7 @@ import (
 	"app/internal/shared/entity"
 	idgen "app/internal/shared/idgen"
 	"app/internal/shared/timeutil"
+	"fmt"
 )
 
 // UserStatus user status
@@ -37,7 +38,21 @@ func (*Users) TableName() string {
 }
 
 // NewUser creates a new user
+//
+//	统一使用构造方法创建用户，方便统一进行参数校验
 func NewUser(username, nickname, password, salt string, createUser int64) (*Users, error) {
+	if username == "" {
+		return nil, fmt.Errorf("username cannot be empty")
+	}
+
+	if nickname == "" {
+		return nil, fmt.Errorf("nickname cannot be empty")
+	}
+
+	if password == "" {
+		return nil, fmt.Errorf("password cannot be empty")
+	}
+
 	// 如果没有提供盐值，生成一个新的
 	if salt == "" {
 		var err error
@@ -45,6 +60,10 @@ func NewUser(username, nickname, password, salt string, createUser int64) (*User
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	if createUser == 0 {
+		createUser = 1
 	}
 
 	// 加密密码
