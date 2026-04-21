@@ -24,18 +24,22 @@ func NewSchedulerHandler(scheduler *Scheduler) *SchedulerHandler {
 
 // AddTaskRequest 添加任务请求
 type AddTaskRequest struct {
-	Name        string `json:"name" binding:"required"`
-	CronSpec    string `json:"cron_spec" binding:"required"`
-	Description string `json:"description"`
-	Enabled     bool   `json:"enabled"`
+	Name        string                 `json:"name" binding:"required"`
+	CronSpec    string                 `json:"cron_spec" binding:"required"`
+	Description string                 `json:"description"`
+	Enabled     bool                   `json:"enabled"`
+	TaskType    string                 `json:"task_type" binding:"required"` // 任务类型，用于从注册表中获取任务函数
+	Params      map[string]interface{} `json:"params"`                       // 任务参数
 }
 
 // UpdateTaskRequest 更新任务请求
 type UpdateTaskRequest struct {
-	Name        string `json:"name" binding:"required"`
-	CronSpec    string `json:"cron_spec" binding:"required"`
-	Description string `json:"description"`
-	Enabled     bool   `json:"enabled"`
+	Name        string                 `json:"name" binding:"required"`
+	CronSpec    string                 `json:"cron_spec" binding:"required"`
+	Description string                 `json:"description"`
+	Enabled     bool                   `json:"enabled"`
+	TaskType    string                 `json:"task_type"` // 任务类型
+	Params      map[string]interface{} `json:"params"`    // 任务参数
 }
 
 // AddTask 添加定时任务
@@ -46,9 +50,40 @@ func (h *SchedulerHandler) AddTask(c *gin.Context) {
 		return
 	}
 
-	// 注意：这里需要注册具体的任务函数
-	// 实际使用时，应该通过任务注册表来获取任务函数
-	response.InternalError(c, "task function not registered")
+	// 从任务注册表中获取任务函数
+	taskFunc, exists := GetRegistry().Get(req.TaskType)
+	if !exists {
+		response.BadRequest(c, fmt.Sprintf("task type '%s' not found in registry", req.TaskType))
+		return
+	}
+
+	// 创建任务配置
+	config := &TaskConfig{
+		Name:        req.Name,
+		CronSpec:    req.CronSpec,
+		Description: req.Description,
+		Enabled:     req.Enabled,
+		TaskFunc:    taskFunc,
+		Params:      req.Params,
+	}
+
+	// 添加到调度器
+	if err := h.scheduler.AddTask(config); err != nil {
+		logger.SchedulerL.Error("Failed to add task",
+			zap.String("task_name", req.Name),
+			zap.Error(err),
+		)
+		response.InternalError(c, fmt.Sprintf("Failed to add task: %v", err))
+		return
+	}
+
+	logger.SchedulerL.Info("Task added via API",
+		zap.String("task_name", req.Name),
+		zap.String("task_type", req.TaskType),
+		zap.String("cron_spec", req.CronSpec),
+	)
+
+	response.Success(c, nil)
 }
 
 // RemoveTask 移除定时任务

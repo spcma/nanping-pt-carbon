@@ -11,15 +11,16 @@ import (
 )
 
 // TaskFunc 定时任务函数类型
-type TaskFunc func(ctx context.Context) error
+type TaskFunc func(ctx context.Context, params map[string]interface{}) error
 
 // TaskConfig 定时任务配置
 type TaskConfig struct {
-	Name        string   // 任务名称
-	CronSpec    string   // Cron 表达式
-	TaskFunc    TaskFunc // 任务执行函数
-	Description string   // 任务描述
-	Enabled     bool     // 是否启用
+	Name        string                 // 任务名称
+	CronSpec    string                 // Cron 表达式
+	TaskFunc    TaskFunc               // 任务执行函数
+	Description string                 // 任务描述
+	Enabled     bool                   // 是否启用
+	Params      map[string]interface{} // 任务参数
 }
 
 // TaskStatus 任务状态
@@ -135,6 +136,7 @@ func (s *Scheduler) AddTask(config *TaskConfig) error {
 				Description: config.Description,
 				Enabled:     config.Enabled,
 				TaskType:    config.Name, // 默认使用任务名称作为类型
+				Params:      config.Params,
 			}
 			if err := s.repository.Create(ctx, taskEntity); err != nil {
 				logger.SchedulerL.Warn("Failed to persist task config to database",
@@ -147,6 +149,7 @@ func (s *Scheduler) AddTask(config *TaskConfig) error {
 			existingTask.CronSpec = config.CronSpec
 			existingTask.Description = config.Description
 			existingTask.Enabled = config.Enabled
+			existingTask.Params = config.Params
 			if err := s.repository.Update(ctx, existingTask); err != nil {
 				logger.SchedulerL.Warn("Failed to update task config in database",
 					zap.String("task_name", config.Name),
@@ -288,7 +291,7 @@ func (s *Scheduler) executeTask(config *TaskConfig) {
 
 	// 执行任务
 	ctx := context.Background()
-	err := config.TaskFunc(ctx)
+	err := config.TaskFunc(ctx, config.Params)
 
 	if err != nil {
 		logger.SchedulerL.Error("Task execution failed",
@@ -368,6 +371,7 @@ func (s *Scheduler) LoadTasksFromDatabase(taskRegistry *TaskRegistry) error {
 			Description: task.Description,
 			Enabled:     task.Enabled,
 			TaskFunc:    taskFunc,
+			Params:      task.Params,
 		}
 
 		// 添加到调度器(不重复持久化)
