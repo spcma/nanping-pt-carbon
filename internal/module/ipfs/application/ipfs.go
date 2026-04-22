@@ -49,7 +49,7 @@ func NewService(db *gorm.DB, remoteDB *gorm.DB) *Service {
 	ipfsDetailAppService := NewIpfsDetailAppService(ipfsDetailRepo)
 
 	// 初始化碳报告应用服务
-	carbonReportDayRepo := carbonreportday_application.NewCarbonReportDayRepository(db)
+	carbonReportDayRepo := carbonreportday_application.NewCarbonReportDayRepository()
 	carbonReportDayAppService := carbonreportday_application.NewCarbonReportDayAppService(carbonReportDayRepo)
 
 	s := &Service{

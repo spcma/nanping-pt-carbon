@@ -1,7 +1,6 @@
 package carbonreportday
 
 import (
-	"app/internal/shared/db"
 	shared_http "app/internal/shared/http"
 
 	"github.com/gin-gonic/gin"
@@ -14,10 +13,8 @@ type carbonReportDayRoutes struct {
 
 // NewCarbonReportDayRoutes 创建 CarbonReportDay 模块的路由注册器
 func NewCarbonReportDayRoutes() shared_http.RouteRegistry {
-	dbInst := db.Default()
-
 	//	初始化 carbon_report_day 模块
-	carbonReportDayRepo := NewCarbonReportDayRepository(dbInst)
+	carbonReportDayRepo := NewCarbonReportDayRepository()
 	carbonReportDayService := NewCarbonReportDayAppService(carbonReportDayRepo)
 	carbonReportDayHandler := NewCarbonReportDayHandler(carbonReportDayService)
 

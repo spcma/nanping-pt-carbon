@@ -27,7 +27,7 @@ func NewCarbonReportMonthRoutes() shared_http.RouteRegistry {
 
 	//	初始化 carbon_report_month 模块
 	carbonReportMonthRepo := NewCarbonReportMonthRepository(dbInst)
-	carbonReportDayRepo := carbonreportday.NewCarbonReportDayRepository(dbInst)
+	carbonReportDayRepo := carbonreportday.NewCarbonReportDayRepository()
 	carbonReportMonthService := NewCarbonReportMonthAppService(carbonReportMonthRepo, carbonReportDayRepo)
 	carbonReportMonthHandler := NewCarbonReportMonthHandler(carbonReportMonthService)
 

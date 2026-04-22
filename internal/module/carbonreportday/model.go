@@ -9,11 +9,13 @@ import (
 // CarbonReportDay 碳报告日报聚合根
 type CarbonReportDay struct {
 	entity.BaseEntity
+	TraceCode       string        `json:"trace_code" gorm:"column:trace_code"` // 追溯码
+	Mileage         float64       `json:"mileage" gorm:"column:mileage"`
+	Turnover        float64       `json:"turnover" gorm:"column:turnover"`               // 营业额
+	CollectionDate  timeutil.Time `json:"collection_date" gorm:"column:collection_date"` // 数据采集日期
 	Hash            string        `json:"hash" gorm:"column:hash"`
-	Turnover        float64       `json:"turnover" gorm:"column:turnover"`                // 营业额
 	Baseline        float64       `json:"baseline" gorm:"column:baseline"`                // 基准值
 	CarbonReduction float64       `json:"carbonReduction" gorm:"column:carbon_reduction"` // 碳减排量
-	CollectionDate  timeutil.Time `json:"collection_date" gorm:"column:collection_date"`  // 数据采集日期
 }
 
 // TableName 表名
