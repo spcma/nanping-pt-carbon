@@ -27,22 +27,22 @@ type UpdateCarbonReportMonthCommand struct {
 	UserID int64 `json:"userId"`
 }
 
-// CarbonReportMonthAppService 碳报告月报应用服务
-type CarbonReportMonthAppService struct {
-	repo    CarbonReportMonthRepo
-	dayRepo carbonreportday.CarbonReportDayRepo
+// CarbonReportMonthService 碳报告月报应用服务
+type CarbonReportMonthService struct {
+	repo       CarbonReportMonthRepo
+	dayService *carbonreportday.CarbonReportDayService
 }
 
-// NewCarbonReportMonthAppService 创建碳报告月报应用服务
-func NewCarbonReportMonthAppService(repo CarbonReportMonthRepo, dayRepo carbonreportday.CarbonReportDayRepo) *CarbonReportMonthAppService {
-	return &CarbonReportMonthAppService{
-		repo:    repo,
-		dayRepo: dayRepo,
+// NewCarbonReportMonthService 创建碳报告月报应用服务
+func NewCarbonReportMonthService(repo CarbonReportMonthRepo, dayService *carbonreportday.CarbonReportDayService) *CarbonReportMonthService {
+	return &CarbonReportMonthService{
+		repo:       repo,
+		dayService: dayService,
 	}
 }
 
 // CreateCarbonReportMonth 创建碳报告月报
-func (s *CarbonReportMonthAppService) CreateCarbonReportMonth(ctx context.Context, cmd CreateCarbonReportMonthCommand) (int64, error) {
+func (s *CarbonReportMonthService) CreateCarbonReportMonth(ctx context.Context, cmd CreateCarbonReportMonthCommand) (int64, error) {
 	report, err := NewCarbonReportMonth(cmd.Turnover, cmd.Baseline, cmd.EnergyConsumption, cmd.CollectionDate, cmd.UserID)
 	if err != nil {
 		return 0, err
@@ -56,7 +56,7 @@ func (s *CarbonReportMonthAppService) CreateCarbonReportMonth(ctx context.Contex
 }
 
 // UpdateCarbonReportMonth 更新碳报告月报
-func (s *CarbonReportMonthAppService) UpdateCarbonReportMonth(ctx context.Context, cmd UpdateCarbonReportMonthCommand) error {
+func (s *CarbonReportMonthService) UpdateCarbonReportMonth(ctx context.Context, cmd UpdateCarbonReportMonthCommand) error {
 	report, err := s.repo.FindByID(ctx, cmd.ID)
 	if err != nil {
 		return err
@@ -65,17 +65,17 @@ func (s *CarbonReportMonthAppService) UpdateCarbonReportMonth(ctx context.Contex
 }
 
 // DeleteCarbonReportMonth 删除碳报告月报
-func (s *CarbonReportMonthAppService) DeleteCarbonReportMonth(ctx context.Context, id int64, userID int64) error {
+func (s *CarbonReportMonthService) DeleteCarbonReportMonth(ctx context.Context, id int64, userID int64) error {
 	return s.repo.Delete(ctx, id, userID)
 }
 
 // GetCarbonReportMonthByID 根据 ID 获取碳报告月报
-func (s *CarbonReportMonthAppService) GetCarbonReportMonthByID(ctx context.Context, id int64) (*CarbonReportMonth, error) {
+func (s *CarbonReportMonthService) GetCarbonReportMonthByID(ctx context.Context, id int64) (*CarbonReportMonth, error) {
 	return s.repo.FindByID(ctx, id)
 }
 
 // GetCarbonReportMonthPage 分页查询碳报告月报
-func (s *CarbonReportMonthAppService) GetCarbonReportMonthPage(ctx context.Context, query *CarbonReportMonthPageQuery) (*entity.PaginationResult[*CarbonReportMonth], error) {
+func (s *CarbonReportMonthService) GetCarbonReportMonthPage(ctx context.Context, query *CarbonReportMonthPageQuery) (*entity.PaginationResult[*CarbonReportMonth], error) {
 	res, err := s.repo.FindPage(ctx, query)
 	if err != nil {
 		return nil, err
@@ -84,7 +84,7 @@ func (s *CarbonReportMonthAppService) GetCarbonReportMonthPage(ctx context.Conte
 }
 
 // AggregateMonthlyReport 汇总月报：从日报数据汇总生成月报
-func (s *CarbonReportMonthAppService) AggregateMonthlyReport(ctx context.Context, year int, month int) error {
+func (s *CarbonReportMonthService) AggregateMonthlyReport(ctx context.Context, year int, month int) error {
 	logger.SchedulerL.Info("开始汇总月报",
 		zap.Int("year", year),
 		zap.Int("month", month),
@@ -104,7 +104,7 @@ func (s *CarbonReportMonthAppService) AggregateMonthlyReport(ctx context.Context
 	}
 
 	// 2. 查询该月的所有日报数据
-	dayReports, err := s.dayRepo.FindByMonth(ctx, year, month)
+	dayReports, err := s.dayService.FindByMonth(ctx, year, month)
 	if err != nil {
 		return err
 	}

@@ -6,6 +6,16 @@ import (
 	"context"
 )
 
+// CarbonReportDayService 碳报告日报应用服务
+type CarbonReportDayService struct {
+	repo CarbonReportDayRepo
+}
+
+// NewCarbonReportDayService 创建碳报告日报应用服务
+func NewCarbonReportDayService(repo CarbonReportDayRepo) *CarbonReportDayService {
+	return &CarbonReportDayService{repo: repo}
+}
+
 // CreateCarbonReportDayCommand 创建碳报告日报命令
 type CreateCarbonReportDayCommand struct {
 	Hash            string        `json:"hash"`
@@ -16,24 +26,8 @@ type CreateCarbonReportDayCommand struct {
 	CollectionDate  timeutil.Time `json:"collection_date" gorm:"column:collection_date"`  // 数据采集日期
 }
 
-// UpdateCarbonReportDayCommand 更新碳报告日报命令
-type UpdateCarbonReportDayCommand struct {
-	ID     int64 `json:"id"`
-	UserID int64 `json:"userId"`
-}
-
-// CarbonReportDayAppService 碳报告日报应用服务
-type CarbonReportDayAppService struct {
-	repo CarbonReportDayRepo
-}
-
-// NewCarbonReportDayAppService 创建碳报告日报应用服务
-func NewCarbonReportDayAppService(repo CarbonReportDayRepo) *CarbonReportDayAppService {
-	return &CarbonReportDayAppService{repo: repo}
-}
-
 // CreateCarbonReportDay 创建碳报告日报
-func (s *CarbonReportDayAppService) CreateCarbonReportDay(ctx context.Context, cmd CreateCarbonReportDayCommand) (int64, error) {
+func (s *CarbonReportDayService) CreateCarbonReportDay(ctx context.Context, cmd CreateCarbonReportDayCommand) (int64, error) {
 	report, err := NewCarbonReportDay(cmd.Turnover, cmd.Baseline, cmd.CollectionDate, cmd.UserID)
 	if err != nil {
 		return 0, err
@@ -47,8 +41,14 @@ func (s *CarbonReportDayAppService) CreateCarbonReportDay(ctx context.Context, c
 	return report.Id, nil
 }
 
+// UpdateCarbonReportDayCommand 更新碳报告日报命令
+type UpdateCarbonReportDayCommand struct {
+	ID     int64 `json:"id"`
+	UserID int64 `json:"userId"`
+}
+
 // UpdateCarbonReportDay 更新碳报告日报
-func (s *CarbonReportDayAppService) UpdateCarbonReportDay(ctx context.Context, cmd UpdateCarbonReportDayCommand) error {
+func (s *CarbonReportDayService) UpdateCarbonReportDay(ctx context.Context, cmd UpdateCarbonReportDayCommand) error {
 	report, err := s.repo.FindByID(ctx, cmd.ID)
 	if err != nil {
 		return err
@@ -57,17 +57,17 @@ func (s *CarbonReportDayAppService) UpdateCarbonReportDay(ctx context.Context, c
 }
 
 // DeleteCarbonReportDay 删除碳报告日报
-func (s *CarbonReportDayAppService) DeleteCarbonReportDay(ctx context.Context, id int64, userID int64) error {
+func (s *CarbonReportDayService) DeleteCarbonReportDay(ctx context.Context, id int64, userID int64) error {
 	return s.repo.Delete(ctx, id, userID)
 }
 
 // GetCarbonReportDayByID 根据 ID 获取碳报告日报
-func (s *CarbonReportDayAppService) GetCarbonReportDayByID(ctx context.Context, id int64) (*CarbonReportDay, error) {
+func (s *CarbonReportDayService) GetCarbonReportDayByID(ctx context.Context, id int64) (*CarbonReportDay, error) {
 	return s.repo.FindByID(ctx, id)
 }
 
 // GetCarbonReportDayPage 分页查询碳报告日报
-func (s *CarbonReportDayAppService) GetCarbonReportDayPage(ctx context.Context, query *CarbonReportDayPageQuery) (*entity.PaginationResult[CarbonReportDay], error) {
+func (s *CarbonReportDayService) GetCarbonReportDayPage(ctx context.Context, query *CarbonReportDayPageQuery) (*entity.PaginationResult[CarbonReportDay], error) {
 	res, err := s.repo.FindPage(ctx, query)
 	if err != nil {
 		return nil, err

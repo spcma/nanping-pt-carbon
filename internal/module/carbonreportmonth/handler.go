@@ -14,11 +14,11 @@ import (
 
 // CarbonReportMonthHandler 碳报告月报处理器
 type CarbonReportMonthHandler struct {
-	appService *CarbonReportMonthAppService
+	appService *CarbonReportMonthService
 }
 
 // NewCarbonReportMonthHandler creates carbon report month handler
-func NewCarbonReportMonthHandler(appService *CarbonReportMonthAppService) *CarbonReportMonthHandler {
+func NewCarbonReportMonthHandler(appService *CarbonReportMonthService) *CarbonReportMonthHandler {
 	return &CarbonReportMonthHandler{
 		appService: appService,
 	}

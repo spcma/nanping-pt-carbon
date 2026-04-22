@@ -6,6 +6,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// 全局服务实例，供定时任务使用
+var defaultService *CarbonReportDayService
+
+// DefaultService 获取默认的碳报告月报服务实例
+func DefaultService() *CarbonReportDayService {
+	return defaultService
+}
+
+func setDefaultService(service *CarbonReportDayService) {
+	defaultService = service
+}
+
 // carbonReportDayRoutes CarbonReportDay 模块路由注册器
 type carbonReportDayRoutes struct {
 	carbonReportDayHandler *CarbonReportDayHandler
@@ -13,13 +25,14 @@ type carbonReportDayRoutes struct {
 
 // NewCarbonReportDayRoutes 创建 CarbonReportDay 模块的路由注册器
 func NewCarbonReportDayRoutes() shared_http.RouteRegistry {
-	//	初始化 carbon_report_day 模块
-	carbonReportDayRepo := NewCarbonReportDayRepository()
-	carbonReportDayService := NewCarbonReportDayAppService(carbonReportDayRepo)
-	carbonReportDayHandler := NewCarbonReportDayHandler(carbonReportDayService)
+	repo := NewCarbonReportDayRepository()
+	service := NewCarbonReportDayService(repo)
+	handler := NewCarbonReportDayHandler(service)
+
+	setDefaultService(service)
 
 	return &carbonReportDayRoutes{
-		carbonReportDayHandler: carbonReportDayHandler,
+		carbonReportDayHandler: handler,
 	}
 }
 

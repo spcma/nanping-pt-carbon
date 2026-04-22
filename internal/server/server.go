@@ -56,11 +56,15 @@ func Initialize() (*Server, error) {
 		SearchPath: config.GlobalConfig.Database.SearchPath,
 	}
 
-	// 初始化数据库
+	// 初始化数据源1
 	dbInstance, err := initDatabase(dbConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize database: %v", err)
 	}
+
+	// 设置默认数据库实例
+	db.RegisterDB("default", dbInstance)
+	db.SetDefault(dbInstance)
 
 	// 初始化基础数据（超级管理员等）
 	if err := initData(dbInstance); err != nil {
@@ -77,11 +81,13 @@ func Initialize() (*Server, error) {
 		SearchPath: config.GlobalConfig.RemoteDatabase.SearchPath,
 	}
 
-	// 初始化数据库
+	// 初始化数据源2
 	dbInstance2, err := initDatabase(dbConfig2)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize remote_database: %v", err)
 	}
+
+	db.RegisterDB("remote", dbInstance2)
 
 	// 初始化Redis
 	redisClient, err := initRedis()
@@ -89,10 +95,6 @@ func Initialize() (*Server, error) {
 		return nil, fmt.Errorf("failed to initialize redis: %v", err)
 	}
 	redisClient.SetDefault()
-
-	// 设置默认数据库实例
-	db.SetDefault(dbInstance)
-	db.SetRemote(dbInstance2)
 
 	// 初始化 Token 管理器并设置为默认实例
 	if config.GlobalConfig.Token.Expire <= 0 {
@@ -109,9 +111,12 @@ func Initialize() (*Server, error) {
 	token.SetDefault(tokenManager)
 
 	// 初始化 HTTP 路由
+	// 注意: 此步骤会注册所有模块的路由,并初始化各模块的 Service
+	// 必须在调度器启动之前完成,确保调度任务可以安全访问其他模块的 Service
 	router := transport_http.InitRouter()
 
 	// 初始化定时任务调度器
+	// 注意: Start() 必须在所有模块初始化完成后调用,避免任务执行时依赖的 Service 未就绪
 	sched := scheduler.Default()
 	sched.Start()
 

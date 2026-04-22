@@ -2,18 +2,21 @@ package carbonreportmonth
 
 import (
 	"app/internal/module/carbonreportday"
-	"app/internal/shared/db"
 	shared_http "app/internal/shared/http"
 
 	"github.com/gin-gonic/gin"
 )
 
 // 全局服务实例，供定时任务使用
-var defaultService *CarbonReportMonthAppService
+var defaultService *CarbonReportMonthService
 
 // DefaultService 获取默认的碳报告月报服务实例
-func DefaultService() *CarbonReportMonthAppService {
+func DefaultService() *CarbonReportMonthService {
 	return defaultService
+}
+
+func setDefaultService(service *CarbonReportMonthService) {
+	defaultService = service
 }
 
 // carbonReportMonthRoutes CarbonReportMonth 模块路由注册器
@@ -23,19 +26,17 @@ type carbonReportMonthRoutes struct {
 
 // NewCarbonReportMonthRoutes 创建 CarbonReportMonth 模块的路由注册器
 func NewCarbonReportMonthRoutes() shared_http.RouteRegistry {
-	dbInst := db.Default()
 
-	//	初始化 carbon_report_month 模块
-	carbonReportMonthRepo := NewCarbonReportMonthRepository(dbInst)
-	carbonReportDayRepo := carbonreportday.NewCarbonReportDayRepository()
-	carbonReportMonthService := NewCarbonReportMonthAppService(carbonReportMonthRepo, carbonReportDayRepo)
-	carbonReportMonthHandler := NewCarbonReportMonthHandler(carbonReportMonthService)
+	repo := NewCarbonReportMonthRepository()
+	crdService := carbonreportday.DefaultService()
+	service := NewCarbonReportMonthService(repo, crdService)
+	handler := NewCarbonReportMonthHandler(service)
 
 	// 设置全局服务实例
-	defaultService = carbonReportMonthService
+	setDefaultService(service)
 
 	return &carbonReportMonthRoutes{
-		carbonReportMonthHandler: carbonReportMonthHandler,
+		carbonReportMonthHandler: handler,
 	}
 }
 

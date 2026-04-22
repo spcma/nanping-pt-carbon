@@ -20,10 +20,10 @@ type IpfsHandler struct {
 	appService *application.Service
 }
 
-func NewIpfsHandler(appService *application.Service) (*IpfsHandler, error) {
+func NewIpfsHandler(appService *application.Service) *IpfsHandler {
 	return &IpfsHandler{
 		appService: appService,
-	}, nil
+	}
 }
 
 func (h *IpfsHandler) ListDir(c *gin.Context) {

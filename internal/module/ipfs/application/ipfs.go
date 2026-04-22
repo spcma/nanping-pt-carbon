@@ -5,6 +5,7 @@ import (
 	carbonreportday_application "app/internal/module/carbonreportday"
 	"app/internal/module/ipfs/infrastructure"
 	"app/internal/module/ipfs/rpc"
+	"app/internal/shared/db"
 	"app/internal/shared/entity"
 	"app/internal/shared/logger"
 	"app/internal/shared/timeutil"
@@ -19,8 +20,6 @@ import (
 	"time"
 
 	"github.com/dromara/carbon/v2"
-	"gorm.io/gorm"
-
 	"github.com/spf13/cast"
 	"go.uber.org/zap"
 )
@@ -32,24 +31,23 @@ type Service struct {
 	ppt                       string    // 通行证
 	ppt_expire_time           time.Time // 过期时间
 	session                   string    // 会话token
-	remoteDB                  *gorm.DB
 	client                    *rpc.LApiStub
 	ipfsDetailAppService      *IpfsDetailAppService
-	carbonReportDayAppService *carbonreportday_application.CarbonReportDayAppService
+	carbonReportDayAppService *carbonreportday_application.CarbonReportDayService
 	clientGuardianStop        chan struct{} // 客户端守护程序停止信号
 	clientReconnectTrigger    chan struct{} // 重连触发信号
 	clientMutex               sync.Mutex    // 客户端操作互斥锁
 }
 
 // NewService 创建 IPFS 服务
-func NewService(db *gorm.DB, remoteDB *gorm.DB) *Service {
+func NewService() *Service {
 	// 初始化仓储和應用服務
 	ipfsDetailRepo := infrastructure.NewIpfsDetailRepository()
 	ipfsDetailAppService := NewIpfsDetailAppService(ipfsDetailRepo)
 
 	// 初始化碳报告应用服务
 	carbonReportDayRepo := carbonreportday_application.NewCarbonReportDayRepository()
-	carbonReportDayAppService := carbonreportday_application.NewCarbonReportDayAppService(carbonReportDayRepo)
+	carbonReportDayAppService := carbonreportday_application.NewCarbonReportDayService(carbonReportDayRepo)
 
 	s := &Service{
 		ipfsDetailAppService:      ipfsDetailAppService,
@@ -60,8 +58,7 @@ func NewService(db *gorm.DB, remoteDB *gorm.DB) *Service {
 		// 获取通行证，并自动开启守护程序
 		err := s.GetLocalPassport()
 		if err != nil {
-			logger.IpfsL.Error("IPFS get passport failed", zap.Error(err))
-			return nil
+			panic("init ipfs service failed: " + err.Error())
 		}
 
 		go s.startClientGuardian()
@@ -794,7 +791,10 @@ func (s *Service) processGpsFile(ctx context.Context, fullPath string, fileName 
 
 	// 查询对应的客流量
 	var cvres []*BusImageDetailCv
-	err = s.remoteDB.WithContext(ctx).
+
+	//	获取数据源2
+	remoteDB := db.GetDBWithContext(ctx, "remote")
+	err = remoteDB.WithContext(ctx).
 		Table("bus_image_detail_cv").
 		Where("device_code = ? and collection_time >= ? and collection_time < ?",
 			deviceCode, startTime, endTime).

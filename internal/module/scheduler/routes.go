@@ -12,6 +12,16 @@ import (
 	"go.uber.org/zap"
 )
 
+var defaultService *Scheduler
+
+func setDefaultService(sc *Scheduler) {
+	defaultService = sc
+}
+
+func DefaultService() *Scheduler {
+	return defaultService
+}
+
 // TaskRegistry 任务注册表
 type TaskRegistry struct {
 	tasks map[string]TaskFunc
@@ -57,8 +67,13 @@ type routes struct {
 }
 
 // NewSchedulerRoutes 创建定时任务模块的路由注册器
+// 注意: 此函数会在 InitRouter() 中被调用,此时所有业务模块的 Service 已经初始化完成
+// 调度任务的 Start() 会在所有路由注册完成后才调用,确保任务执行时依赖的 Service 已就绪
 func NewSchedulerRoutes() shared_http.RouteRegistry {
 	scheduler := Default()
+
+	setDefaultService(scheduler)
+
 	handler := NewSchedulerHandler(scheduler)
 
 	// 设置仓储

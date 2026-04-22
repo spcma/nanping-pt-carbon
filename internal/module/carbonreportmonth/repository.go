@@ -28,7 +28,7 @@ type CarbonReportMonthRepo interface {
 type CarbonReportMonthRepository struct {
 }
 
-func NewCarbonReportMonthRepository(_db *gorm.DB) *CarbonReportMonthRepository {
+func NewCarbonReportMonthRepository() *CarbonReportMonthRepository {
 	return &CarbonReportMonthRepository{}
 }
 

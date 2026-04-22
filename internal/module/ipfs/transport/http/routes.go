@@ -2,37 +2,36 @@ package http
 
 import (
 	"app/internal/module/ipfs/application"
-	"app/internal/shared/db"
 	shared_http "app/internal/shared/http"
-	"app/internal/shared/logger"
 
 	"github.com/gin-gonic/gin"
 )
+
+// 全局服务实例，供定时任务使用
+var defaultService *application.Service
+
+// DefaultService 获取默认的碳报告月报服务实例
+func DefaultService() *application.Service {
+	return defaultService
+}
+
+func setDefaultService(service *application.Service) {
+	defaultService = service
+}
 
 type ipfsRoutes struct {
 	ipfsHandler *IpfsHandler
 }
 
 func NewIpfsRoutes() shared_http.RouteRegistry {
-	dbt := db.Default()
-	remoteDB := db.Remote()
 
-	var appService *application.Service
+	service := application.NewService()
+	handler := NewIpfsHandler(service)
 
-	appService = application.NewService(dbt, remoteDB)
-	if appService == nil {
-		logger.Error("http", "Failed to create IPFS service")
-		panic("failed to create IPFS service")
-	}
-
-	ipfsHandler, err := NewIpfsHandler(appService)
-	if err != nil {
-		logger.Error("http", "Failed to create IPFS handler: "+err.Error())
-		panic(err)
-	}
+	setDefaultService(service)
 
 	return &ipfsRoutes{
-		ipfsHandler: ipfsHandler,
+		ipfsHandler: handler,
 	}
 }
 
