@@ -13,20 +13,20 @@ import (
 	"go.uber.org/zap"
 )
 
-// RolesHandler system role handler
-type RolesHandler struct {
-	appService *application.SysRoleAppService
+// RoleHandler system role handler
+type RoleHandler struct {
+	appService *application.RoleAppService
 }
 
-// NewRolesHandler creates system role handler
-func NewRolesHandler(appService *application.SysRoleAppService) *RolesHandler {
-	return &RolesHandler{
+// NewRoleHandler creates system role handler
+func NewRoleHandler(appService *application.RoleAppService) *RoleHandler {
+	return &RoleHandler{
 		appService: appService,
 	}
 }
 
 // Create creates a system role
-func (h *RolesHandler) Create(c *gin.Context) {
+func (h *RoleHandler) Create(c *gin.Context) {
 	var cmd application.CreateSysRoleCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
 		response.BadRequest(c, err.Error())
@@ -37,7 +37,7 @@ func (h *RolesHandler) Create(c *gin.Context) {
 		cmd.UserID = user.ID
 	}
 
-	id, err := h.appService.CreateSysRole(platform_http.Ctx(c), cmd)
+	id, err := h.appService.CreateRole(platform_http.Ctx(c), cmd)
 	if err != nil {
 		logger.RuntimeL.WithTraceID(platform_http.GetTraceID(c)).Error("角色创建失败", zap.Error(err))
 		response.InternalError(c, err.Error())
@@ -48,7 +48,7 @@ func (h *RolesHandler) Create(c *gin.Context) {
 }
 
 // Update updates a system role
-func (h *RolesHandler) Update(c *gin.Context) {
+func (h *RoleHandler) Update(c *gin.Context) {
 
 	var cmd application.UpdateSysRoleCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
@@ -65,7 +65,7 @@ func (h *RolesHandler) Update(c *gin.Context) {
 		cmd.UserID = user.ID
 	}
 
-	if err := h.appService.UpdateSysRole(platform_http.Ctx(c), cmd); err != nil {
+	if err := h.appService.UpdateRole(platform_http.Ctx(c), cmd); err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -74,7 +74,7 @@ func (h *RolesHandler) Update(c *gin.Context) {
 }
 
 // Delete deletes a system role
-func (h *RolesHandler) Delete(c *gin.Context) {
+func (h *RoleHandler) Delete(c *gin.Context) {
 	type DeleteSysRoleCommand struct {
 		ID     int64 `json:"id"`
 		UserID int64 `json:"userid"`
@@ -100,7 +100,7 @@ func (h *RolesHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	if err := h.appService.DeleteSysRole(platform_http.Ctx(c), cmd.ID, cmd.UserID); err != nil {
+	if err := h.appService.DeleteRole(platform_http.Ctx(c), cmd.ID, cmd.UserID); err != nil {
 		logger.RuntimeL.WithTraceID(platform_http.GetTraceID(c)).Error("角色删除失败", zap.Error(err))
 		response.InternalError(c, "删除失败")
 		return
@@ -110,7 +110,7 @@ func (h *RolesHandler) Delete(c *gin.Context) {
 }
 
 // GetByID gets system role by ID
-func (h *RolesHandler) GetByID(c *gin.Context) {
+func (h *RoleHandler) GetByID(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
@@ -118,7 +118,7 @@ func (h *RolesHandler) GetByID(c *gin.Context) {
 		return
 	}
 
-	role, err := h.appService.GetSysRoleByID(platform_http.Ctx(c), id)
+	role, err := h.appService.GetRoleByID(platform_http.Ctx(c), id)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
@@ -128,7 +128,7 @@ func (h *RolesHandler) GetByID(c *gin.Context) {
 }
 
 // GetPage queries system roles with pagination
-func (h *RolesHandler) GetPage(c *gin.Context) {
+func (h *RoleHandler) GetPage(c *gin.Context) {
 	var query domain.SysRolePageQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
@@ -144,7 +144,7 @@ func (h *RolesHandler) GetPage(c *gin.Context) {
 		query.PageSize = 10
 	}
 
-	res, err := h.appService.GetSysRolePage(platform_http.Ctx(c), &query)
+	res, err := h.appService.GetRolePage(platform_http.Ctx(c), &query)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
@@ -154,7 +154,7 @@ func (h *RolesHandler) GetPage(c *gin.Context) {
 }
 
 // ChangeStatus changes role status
-func (h *RolesHandler) ChangeStatus(c *gin.Context) {
+func (h *RoleHandler) ChangeStatus(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {

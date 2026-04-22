@@ -4,8 +4,8 @@ import (
 	"time"
 )
 
-// SysUserRole user role association entity
-type SysUserRole struct {
+// UserRole user role association entity
+type UserRole struct {
 	ID         int64     `json:"id" gorm:"primaryKey"`
 	SysUserId  int64     `json:"sysUserId" gorm:"column:sys_user_id"`
 	SysRoleId  int64     `json:"sysRoleId" gorm:"column:sys_role_id"`
@@ -14,13 +14,13 @@ type SysUserRole struct {
 }
 
 // TableName table name
-func (SysUserRole) TableName() string {
+func (UserRole) TableName() string {
 	return "sys_user_role"
 }
 
-// NewSysUserRole creates a new user role association
-func NewSysUserRole(userId, roleId, createUser int64) (*SysUserRole, error) {
-	userRole := &SysUserRole{
+// NewUserRole creates a new user role association
+func NewUserRole(userId, roleId, createUser int64) (*UserRole, error) {
+	userRole := &UserRole{
 		SysUserId:  userId,
 		SysRoleId:  roleId,
 		CreateUser: createUser,

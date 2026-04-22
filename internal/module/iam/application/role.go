@@ -29,19 +29,19 @@ type ChangeRoleStatusCommand struct {
 	UserID int64             `json:"userId"`
 }
 
-// SysRoleAppService system role application service
-type SysRoleAppService struct {
+// RoleAppService system role application service
+type RoleAppService struct {
 	repo RoleRepo
 }
 
-// NewSysRoleAppService creates system role application service
-func NewSysRoleAppService(repo RoleRepo) *SysRoleAppService {
-	return &SysRoleAppService{repo: repo}
+// NewRoleAppService creates system role application service
+func NewRoleAppService(repo RoleRepo) *RoleAppService {
+	return &RoleAppService{repo: repo}
 }
 
-// CreateSysRole creates a system role
-func (s *SysRoleAppService) CreateSysRole(ctx context.Context, cmd CreateSysRoleCommand) (int64, error) {
-	role, err := domain.NewSysRole(cmd.Name, cmd.Code, cmd.Description, cmd.UserID)
+// CreateRole creates a system role
+func (s *RoleAppService) CreateRole(ctx context.Context, cmd CreateSysRoleCommand) (int64, error) {
+	role, err := domain.NewRole(cmd.Name, cmd.Code, cmd.Description, cmd.UserID)
 	if err != nil {
 		return 0, err
 	}
@@ -52,8 +52,8 @@ func (s *SysRoleAppService) CreateSysRole(ctx context.Context, cmd CreateSysRole
 	return role.Id, nil
 }
 
-// UpdateSysRole updates a system role
-func (s *SysRoleAppService) UpdateSysRole(ctx context.Context, cmd UpdateSysRoleCommand) error {
+// UpdateRole updates a system role
+func (s *RoleAppService) UpdateRole(ctx context.Context, cmd UpdateSysRoleCommand) error {
 	role, err := s.repo.FindByID(ctx, cmd.ID)
 	if err != nil {
 		return err
@@ -61,23 +61,23 @@ func (s *SysRoleAppService) UpdateSysRole(ctx context.Context, cmd UpdateSysRole
 	return role.UpdateInfo(cmd.Name, cmd.Description, cmd.UserID)
 }
 
-// DeleteSysRole deletes a system role
-func (s *SysRoleAppService) DeleteSysRole(ctx context.Context, id, uid int64) error {
+// DeleteRole deletes a system role
+func (s *RoleAppService) DeleteRole(ctx context.Context, id, uid int64) error {
 	return s.repo.Delete(ctx, id, uid)
 }
 
-// GetSysRoleByID gets system role by ID
-func (s *SysRoleAppService) GetSysRoleByID(ctx context.Context, id int64) (*domain.SysRole, error) {
+// GetRoleByID gets system role by ID
+func (s *RoleAppService) GetRoleByID(ctx context.Context, id int64) (*domain.Role, error) {
 	return s.repo.FindByID(ctx, id)
 }
 
-// GetSysRoleByCode gets system role by code
-func (s *SysRoleAppService) GetSysRoleByCode(ctx context.Context, code string) (*domain.SysRole, error) {
+// GetRoleByCode gets system role by code
+func (s *RoleAppService) GetRoleByCode(ctx context.Context, code string) (*domain.Role, error) {
 	return s.repo.FindByCode(ctx, code)
 }
 
-// GetSysRolePage queries system roles with pagination
-func (s *SysRoleAppService) GetSysRolePage(ctx context.Context, query *domain.SysRolePageQuery) (*entity.PaginationResult[*domain.SysRole], error) {
+// GetRolePage queries system roles with pagination
+func (s *RoleAppService) GetRolePage(ctx context.Context, query *domain.SysRolePageQuery) (*entity.PaginationResult[*domain.Role], error) {
 	result, err := s.repo.FindPage(ctx, query)
 	if err != nil {
 		return nil, err
@@ -86,7 +86,7 @@ func (s *SysRoleAppService) GetSysRolePage(ctx context.Context, query *domain.Sy
 }
 
 // ChangeRoleStatus changes role status
-func (s *SysRoleAppService) ChangeRoleStatus(ctx context.Context, cmd ChangeRoleStatusCommand) error {
+func (s *RoleAppService) ChangeRoleStatus(ctx context.Context, cmd ChangeRoleStatusCommand) error {
 	role, err := s.repo.FindByID(ctx, cmd.ID)
 	if err != nil {
 		return err

@@ -14,8 +14,8 @@ const (
 	RoleStatusCanceled RoleStatus = "canceled" // canceled
 )
 
-// SysRole role aggregate root
-type SysRole struct {
+// Role role aggregate root
+type Role struct {
 	entity.BaseEntity
 	Name        string     `json:"name" gorm:"column:name"`
 	Code        string     `json:"code" gorm:"column:code"`
@@ -24,13 +24,13 @@ type SysRole struct {
 }
 
 // TableName table name
-func (*SysRole) TableName() string {
+func (*Role) TableName() string {
 	return "sys_role"
 }
 
-// NewSysRole creates a new role
-func NewSysRole(name, code, description string, createUser int64) (*SysRole, error) {
-	role := &SysRole{
+// NewRole creates a new role
+func NewRole(name, code, description string, createUser int64) (*Role, error) {
+	role := &Role{
 		BaseEntity: entity.BaseEntity{
 			CreateBy:   createUser,
 			CreateTime: timeutil.Now(),
@@ -44,7 +44,7 @@ func NewSysRole(name, code, description string, createUser int64) (*SysRole, err
 }
 
 // UpdateInfo updates role info
-func (r *SysRole) UpdateInfo(name, description string, userID int64) error {
+func (r *Role) UpdateInfo(name, description string, userID int64) error {
 	r.Name = name
 	r.Description = description
 	r.UpdateBy = userID
@@ -53,7 +53,7 @@ func (r *SysRole) UpdateInfo(name, description string, userID int64) error {
 }
 
 // ChangeStatus changes role status
-func (r *SysRole) ChangeStatus(status RoleStatus, userID int64) error {
+func (r *Role) ChangeStatus(status RoleStatus, userID int64) error {
 	r.Status = status
 	r.UpdateBy = userID
 	r.UpdateTime = timeutil.Now()

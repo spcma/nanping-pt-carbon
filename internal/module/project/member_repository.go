@@ -10,6 +10,17 @@ import (
 	"gorm.io/gorm"
 )
 
+type ProjectMembersRepo interface {
+	Create(ctx context.Context, projectMembers *ProjectMembers) error
+	Update(ctx context.Context, projectMembers *ProjectMembers) error
+	Delete(ctx context.Context, id int64, userID int64) error
+	FindByID(ctx context.Context, id int64) (*ProjectMembers, error)
+	FindByProjectID(ctx context.Context, projectID int64) ([]*ProjectMembers, error)
+	FindByUserID(ctx context.Context, userID int64) ([]*ProjectMembers, error)
+	FindByProjectAndUser(ctx context.Context, projectID, userID int64) (*ProjectMembers, error)
+	FindPage(ctx context.Context, query *ProjectMembersPageQuery) (*entity.PaginationResult[*ProjectMembers], error)
+}
+
 type ProjectMembersRepository struct{}
 
 func NewProjectMembersRepository(_db *gorm.DB) ProjectMembersRepo {

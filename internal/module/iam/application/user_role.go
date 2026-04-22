@@ -19,19 +19,19 @@ type CancelUserRoleCommand struct {
 	UserIDOp int64 `json:"userIdOp"`
 }
 
-// SysUserRoleAppService system user role application service
-type SysUserRoleAppService struct {
-	repo SysUserRoleRepository
+// UserRoleAppService system user role application service
+type UserRoleAppService struct {
+	repo UserRoleRepository
 }
 
-// NewSysUserRoleAppService creates system user role application service
-func NewSysUserRoleAppService(repo SysUserRoleRepository) *SysUserRoleAppService {
-	return &SysUserRoleAppService{repo: repo}
+// NewUserRoleAppService creates system user role application service
+func NewUserRoleAppService(repo UserRoleRepository) *UserRoleAppService {
+	return &UserRoleAppService{repo: repo}
 }
 
 // AssignUserRole assigns a role to a user
-func (s *SysUserRoleAppService) AssignUserRole(ctx context.Context, cmd AssignUserRoleCommand) error {
-	userRole, err := domain.NewSysUserRole(cmd.UserID, cmd.RoleID, cmd.UserIDOp)
+func (s *UserRoleAppService) AssignUserRole(ctx context.Context, cmd AssignUserRoleCommand) error {
+	userRole, err := domain.NewUserRole(cmd.UserID, cmd.RoleID, cmd.UserIDOp)
 	if err != nil {
 		return err
 	}
@@ -39,16 +39,16 @@ func (s *SysUserRoleAppService) AssignUserRole(ctx context.Context, cmd AssignUs
 }
 
 // CancelUserRole cancels a role from a user
-func (s *SysUserRoleAppService) CancelUserRole(ctx context.Context, cmd CancelUserRoleCommand) error {
+func (s *UserRoleAppService) CancelUserRole(ctx context.Context, cmd CancelUserRoleCommand) error {
 	return s.repo.DeleteByUserRoleID(ctx, cmd.UserID, cmd.RoleID)
 }
 
 // GetUserRoles gets roles of a user
-func (s *SysUserRoleAppService) GetUserRoles(ctx context.Context, userId int64) ([]*domain.SysUserRole, error) {
+func (s *UserRoleAppService) GetUserRoles(ctx context.Context, userId int64) ([]*domain.UserRole, error) {
 	return s.repo.FindByUserID(ctx, userId)
 }
 
 // GetRoleUsers gets users of a role
-func (s *SysUserRoleAppService) GetRoleUsers(ctx context.Context, roleId int64) ([]*domain.SysUserRole, error) {
+func (s *UserRoleAppService) GetRoleUsers(ctx context.Context, roleId int64) ([]*domain.UserRole, error) {
 	return s.repo.FindByRoleID(ctx, roleId)
 }

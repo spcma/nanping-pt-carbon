@@ -8,14 +8,14 @@ import (
 	"context"
 )
 
-// UsersService system user application service
-type UsersService struct {
+// UserService system user application service
+type UserService struct {
 	repo UserRepo
 }
 
-// NewUsersService creates system user application service
-func NewUsersService(repo UserRepo) *UsersService {
-	return &UsersService{repo: repo}
+// NewUserService creates system user application service
+func NewUserService(repo UserRepo) *UserService {
+	return &UserService{repo: repo}
 }
 
 // CreateUserCommand create system user command
@@ -27,7 +27,7 @@ type CreateUserCommand struct {
 }
 
 // Create creates a system user
-func (u *UsersService) Create(ctx context.Context, cmd CreateUserCommand) (int64, error) {
+func (u *UserService) Create(ctx context.Context, cmd CreateUserCommand) (int64, error) {
 	user, err := domain.NewUser(*cmd.Username, *cmd.Nickname, *cmd.Password, "", cmd.UserID)
 	if err != nil {
 		return 0, err
@@ -52,7 +52,7 @@ type UpdateUserCommand struct {
 }
 
 // Update updates a system user
-func (u *UsersService) Update(ctx context.Context, updateParam UpdateUserCommand) error {
+func (u *UserService) Update(ctx context.Context, updateParam UpdateUserCommand) error {
 	user, err := u.repo.FindByID(ctx, updateParam.ID)
 	if err != nil {
 		return err
@@ -86,7 +86,7 @@ type DeleteUserCommand struct {
 }
 
 // Delete deletes a system user (logical delete)
-func (u *UsersService) Delete(ctx context.Context, param *DeleteUserCommand) error {
+func (u *UserService) Delete(ctx context.Context, param *DeleteUserCommand) error {
 	user, err := u.repo.FindByID(ctx, param.ID)
 	if err != nil {
 		return err
@@ -106,16 +106,16 @@ func (u *UsersService) Delete(ctx context.Context, param *DeleteUserCommand) err
 }
 
 // GetByID gets system user by ID
-func (u *UsersService) GetByID(ctx context.Context, id int64) (*domain.Users, error) {
+func (u *UserService) GetByID(ctx context.Context, id int64) (*domain.User, error) {
 	return u.repo.FindByID(ctx, id)
 }
 
 // GetByUsername gets system user by username
-func (u *UsersService) GetByUsername(ctx context.Context, username string) (*domain.Users, error) {
+func (u *UserService) GetByUsername(ctx context.Context, username string) (*domain.User, error) {
 	return u.repo.FindByUsername(ctx, username)
 }
 
-func (u *UsersService) GetByQuery(ctx context.Context, query *domain.UserQuery) (*domain.Users, error) {
+func (u *UserService) GetByQuery(ctx context.Context, query *domain.UserQuery) (*domain.User, error) {
 	user, err := u.repo.FindByQuery(ctx, query)
 	if err != nil {
 		return nil, err
@@ -124,7 +124,7 @@ func (u *UsersService) GetByQuery(ctx context.Context, query *domain.UserQuery) 
 	return user, nil
 }
 
-func (u *UsersService) GetList(ctx context.Context) ([]*domain.Users, error) {
+func (u *UserService) GetList(ctx context.Context) ([]*domain.User, error) {
 	list, err := u.repo.FindList(ctx)
 	if err != nil {
 		return nil, err
@@ -134,7 +134,7 @@ func (u *UsersService) GetList(ctx context.Context) ([]*domain.Users, error) {
 }
 
 // GetPage queries system users with pagination
-func (u *UsersService) GetPage(ctx context.Context, query *domain.UsersPageQuery) (*entity.PaginationResult[*domain.Users], error) {
+func (u *UserService) GetPage(ctx context.Context, query *domain.UsersPageQuery) (*entity.PaginationResult[*domain.User], error) {
 	result, err := u.repo.FindPage(ctx, query)
 	if err != nil {
 		return nil, err
@@ -151,7 +151,7 @@ type ChangePasswordCommand struct {
 }
 
 // ChangePassword changes password
-func (u *UsersService) ChangePassword(ctx context.Context, cmd *ChangePasswordCommand) error {
+func (u *UserService) ChangePassword(ctx context.Context, cmd *ChangePasswordCommand) error {
 	user, err := u.repo.FindByID(ctx, cmd.Id)
 	if err != nil {
 		return err
@@ -187,7 +187,7 @@ func (u *UsersService) ChangePassword(ctx context.Context, cmd *ChangePasswordCo
 }
 
 // ChangeUserStatus changes user status
-func (u *UsersService) ChangeUserStatus(ctx context.Context, id int64, status domain.UserStatus, userID int64) error {
+func (u *UserService) ChangeUserStatus(ctx context.Context, id int64, status domain.UserStatus, userID int64) error {
 	user, err := u.repo.FindByID(ctx, id)
 	if err != nil {
 		return err
@@ -203,7 +203,7 @@ type RegisterCommand struct {
 }
 
 // Register 用户注册
-func (u *UsersService) Register(ctx context.Context, cmd RegisterCommand) (int64, error) {
+func (u *UserService) Register(ctx context.Context, cmd RegisterCommand) (int64, error) {
 	// 检查用户名是否已存在
 	existingUser, err := u.repo.FindByUsername(ctx, cmd.Username)
 	if err == nil && existingUser != nil && !existingUser.IsDeleted() {
@@ -240,7 +240,7 @@ type LoginUserInfo struct {
 }
 
 // Login 用户登录
-func (u *UsersService) Login(ctx context.Context, cmd LoginCommand, jwtManager token.Manager) (*LoginResponse, error) {
+func (u *UserService) Login(ctx context.Context, cmd LoginCommand, jwtManager token.Manager) (*LoginResponse, error) {
 	// 查找用户
 	user, err := u.repo.FindByUsername(ctx, cmd.Username)
 	if err != nil {

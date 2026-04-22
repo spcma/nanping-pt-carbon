@@ -18,16 +18,16 @@ func NewApiRepository(_db *gorm.DB) *ApiRepository {
 	return &ApiRepository{}
 }
 
-func (u *ApiRepository) Create(ctx context.Context, user *domain.SysApi) error {
-	return db.GetDB(ctx).WithContext(ctx).Create(user).Error
+func (u *ApiRepository) Create(ctx context.Context, api *domain.Api) error {
+	return db.GetDB(ctx).WithContext(ctx).Create(api).Error
 }
 
-func (u *ApiRepository) Update(ctx context.Context, user *domain.SysApi) error {
-	return db.GetDB(ctx).WithContext(ctx).Updates(user).Error
+func (u *ApiRepository) Update(ctx context.Context, api *domain.Api) error {
+	return db.GetDB(ctx).WithContext(ctx).Updates(api).Error
 }
 
 func (u *ApiRepository) UpdateFields(ctx context.Context, id int64, updates map[string]interface{}) error {
-	return db.GetDB(ctx).WithContext(ctx).Model(&domain.SysApi{}).Where("id = ? AND "+entity.FieldDeleteBy+" = 0", id).Updates(updates).Error
+	return db.GetDB(ctx).WithContext(ctx).Model(&domain.Api{}).Where("id = ? AND "+entity.FieldDeleteBy+" = 0", id).Updates(updates).Error
 }
 
 func (u *ApiRepository) Delete(ctx context.Context, id int64) error {
@@ -36,53 +36,53 @@ func (u *ApiRepository) Delete(ctx context.Context, id int64) error {
 		"deleteBy":   0,
 		"deleteTime": timeutil.Now(),
 	}
-	return db.GetDB(ctx).WithContext(ctx).Model(&domain.SysApi{}).Where("id = ?", id).Updates(updates).Error
+	return db.GetDB(ctx).WithContext(ctx).Model(&domain.Api{}).Where("id = ?", id).Updates(updates).Error
 }
 
-func (u *ApiRepository) FindByID(ctx context.Context, id int64) (*domain.SysApi, error) {
-	var user domain.SysApi
+func (u *ApiRepository) FindByID(ctx context.Context, id int64) (*domain.Api, error) {
+	var api domain.Api
 	err := db.GetDB(ctx).WithContext(ctx).
-		Table("apis").
+		Table("sys_api").
 		Where("id = ?", id).
 		Where(entity.FieldDeleteBy + " = 0").
-		Take(&user).Error
+		Take(&api).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err
 	}
-	return &user, nil
+	return &api, nil
 }
 
-func (u *ApiRepository) FindByUsername(ctx context.Context, username string) (*domain.SysApi, error) {
-	var user domain.SysApi
+func (u *ApiRepository) FindByUsername(ctx context.Context, username string) (*domain.Api, error) {
+	var api domain.Api
 	err := db.GetDB(ctx).WithContext(ctx).
-		Table("apis").
+		Table("sys_api").
 		Where("username = ?", username).
 		Where(entity.FieldDeleteBy + " = 0").
-		Take(&user).Error
+		Take(&api).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err
 	}
-	return &user, nil
+	return &api, nil
 }
 
-func (u *ApiRepository) FindList(ctx context.Context) ([]*domain.SysApi, error) {
-	var users []*domain.SysApi
-	err := db.GetDB(ctx).WithContext(ctx).Find(&users).Error
-	return users, err
+func (u *ApiRepository) FindList(ctx context.Context) ([]*domain.Api, error) {
+	var apis []*domain.Api
+	err := db.GetDB(ctx).WithContext(ctx).Find(&apis).Error
+	return apis, err
 }
 
-func (u *ApiRepository) FindPage(ctx context.Context, pageNum, pageSize int64, name string) ([]*domain.SysApi, int64, error) {
+func (u *ApiRepository) FindPage(ctx context.Context, pageNum, pageSize int64, name string) ([]*domain.Api, int64, error) {
 	// 使用通用分页助手
-	helper := db.NewPaginationHelper[*domain.SysApi](db.GetDB(ctx))
+	helper := db.NewPaginationHelper[*domain.Api](db.GetDB(ctx))
 	result, err := helper.PageQuery(int(pageNum), int(pageSize), func(dq *gorm.DB) *gorm.DB {
 		dq = dq.WithContext(ctx).
-			Table("apis").
+			Table("sys_api").
 			Where(entity.FieldDeleteBy + " = 0")
 
 		// 动态构建查询条件
@@ -98,10 +98,10 @@ func (u *ApiRepository) FindPage(ctx context.Context, pageNum, pageSize int64, n
 	return result.Data, result.Total, nil
 }
 
-func (u *ApiRepository) FindAll(ctx context.Context) ([]*domain.SysApi, error) {
-	var apis []*domain.SysApi
+func (u *ApiRepository) FindAll(ctx context.Context) ([]*domain.Api, error) {
+	var apis []*domain.Api
 	err := db.GetDB(ctx).WithContext(ctx).
-		Table("apis").
+		Table("sys_api").
 		Where(entity.FieldDeleteBy + " = 0").
 		Find(&apis).Error
 	if err != nil {
@@ -113,10 +113,10 @@ func (u *ApiRepository) FindAll(ctx context.Context) ([]*domain.SysApi, error) {
 	return apis, err
 }
 
-func (u *ApiRepository) FindByCode(ctx context.Context, code string) (*domain.SysApi, error) {
-	var api domain.SysApi
+func (u *ApiRepository) FindByCode(ctx context.Context, code string) (*domain.Api, error) {
+	var api domain.Api
 	err := db.GetDB(ctx).WithContext(ctx).
-		Table("apis").
+		Table("sys_api").
 		Where("code = ?", code).
 		Where(entity.FieldDeleteBy + " = 0").
 		Take(&api).Error

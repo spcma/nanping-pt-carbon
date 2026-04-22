@@ -8,7 +8,7 @@ import (
 // ===== Service Ports（给外部模块用） =====
 
 type IdentityService interface {
-	GetUser(ctx context.Context, id int64) (*domain.Users, error)
+	GetUser(ctx context.Context, id int64) (*domain.User, error)
 }
 
 type AuthorizationService interface {

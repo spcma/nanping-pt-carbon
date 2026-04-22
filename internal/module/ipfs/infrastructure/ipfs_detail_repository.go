@@ -16,7 +16,7 @@ type IpfsDetailRepository struct {
 }
 
 // NewIpfsDetailRepository 创建 IPFS 详情仓储
-func NewIpfsDetailRepository(_db *gorm.DB) *IpfsDetailRepository {
+func NewIpfsDetailRepository() *IpfsDetailRepository {
 	return &IpfsDetailRepository{}
 }
 

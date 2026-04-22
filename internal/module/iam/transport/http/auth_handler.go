@@ -16,12 +16,12 @@ import (
 
 // AuthHandler 认证处理器
 type AuthHandler struct {
-	appService   *application.UsersService
+	appService   *application.UserService
 	tokenManager token.Manager
 }
 
 // NewAuthHandler 创建认证处理器
-func NewAuthHandler(appService *application.UsersService, tokenManager token.Manager) *AuthHandler {
+func NewAuthHandler(appService *application.UserService, tokenManager token.Manager) *AuthHandler {
 	return &AuthHandler{
 		appService:   appService,
 		tokenManager: tokenManager,

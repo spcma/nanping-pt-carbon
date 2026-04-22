@@ -15,8 +15,8 @@ const (
 	MethodDelete ApiMethodType = "DELETE" // DELETE
 )
 
-// SysApi API aggregate root
-type SysApi struct {
+// Api API aggregate root
+type Api struct {
 	entity.BaseEntity
 	Name       string        `json:"name" gorm:"column:name"`
 	Code       string        `json:"code" gorm:"column:code"`
@@ -26,13 +26,13 @@ type SysApi struct {
 }
 
 // TableName table name
-func (SysApi) TableName() string {
+func (Api) TableName() string {
 	return "sys_api"
 }
 
-// NewSysApi creates a new API
-func NewSysApi(name, code, uri, methodType, status string, createUser int64) (*SysApi, error) {
-	api := &SysApi{
+// NewApi creates a new API
+func NewApi(name, code, uri, methodType, status string, createUser int64) (*Api, error) {
+	api := &Api{
 		BaseEntity: entity.BaseEntity{
 			CreateBy:   createUser,
 			CreateTime: timeutil.Now(),
@@ -47,7 +47,7 @@ func NewSysApi(name, code, uri, methodType, status string, createUser int64) (*S
 }
 
 // UpdateInfo updates API info
-func (a *SysApi) UpdateInfo(name, uri, methodType, status string, userID int64) error {
+func (a *Api) UpdateInfo(name, uri, methodType, status string, userID int64) error {
 	a.Name = name
 	a.Uri = uri
 	a.MethodType = ApiMethodType(methodType)

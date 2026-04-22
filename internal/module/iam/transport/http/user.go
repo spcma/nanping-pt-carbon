@@ -14,20 +14,20 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// UsersHandler system user handler
-type UsersHandler struct {
-	appService *application.UsersService
+// UserHandler system user handler
+type UserHandler struct {
+	appService *application.UserService
 }
 
-// NewUsersHandler creates system user handler
-func NewUsersHandler(appService *application.UsersService) *UsersHandler {
-	return &UsersHandler{
+// NewUserHandler creates system user handler
+func NewUserHandler(appService *application.UserService) *UserHandler {
+	return &UserHandler{
 		appService: appService,
 	}
 }
 
 // Create creates a system user
-func (h *UsersHandler) Create(c *gin.Context) {
+func (h *UserHandler) Create(c *gin.Context) {
 	var cmd application.CreateUserCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
 		logger.Warn("iam", "create currentUser - invalid request",
@@ -62,7 +62,7 @@ func (h *UsersHandler) Create(c *gin.Context) {
 }
 
 // Update updates a system user
-func (h *UsersHandler) Update(c *gin.Context) {
+func (h *UserHandler) Update(c *gin.Context) {
 	var cmd application.UpdateUserCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
@@ -78,7 +78,7 @@ func (h *UsersHandler) Update(c *gin.Context) {
 }
 
 // Delete deletes a system user
-func (h *UsersHandler) Delete(c *gin.Context) {
+func (h *UserHandler) Delete(c *gin.Context) {
 	var param application.DeleteUserCommand
 	if err := c.ShouldBindJSON(&param); err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
@@ -97,7 +97,7 @@ func (h *UsersHandler) Delete(c *gin.Context) {
 	response.Success(c, nil)
 }
 
-func (h *UsersHandler) GetById(c *gin.Context) {
+func (h *UserHandler) GetById(c *gin.Context) {
 	idStr := c.Query("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
@@ -115,7 +115,7 @@ func (h *UsersHandler) GetById(c *gin.Context) {
 }
 
 // GetByQuery
-func (h *UsersHandler) GetByQuery(c *gin.Context) {
+func (h *UserHandler) GetByQuery(c *gin.Context) {
 	var query domain.UserQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
@@ -131,7 +131,7 @@ func (h *UsersHandler) GetByQuery(c *gin.Context) {
 	response.Success(c, user)
 }
 
-func (h *UsersHandler) GetList(c *gin.Context) {
+func (h *UserHandler) GetList(c *gin.Context) {
 	list, err := h.appService.GetList(platform_http.Ctx(c))
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, err.Error())
@@ -142,7 +142,7 @@ func (h *UsersHandler) GetList(c *gin.Context) {
 }
 
 // GetPage queries system users with pagination（需要认证）
-func (h *UsersHandler) GetPage(c *gin.Context) {
+func (h *UserHandler) GetPage(c *gin.Context) {
 	var query domain.UsersPageQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
@@ -163,7 +163,7 @@ func (h *UsersHandler) GetPage(c *gin.Context) {
 // GetPublicPage queries public system users with pagination（支持可选认证）
 // - 未登录：返回基础公开信息
 // - 已登录：返回增强信息（包含更多字段）
-func (h *UsersHandler) GetPublicPage(c *gin.Context) {
+func (h *UserHandler) GetPublicPage(c *gin.Context) {
 	var query domain.UsersPageQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
@@ -201,7 +201,7 @@ func (h *UsersHandler) GetPublicPage(c *gin.Context) {
 }
 
 // respondWithPublicUsers 返回基础公开信息（脱敏）
-func (h *UsersHandler) respondWithPublicUsers(c *gin.Context, users []*domain.Users, total int64) {
+func (h *UserHandler) respondWithPublicUsers(c *gin.Context, users []*domain.User, total int64) {
 	type PublicUserInfo struct {
 		ID       int64  `json:"id"`
 		Username string `json:"username"`
@@ -226,7 +226,7 @@ func (h *UsersHandler) respondWithPublicUsers(c *gin.Context, users []*domain.Us
 }
 
 // respondWithEnhancedUsers 返回增强信息（包含更多字段）
-func (h *UsersHandler) respondWithEnhancedUsers(c *gin.Context, users []*domain.Users, total int64) {
+func (h *UserHandler) respondWithEnhancedUsers(c *gin.Context, users []*domain.User, total int64) {
 	type EnhancedUserInfo struct {
 		ID         int64  `json:"id"`
 		Username   string `json:"username"`
@@ -256,7 +256,7 @@ func (h *UsersHandler) respondWithEnhancedUsers(c *gin.Context, users []*domain.
 	})
 }
 
-func (h *UsersHandler) ResetPassword(c *gin.Context) {
+func (h *UserHandler) ResetPassword(c *gin.Context) {
 	var cmd application.ChangePasswordCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
 		response.BadRequest(c, err.Error())
@@ -284,7 +284,7 @@ func (h *UsersHandler) ResetPassword(c *gin.Context) {
 }
 
 // ChangePassword changes user password
-func (h *UsersHandler) ChangePassword(c *gin.Context) {
+func (h *UserHandler) ChangePassword(c *gin.Context) {
 	var cmd application.ChangePasswordCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
@@ -311,7 +311,7 @@ func (h *UsersHandler) ChangePassword(c *gin.Context) {
 }
 
 // ChangeStatus changes user status
-func (h *UsersHandler) ChangeStatus(c *gin.Context) {
+func (h *UserHandler) ChangeStatus(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {

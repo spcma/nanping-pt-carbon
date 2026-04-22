@@ -32,7 +32,6 @@ type Service struct {
 	ppt                       string    // 通行证
 	ppt_expire_time           time.Time // 过期时间
 	session                   string    // 会话token
-	db                        *gorm.DB
 	remoteDB                  *gorm.DB
 	client                    *rpc.LApiStub
 	ipfsDetailAppService      *IpfsDetailAppService
@@ -45,7 +44,7 @@ type Service struct {
 // NewService 创建 IPFS 服务
 func NewService(db *gorm.DB, remoteDB *gorm.DB) *Service {
 	// 初始化仓储和應用服務
-	ipfsDetailRepo := infrastructure.NewIpfsDetailRepository(db)
+	ipfsDetailRepo := infrastructure.NewIpfsDetailRepository()
 	ipfsDetailAppService := NewIpfsDetailAppService(ipfsDetailRepo)
 
 	// 初始化碳报告应用服务
@@ -53,8 +52,6 @@ func NewService(db *gorm.DB, remoteDB *gorm.DB) *Service {
 	carbonReportDayAppService := carbonreportday_application.NewCarbonReportDayAppService(carbonReportDayRepo)
 
 	s := &Service{
-		db:                        db,
-		remoteDB:                  remoteDB,
 		ipfsDetailAppService:      ipfsDetailAppService,
 		carbonReportDayAppService: carbonReportDayAppService,
 	}

@@ -17,8 +17,8 @@ const (
 	UserStatusCanceled UserStatus = "9" // 注销
 )
 
-// Users system user aggregate root
-type Users struct {
+// User system user aggregate root
+type User struct {
 	entity.BaseEntity
 	Username    string     `json:"username" gorm:"column:username"`
 	Nickname    string     `json:"nickname" gorm:"column:nickname"`
@@ -33,14 +33,14 @@ type Users struct {
 }
 
 // TableName table name
-func (*Users) TableName() string {
-	return "users"
+func (*User) TableName() string {
+	return "sys_user"
 }
 
 // NewUser creates a new user
 //
 //	统一使用构造方法创建用户，方便统一进行参数校验
-func NewUser(username, nickname, password, salt string, createUser int64) (*Users, error) {
+func NewUser(username, nickname, password, salt string, createUser int64) (*User, error) {
 	if username == "" {
 		return nil, fmt.Errorf("username cannot be empty")
 	}
@@ -69,7 +69,7 @@ func NewUser(username, nickname, password, salt string, createUser int64) (*User
 	// 加密密码
 	encryptedPassword := crypto.HashPassword(password, salt)
 
-	user := &Users{
+	user := &User{
 		BaseEntity: entity.BaseEntity{
 			Id:         idgen.NumID(),
 			CreateBy:   createUser,
@@ -95,7 +95,7 @@ type UpdateUserCommand struct {
 }
 
 // UpdateInfo 更新用户信息（部分更新）
-func (u *Users) UpdateInfo(cmd UpdateUserCommand, userID int64) error {
+func (u *User) UpdateInfo(cmd UpdateUserCommand, userID int64) error {
 	if cmd.Nickname != nil {
 		u.Nickname = *cmd.Nickname
 	}
@@ -121,7 +121,7 @@ func (u *Users) UpdateInfo(cmd UpdateUserCommand, userID int64) error {
 }
 
 // ChangeStatus changes user status
-func (u *Users) ChangeStatus(status UserStatus, userID int64) error {
+func (u *User) ChangeStatus(status UserStatus, userID int64) error {
 	u.Status = status
 	u.UpdateBy = userID
 	u.UpdateTime = timeutil.Now()
@@ -129,7 +129,7 @@ func (u *Users) ChangeStatus(status UserStatus, userID int64) error {
 }
 
 // ChangePassword changes password
-func (u *Users) ChangePassword(password string, userID int64) error {
+func (u *User) ChangePassword(password string, userID int64) error {
 	u.Password = password
 	u.UpdateBy = userID
 	u.UpdateTime = timeutil.Now()
@@ -137,7 +137,7 @@ func (u *Users) ChangePassword(password string, userID int64) error {
 }
 
 // Delete 逻辑删除用户
-func (u *Users) Delete(userID int64) error {
+func (u *User) Delete(userID int64) error {
 	u.DeleteBy = userID
 	u.DeleteTime = timeutil.Now()
 
