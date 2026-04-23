@@ -17,5 +17,5 @@ type ScheduledTask struct {
 
 // TableName 表名
 func (*ScheduledTask) TableName() string {
-	return "sys_scheduled_task"
+	return "scheduled_task"
 }

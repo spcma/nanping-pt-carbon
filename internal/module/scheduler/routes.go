@@ -1,8 +1,6 @@
 package scheduler
 
 import (
-	"app/internal/module/carbonreportmonth"
-	"app/internal/shared/db"
 	shared_http "app/internal/shared/http"
 	"app/internal/shared/logger"
 	"context"
@@ -77,7 +75,7 @@ func NewSchedulerRoutes() shared_http.RouteRegistry {
 	handler := NewSchedulerHandler(scheduler)
 
 	// 设置仓储
-	repo := NewScheduledTaskRepository(db.Default())
+	repo := NewScheduledTaskRepository()
 	scheduler.SetRepository(repo)
 
 	// 注册业务任务函数到注册表(不直接添加到调度器)
@@ -98,7 +96,7 @@ func NewSchedulerRoutes() shared_http.RouteRegistry {
 // registerTaskFunctions 注册任务函数到注册表(不直接添加到调度器)
 func registerTaskFunctions() {
 	// 注册每月碳日报汇总任务
-	RegisterTask("carbon_report_monthly_aggregation", func(ctx context.Context, params map[string]interface{}) error {
+	RegisterTask("test", func(ctx context.Context, params map[string]interface{}) error {
 		logger.SchedulerL.Info("执行每月碳日报汇总任务")
 
 		// 从参数中获取年份和月份，如果没有则使用上个月
@@ -120,23 +118,6 @@ func registerTaskFunctions() {
 			lastMonth := now.AddDate(0, -1, 0)
 			year = lastMonth.Year()
 			month = int(lastMonth.Month())
-		}
-
-		// 调用汇总服务
-		service := carbonreportmonth.DefaultService()
-		if service == nil {
-			logger.SchedulerL.Error("碳报告月报服务未初始化")
-			return nil
-		}
-
-		err := service.AggregateMonthlyReport(ctx, year, month)
-		if err != nil {
-			logger.SchedulerL.Error("碳日报汇总任务执行失败",
-				zap.Int("year", year),
-				zap.Int("month", month),
-				zap.Error(err),
-			)
-			return err
 		}
 
 		logger.SchedulerL.Info("碳日报汇总任务执行成功",
@@ -182,6 +163,7 @@ func (r *routes) RegisterRoutes(group *gin.RouterGroup, middlewares map[shared_h
 			schedulerGroup.GET("/tasks", r.handler.ListTasks)
 
 			// 单个任务操作
+			schedulerGroup.POST("/task", r.handler.AddTask)
 			schedulerGroup.GET("/tasks/:name", r.handler.GetTaskStatus)
 			schedulerGroup.DELETE("/tasks/:name", r.handler.RemoveTask)
 			schedulerGroup.PUT("/tasks/:name/enable", r.handler.EnableTask)

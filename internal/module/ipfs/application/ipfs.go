@@ -473,6 +473,8 @@ func (s *Service) CalcDir(ctx context.Context, rootDir string, date string) (flo
 		return 0, fmt.Errorf("日期格式错误 %v", date)
 	}
 
+	//parseDirByPort(config.GlobalConfig.Ipfs.Port, now)
+
 	year := split[0][2:]
 	month := split[1]
 	day := split[2]
@@ -1001,14 +1003,17 @@ func (s *Service) TriggerReconnect() {
 	}
 }
 
-// formatDateByPort 根据端口号返回不同的日期格式化路径
-func formatDateByPort(port int) (string, error) {
-	now := time.Now()
+// parseDirByPort 根据端口号返回不同的日期格式化路径
+func parseDirByPort(port int, date time.Time) (string, error) {
+
+	if date.IsZero() {
+		date = time.Now()
+	}
 
 	// 获取年月日
-	year := now.Year() % 100 // 取两位年份
-	month := int(now.Month())
-	day := now.Day()
+	year := date.Year() % 100 // 取两位年份
+	month := int(date.Month())
+	day := date.Day()
 
 	// 格式化为两位数
 	yearStr := fmt.Sprintf("%02d", year)

@@ -22,14 +22,11 @@ type ScheduledTaskRepository interface {
 
 // scheduledTaskRepository 定时任务配置仓储实现
 type scheduledTaskRepository struct {
-	db *gorm.DB
 }
 
 // NewScheduledTaskRepository 创建定时任务配置仓储
-func NewScheduledTaskRepository(_db *gorm.DB) ScheduledTaskRepository {
-	return &scheduledTaskRepository{
-		db: _db,
-	}
+func NewScheduledTaskRepository() ScheduledTaskRepository {
+	return &scheduledTaskRepository{}
 }
 
 // Create 创建任务配置

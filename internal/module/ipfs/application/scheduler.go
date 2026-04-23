@@ -1,13 +1,13 @@
 package application
 
 import (
+	"app/internal/config"
 	"app/internal/shared/logger"
 	"context"
+	"time"
 
 	"go.uber.org/zap"
 )
-
-//	定时任务
 
 func (s *Service) AggregateDailyReport(ctx context.Context, year int, month int) {
 	logger.SchedulerL.Info("开始汇总日报",
@@ -15,13 +15,21 @@ func (s *Service) AggregateDailyReport(ctx context.Context, year int, month int)
 		zap.Int("month", month),
 	)
 
-	//	调用ipfs
+	now := time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.Local)
 
-	//ctx := context.Background()
-	//dir, err := s.CalcDir(ctx, "", "")
-	//if err != nil {
-	//	logger.SchedulerL.Error("日报汇总错误", zap.Error(err))
-	//	return
-	//}
+	dir, err := parseDirByPort(config.GlobalConfig.Ipfs.Port, now)
+	if err != nil {
+		logger.SchedulerL.Error("获取端口错误", zap.Error(err))
+		return
+	}
 
+	totalTurnover, err := s.CalcDir(ctx, dir, now.Format(time.DateTime))
+	if err != nil {
+		logger.SchedulerL.Error("日报汇总错误", zap.Error(err))
+		return
+	}
+
+	logger.SchedulerL.Info("日报汇总完成",
+		zap.Float64("total_turnover", totalTurnover),
+	)
 }

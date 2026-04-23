@@ -3,12 +3,8 @@ package carbonreportmonth
 import (
 	"app/internal/module/carbonreportday"
 	"app/internal/shared/entity"
-	"app/internal/shared/logger"
 	"app/internal/shared/timeutil"
 	"context"
-	"time"
-
-	"go.uber.org/zap"
 )
 
 // CreateCarbonReportMonthCommand 创建碳报告月报命令
@@ -85,77 +81,77 @@ func (s *CarbonReportMonthService) GetCarbonReportMonthPage(ctx context.Context,
 
 // AggregateMonthlyReport 汇总月报：从日报数据汇总生成月报
 func (s *CarbonReportMonthService) AggregateMonthlyReport(ctx context.Context, year int, month int) error {
-	logger.SchedulerL.Info("开始汇总月报",
-		zap.Int("year", year),
-		zap.Int("month", month),
-	)
-
-	// 1. 检查该月是否已有月报
-	existingMonthReport, err := s.repo.FindByMonth(ctx, year, month)
-	if err != nil {
-		return err
-	}
-	if existingMonthReport != nil {
-		logger.SchedulerL.Info("该月已存在月报，跳过汇总",
-			zap.Int("year", year),
-			zap.Int("month", month),
-		)
-		return nil
-	}
-
-	// 2. 查询该月的所有日报数据
-	dayReports, err := s.dayService.FindByMonth(ctx, year, month)
-	if err != nil {
-		return err
-	}
-
-	if len(dayReports) == 0 {
-		logger.SchedulerL.Info("该月没有日报数据，跳过汇总",
-			zap.Int("year", year),
-			zap.Int("month", month),
-		)
-		return nil
-	}
-
-	// 3. 汇总数据
-	var totalTurnover, totalBaseline, totalCarbonReduction float64
-	for _, dayReport := range dayReports {
-		totalTurnover += dayReport.Turnover
-		totalBaseline += dayReport.Baseline
-		totalCarbonReduction += dayReport.CarbonReduction
-	}
-
-	// 4. 创建月报记录
-	// 使用当月1号作为采集日期
-	collectionDate := timeutil.FromGoTime(time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.Local))
-	monthReport, err := NewCarbonReportMonth(
-		totalTurnover,
-		totalBaseline,
-		0, // EnergyConsumption 需要人工填写
-		collectionDate,
-		1, // 系统自动汇总，使用默认用户ID
-	)
-	if err != nil {
-		return err
-	}
-
-	// 设置碳减排量为汇总值
-	monthReport.CarbonReduction = totalCarbonReduction
-
-	// 5. 保存月报
-	err = s.repo.Create(ctx, monthReport)
-	if err != nil {
-		return err
-	}
-
-	logger.SchedulerL.Info("月报汇总完成",
-		zap.Int("year", year),
-		zap.Int("month", month),
-		zap.Float64("totalTurnover", totalTurnover),
-		zap.Float64("totalBaseline", totalBaseline),
-		zap.Float64("totalCarbonReduction", totalCarbonReduction),
-		zap.Int("dayReportCount", len(dayReports)),
-	)
+	//logger.SchedulerL.Info("开始汇总月报",
+	//	zap.Int("year", year),
+	//	zap.Int("month", month),
+	//)
+	//
+	//// 1. 检查该月是否已有月报
+	//existingMonthReport, err := s.repo.FindByMonth(ctx, year, month)
+	//if err != nil {
+	//	return err
+	//}
+	//if existingMonthReport != nil {
+	//	logger.SchedulerL.Info("该月已存在月报，跳过汇总",
+	//		zap.Int("year", year),
+	//		zap.Int("month", month),
+	//	)
+	//	return nil
+	//}
+	//
+	//// 2. 查询该月的所有日报数据
+	//dayReports, err := s.dayService.FindByMonth(ctx, year, month)
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//if len(dayReports) == 0 {
+	//	logger.SchedulerL.Info("该月没有日报数据，跳过汇总",
+	//		zap.Int("year", year),
+	//		zap.Int("month", month),
+	//	)
+	//	return nil
+	//}
+	//
+	//// 3. 汇总数据
+	//var totalTurnover, totalBaseline, totalCarbonReduction float64
+	//for _, dayReport := range dayReports {
+	//	totalTurnover += dayReport.Turnover
+	//	totalBaseline += dayReport.Baseline
+	//	totalCarbonReduction += dayReport.CarbonReduction
+	//}
+	//
+	//// 4. 创建月报记录
+	//// 使用当月1号作为采集日期
+	//collectionDate := timeutil.FromGoTime(time.Date(year, time.Month(month), 1, 0, 0, 0, 0, time.Local))
+	//monthReport, err := NewCarbonReportMonth(
+	//	totalTurnover,
+	//	totalBaseline,
+	//	0, // EnergyConsumption 需要人工填写
+	//	collectionDate,
+	//	1, // 系统自动汇总，使用默认用户ID
+	//)
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//// 设置碳减排量为汇总值
+	//monthReport.CarbonReduction = totalCarbonReduction
+	//
+	//// 5. 保存月报
+	//err = s.repo.Create(ctx, monthReport)
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//logger.SchedulerL.Info("月报汇总完成",
+	//	zap.Int("year", year),
+	//	zap.Int("month", month),
+	//	zap.Float64("totalTurnover", totalTurnover),
+	//	zap.Float64("totalBaseline", totalBaseline),
+	//	zap.Float64("totalCarbonReduction", totalCarbonReduction),
+	//	zap.Int("dayReportCount", len(dayReports)),
+	//)
 
 	return nil
 }

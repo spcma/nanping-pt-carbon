@@ -90,7 +90,7 @@ func (i *DataInitializer) initSuperAdminUser() error {
 // initDefaultScheduledTasks 初始化默认调度任务配置
 func (i *DataInitializer) initDefaultScheduledTasks() error {
 	ctx := context.Background()
-	repo := scheduler.NewScheduledTaskRepository(i.db)
+	repo := scheduler.NewScheduledTaskRepository()
 
 	// 定义默认任务配置
 	defaultTasks := []*scheduler.ScheduledTask{

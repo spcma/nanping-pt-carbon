@@ -30,14 +30,14 @@ func TestIpfsTime(t *testing.T) {
 }
 
 func TestTime(t *testing.T) {
-	port, err := formatDateByPort(4080)
+	port, err := parseDirByPort(4080)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	t.Log(port)
 
-	port, err = formatDateByPort(4800)
+	port, err = parseDirByPort(4800)
 	if err != nil {
 		t.Fatal(err)
 	}

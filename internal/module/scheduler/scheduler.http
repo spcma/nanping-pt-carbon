@@ -1,15 +1,15 @@
 ### Scheduler 定时任务 API 测试
 
-@baseUrl = http://localhost:8080/api/scheduler
-@token = your_token_here
+@baseUrl = http://localhost:19870/api/scheduler
+@token = 2043961934876774400
 
 ### 1. 创建新任务 - 带自定义参数
-POST {{baseUrl}}/tasks
-Authorization: Bearer {{token}}
+POST {{baseUrl}}/task
+Authorization: {{token}}
 Content-Type: application/json
 
 {
-  "name": "custom_task_with_params",
+  "name": "test",
   "cron_spec": "0 */5 * * * *",
   "description": "每5分钟执行一次的自定义任务，带参数",
   "enabled": true,
