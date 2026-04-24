@@ -3,6 +3,7 @@ package server
 import (
 	"app/internal/config"
 	"app/internal/initializer"
+	ipfs_application "app/internal/module/ipfs/application"
 	"app/internal/module/scheduler"
 	"app/internal/shared/cache"
 	"app/internal/shared/db"
@@ -54,6 +55,7 @@ func Initialize() (*Server, error) {
 		Password:   config.GlobalConfig.Database.Password,
 		DbName:     config.GlobalConfig.Database.DBName,
 		SearchPath: config.GlobalConfig.Database.SearchPath,
+		Name:       config.GlobalConfig.Database.Name,
 	}
 
 	// 初始化数据源1
@@ -61,10 +63,6 @@ func Initialize() (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize database: %v", err)
 	}
-
-	// 设置默认数据库实例
-	db.RegisterDB("default", dbInstance)
-	db.SetDefault(dbInstance)
 
 	// 初始化基础数据（超级管理员等）
 	if err := initData(dbInstance); err != nil {
@@ -79,6 +77,7 @@ func Initialize() (*Server, error) {
 		Password:   config.GlobalConfig.RemoteDatabase.Password,
 		DbName:     config.GlobalConfig.RemoteDatabase.DBName,
 		SearchPath: config.GlobalConfig.RemoteDatabase.SearchPath,
+		Name:       config.GlobalConfig.RemoteDatabase.Name,
 	}
 
 	// 初始化数据源2
@@ -118,6 +117,8 @@ func Initialize() (*Server, error) {
 	// 初始化定时任务调度器
 	// 注意: Start() 必须在所有模块初始化完成后调用,避免任务执行时依赖的 Service 未就绪
 	sched := scheduler.Default()
+
+	ipfs_application.RegisterTask()
 	sched.Start()
 
 	return &Server{

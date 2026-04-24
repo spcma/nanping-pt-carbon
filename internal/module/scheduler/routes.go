@@ -74,10 +74,6 @@ func NewSchedulerRoutes() shared_http.RouteRegistry {
 
 	handler := NewSchedulerHandler(scheduler)
 
-	// 设置仓储
-	repo := NewScheduledTaskRepository()
-	scheduler.SetRepository(repo)
-
 	// 注册业务任务函数到注册表(不直接添加到调度器)
 	registerTaskFunctions()
 
@@ -86,6 +82,7 @@ func NewSchedulerRoutes() shared_http.RouteRegistry {
 		logger.SchedulerL.Error("Failed to load tasks from database",
 			zap.Error(err),
 		)
+		panic("Failed to load tasks from database" + err.Error())
 	}
 
 	return &routes{
@@ -95,52 +92,25 @@ func NewSchedulerRoutes() shared_http.RouteRegistry {
 
 // registerTaskFunctions 注册任务函数到注册表(不直接添加到调度器)
 func registerTaskFunctions() {
-	// 注册每月碳日报汇总任务
-	RegisterTask("test", func(ctx context.Context, params map[string]interface{}) error {
-		logger.SchedulerL.Info("执行每月碳日报汇总任务")
 
-		// 从参数中获取年份和月份，如果没有则使用上个月
-		var year, month int
-		if yearParam, ok := params["year"]; ok {
-			if y, valid := yearParam.(float64); valid {
-				year = int(y)
-			}
-		}
-		if monthParam, ok := params["month"]; ok {
-			if m, valid := monthParam.(float64); valid {
-				month = int(m)
-			}
-		}
+	// 报时
+	RegisterTask("report.time", func(ctx context.Context, params map[string]interface{}) error {
+		cst := time.Now()
 
-		// 如果参数中没有指定，则使用上个月
-		if year == 0 || month == 0 {
-			now := time.Now()
-			lastMonth := now.AddDate(0, -1, 0)
-			year = lastMonth.Year()
-			month = int(lastMonth.Month())
-		}
-
-		logger.SchedulerL.Info("碳日报汇总任务执行成功",
-			zap.Int("year", year),
-			zap.Int("month", month),
-		)
-		return nil
-	})
-
-	// 注册每天日志输出任务
-	RegisterTask("daily_log_output", func(ctx context.Context, params map[string]interface{}) error {
-		now := time.Now()
 		logger.SchedulerL.Info("调度任务运行中",
-			zap.String("current_time", now.Format("2006-01-02 15:04:05")),
+			zap.String("current_time", cst.Format("2006-01-02 15:04:05")),
 			zap.String("message", "调度任务运行中"),
 		)
 
-		// 示例：从参数中获取自定义消息
 		if customMsg, ok := params["message"]; ok {
 			logger.SchedulerL.Info("Custom message from params",
 				zap.Any("message", customMsg),
 			)
 		}
+
+		logger.SchedulerL.Info("调度任务运行完毕",
+			zap.Duration("cost", time.Since(cst)),
+		)
 
 		return nil
 	})

@@ -40,6 +40,7 @@ database:
   password: "carbonadmin@2026"
   dbname: "carbon"
   searchpath: "yanping"
+  name: default
 
 # 远程源数据数据库
 remote_database:
@@ -49,6 +50,7 @@ remote_database:
   password: "nptadmin@2025"
   dbname: "nanping"
   searchpath: "biz"
+  name: remote
 
 redis:
   addr: 121.41.129.227:16020

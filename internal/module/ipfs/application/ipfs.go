@@ -26,6 +26,18 @@ import (
 
 const baseline = 0.11564
 
+// 全局服务实例，供定时任务使用
+var defaultService *Service
+
+// DefaultService 获取默认的碳报告月报服务实例
+func DefaultService() *Service {
+	return defaultService
+}
+
+func setDefaultService(service *Service) {
+	defaultService = service
+}
+
 // Service IPFS 服务
 type Service struct {
 	ppt                       string    // 通行证
@@ -53,6 +65,8 @@ func NewService() *Service {
 		ipfsDetailAppService:      ipfsDetailAppService,
 		carbonReportDayAppService: carbonReportDayAppService,
 	}
+
+	setDefaultService(s)
 
 	if config.GlobalConfig.Ipfs.Status {
 		// 获取通行证，并自动开启守护程序

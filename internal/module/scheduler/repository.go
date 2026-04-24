@@ -51,9 +51,11 @@ func (r *scheduledTaskRepository) Delete(ctx context.Context, id int64) error {
 // FindByName 根据名称查找任务配置
 func (r *scheduledTaskRepository) FindByName(ctx context.Context, name string) (*ScheduledTask, error) {
 	var task ScheduledTask
+
 	err := db.GetDB(ctx).WithContext(ctx).
+		Table("scheduled_task").
 		Where("name = ? AND "+entity.FieldDeleteBy+" = 0", name).
-		First(&task).Error
+		Take(&task).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil

@@ -38,6 +38,7 @@ type DatabaseConfig struct {
 	Password   string `mapstructure:"password"`
 	DBName     string `mapstructure:"dbname"`
 	SearchPath string `mapstructure:"searchpath"`
+	Name       string `mapstructure:"name"`
 }
 
 type RedisConfig struct {

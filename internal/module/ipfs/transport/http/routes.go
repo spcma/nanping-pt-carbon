@@ -7,18 +7,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// 全局服务实例，供定时任务使用
-var defaultService *application.Service
-
-// DefaultService 获取默认的碳报告月报服务实例
-func DefaultService() *application.Service {
-	return defaultService
-}
-
-func setDefaultService(service *application.Service) {
-	defaultService = service
-}
-
 type ipfsRoutes struct {
 	ipfsHandler *IpfsHandler
 }
@@ -27,8 +15,6 @@ func NewIpfsRoutes() shared_http.RouteRegistry {
 
 	service := application.NewService()
 	handler := NewIpfsHandler(service)
-
-	setDefaultService(service)
 
 	return &ipfsRoutes{
 		ipfsHandler: handler,

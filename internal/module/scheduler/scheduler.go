@@ -36,12 +36,12 @@ type TaskStatus struct {
 
 // Scheduler 定时任务调度器
 type Scheduler struct {
-	cron       *cron.Cron
-	tasks      map[string]*TaskConfig
-	taskStats  map[string]*TaskStatus
-	mu         sync.RWMutex
-	entryIDs   map[string]cron.EntryID
-	repository ScheduledTaskRepository // 任务配置仓储
+	cron      *cron.Cron
+	tasks     map[string]*TaskConfig
+	taskStats map[string]*TaskStatus
+	mu        sync.RWMutex
+	entryIDs  map[string]cron.EntryID
+	repo      ScheduledTaskRepository // 任务配置仓储
 }
 
 var (
@@ -66,22 +66,17 @@ func NewScheduler() *Scheduler {
 		),
 	)
 
+	repo := NewScheduledTaskRepository()
+
 	s := &Scheduler{
-		cron:       c,
-		tasks:      make(map[string]*TaskConfig),
-		taskStats:  make(map[string]*TaskStatus),
-		entryIDs:   make(map[string]cron.EntryID),
-		repository: nil, // 将在初始化时设置
+		cron:      c,
+		tasks:     make(map[string]*TaskConfig),
+		taskStats: make(map[string]*TaskStatus),
+		entryIDs:  make(map[string]cron.EntryID),
+		repo:      repo,
 	}
 
 	return s
-}
-
-// SetRepository 设置任务配置仓储
-func (s *Scheduler) SetRepository(repo ScheduledTaskRepository) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.repository = repo
 }
 
 // AddTask 添加定时任务
@@ -125,9 +120,16 @@ func (s *Scheduler) AddTask(config *TaskConfig) error {
 	s.entryIDs[config.Name] = entryID
 
 	// 持久化到数据库
-	if s.repository != nil {
+	if s.repo != nil {
 		ctx := context.Background()
-		existingTask, _ := s.repository.FindByName(ctx, config.Name)
+		existingTask, err := s.repo.FindByName(ctx, config.Name)
+		if err != nil {
+			logger.SchedulerL.Warn("Failed to find task config in database",
+				zap.String("task_name", config.Name),
+				zap.Error(err),
+			)
+			return err
+		}
 		if existingTask == nil {
 			// 创建新任务配置
 			taskEntity := &ScheduledTask{
@@ -138,7 +140,7 @@ func (s *Scheduler) AddTask(config *TaskConfig) error {
 				TaskType:    config.Name, // 默认使用任务名称作为类型
 				Params:      config.Params,
 			}
-			if err := s.repository.Create(ctx, taskEntity); err != nil {
+			if err := s.repo.Create(ctx, taskEntity); err != nil {
 				logger.SchedulerL.Warn("Failed to persist task config to database",
 					zap.String("task_name", config.Name),
 					zap.Error(err),
@@ -150,7 +152,7 @@ func (s *Scheduler) AddTask(config *TaskConfig) error {
 			existingTask.Description = config.Description
 			existingTask.Enabled = config.Enabled
 			existingTask.Params = config.Params
-			if err := s.repository.Update(ctx, existingTask); err != nil {
+			if err := s.repo.Update(ctx, existingTask); err != nil {
 				logger.SchedulerL.Warn("Failed to update task config in database",
 					zap.String("task_name", config.Name),
 					zap.Error(err),
@@ -189,11 +191,11 @@ func (s *Scheduler) RemoveTask(taskName string) error {
 	delete(s.taskStats, taskName)
 
 	// 从数据库中删除
-	if s.repository != nil {
+	if s.repo != nil {
 		ctx := context.Background()
-		task, _ := s.repository.FindByName(ctx, taskName)
+		task, _ := s.repo.FindByName(ctx, taskName)
 		if task != nil {
-			if err := s.repository.Delete(ctx, task.Id); err != nil {
+			if err := s.repo.Delete(ctx, task.Id); err != nil {
 				logger.SchedulerL.Warn("Failed to delete task config from database",
 					zap.String("task_name", taskName),
 					zap.Error(err),
@@ -277,6 +279,8 @@ func (s *Scheduler) ListTasks() []*TaskStatus {
 }
 
 // executeTask 执行任务（内部方法）
+//
+//	每次任务触发的时候都会进入此方法
 func (s *Scheduler) executeTask(config *TaskConfig) {
 	s.mu.Lock()
 	if stats, exists := s.taskStats[config.Name]; exists {
@@ -342,12 +346,12 @@ func (s *Scheduler) DisableTask(taskName string) error {
 
 // LoadTasksFromDatabase 从数据库加载并注册所有启用的任务
 func (s *Scheduler) LoadTasksFromDatabase(taskRegistry *TaskRegistry) error {
-	if s.repository == nil {
+	if s.repo == nil {
 		return fmt.Errorf("repository not set")
 	}
 
 	ctx := context.Background()
-	tasks, err := s.repository.FindByEnabled(ctx)
+	tasks, err := s.repo.FindByEnabled(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to load tasks from database: %w", err)
 	}
