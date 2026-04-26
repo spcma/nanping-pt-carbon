@@ -27,13 +27,16 @@ func NewIpfsHandler(appService *application.Service) *IpfsHandler {
 }
 
 func (h *IpfsHandler) ListDir(c *gin.Context) {
+
 	dir := c.Query("dir")
 	if dir == "" {
 		response.BadRequest(c, "dir is required")
 		return
 	}
 
-	listDir, err := h.appService.ListDir(platform_http.Ctx(c), dir)
+	clientName := c.Query("clientName")
+
+	listDir, err := h.appService.ListDir(platform_http.Ctx(c), clientName, dir)
 	if err != nil {
 		response.InternalError(c, err.Error())
 		return
@@ -236,8 +239,9 @@ func (h *IpfsHandler) ScanDir(c *gin.Context) {
 
 func (h *IpfsHandler) CalcDir(c *gin.Context) {
 	type CalcDirDto struct {
-		RootDir string `json:"rootDir" form:"rootDir"` // 要扫描的根目录，如 "/aibk/26/03/27"
-		Date    string `json:"date" form:"date"`       // 日期，格式 "2026-03-27"
+		RootDir    string `json:"rootDir" form:"rootDir"` // 要扫描的根目录，如 "/aibk/26/03/27"
+		Date       string `json:"date" form:"date"`       // 日期，格式 "2026-03-27"
+		ClientName string `json:"clientName" form:"clientName"`
 	}
 
 	var dto CalcDirDto
@@ -258,7 +262,7 @@ func (h *IpfsHandler) CalcDir(c *gin.Context) {
 
 	go func() {
 		ctx := context.Background()
-		turnover, err := h.appService.CalcDir(ctx, dto.RootDir, dto.Date)
+		turnover, err := h.appService.CalcDir(ctx, dto.ClientName, dto.RootDir, dto.Date)
 		if err != nil {
 			logger.IpfsL.Error("calcDir failed", zap.String("rootDir", dto.RootDir), zap.String("date", dto.Date), zap.Error(err))
 			return

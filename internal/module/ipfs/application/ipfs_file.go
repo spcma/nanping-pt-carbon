@@ -89,20 +89,30 @@ func (s *Service) saveIpfsDetailToDB(deviceCode, fileName string, timestamp int6
 
 // SaveContent 保存内容到文件
 func (s *Service) SaveContent(ctx context.Context, content, fsDir, filename string) (string, error) {
+	return s.SaveContentForClient(s.defaultClientName, ctx, content, fsDir, filename)
+}
+
+// SaveContentForClient 为指定客户端保存内容到文件
+func (s *Service) SaveContentForClient(clientName string, ctx context.Context, content, fsDir, filename string) (string, error) {
+	client, err := s.getClient(clientName)
+	if err != nil {
+		return "", err
+	}
+
 	// 打开临时文件
-	fsid, err := s.client.MFOpenTempFile(s.session)
+	fsid, err := client.client.MFOpenTempFile(client.session)
 	if err != nil {
 		return "", err
 	}
 
 	// 写入数据
-	_, err = s.client.MFSetData(fsid, []byte(content), 0)
+	_, err = client.client.MFSetData(fsid, []byte(content), 0)
 	if err != nil {
 		return "", err
 	}
 
 	// 确保目录存在
-	ok, err := s.MustDirExists(fsDir, true)
+	ok, err := s.MustDirExistsForClient(clientName, fsDir, true)
 	if err != nil {
 		return "", err
 	}
@@ -113,7 +123,7 @@ func (s *Service) SaveContent(ctx context.Context, content, fsDir, filename stri
 
 	// 保存到 NPFS
 	nodePath := fsDir + "/" + filename
-	ipfsid, err := s.client.MFTemp2Files(fsid, nodePath)
+	ipfsid, err := client.client.MFTemp2Files(fsid, nodePath)
 	if err != nil {
 		return "", err
 	}
@@ -123,12 +133,17 @@ func (s *Service) SaveContent(ctx context.Context, content, fsDir, filename stri
 
 // ReadFile 读取文件
 func (s *Service) ReadFile(ctx context.Context, path string) ([]byte, error) {
+	return s.ReadFileForClient(s.defaultClientName, ctx, path)
+}
 
-	logger.IpfsL.Info("read file", zap.String("path", path))
+// ReadFileForClient 为指定客户端读取文件
+func (s *Service) ReadFileForClient(clientName string, ctx context.Context, path string) ([]byte, error) {
+
+	logger.IpfsL.Info("read file", zap.String("client", clientName), zap.String("path", path))
 
 	ext := filepath.Ext(path)
 
-	err := s.SaveFileToLocal(path, "./tmp"+ext)
+	err := s.SaveFileToLocalForClient(clientName, path, "./tmp"+ext)
 	if err != nil {
 		return nil, err
 	}
@@ -152,23 +167,33 @@ func (s *Service) ReadFile(ctx context.Context, path string) ([]byte, error) {
 }
 
 func (s *Service) SaveContentToIpfs(content, fsDir, filename string) (string, error) {
+	return s.SaveContentToIpfsForClient(s.defaultClientName, content, fsDir, filename)
+}
 
-	logger.IpfsL.Info("save content to file", zap.String("fsDir", fsDir), zap.String("filename", filename), zap.String("content", content))
+// SaveContentToIpfsForClient 为指定客户端保存内容到IPFS
+func (s *Service) SaveContentToIpfsForClient(clientName string, content, fsDir, filename string) (string, error) {
+
+	logger.IpfsL.Info("save content to file", zap.String("client", clientName), zap.String("fsDir", fsDir), zap.String("filename", filename), zap.String("content", content))
+
+	client, err := s.getClient(clientName)
+	if err != nil {
+		return "", err
+	}
 
 	// 打开临时文件
-	fsid, err := s.client.MFOpenTempFile(s.session)
+	fsid, err := client.client.MFOpenTempFile(client.session)
 	if err != nil {
 		return "", err
 	}
 
 	// 写入数据
-	_, err = s.client.MFSetData(fsid, []byte(content), 0)
+	_, err = client.client.MFSetData(fsid, []byte(content), 0)
 	if err != nil {
 		return "", err
 	}
 
 	// 确保目录存在
-	ok, err := s.MustDirExists(fsDir, true)
+	ok, err := s.MustDirExistsForClient(clientName, fsDir, true)
 	if err != nil {
 		return "", err
 	}
@@ -179,7 +204,7 @@ func (s *Service) SaveContentToIpfs(content, fsDir, filename string) (string, er
 
 	// 将临时文件写入到IPFS最终存档
 	nodePath := fsDir + "/" + filename
-	ipfsid, err := s.client.MFTemp2Files(fsid, nodePath)
+	ipfsid, err := client.client.MFTemp2Files(fsid, nodePath)
 	if err != nil {
 		return "", err
 	}
@@ -189,8 +214,18 @@ func (s *Service) SaveContentToIpfs(content, fsDir, filename string) (string, er
 
 // SaveFileToIpfs 将本地文件保存到 IPFS
 func (s *Service) SaveFileToIpfs(localPath, fsDir, filename string) (string, error) {
+	return s.SaveFileToIpfsForClient(s.defaultClientName, localPath, fsDir, filename)
+}
+
+// SaveFileToIpfsForClient 为指定客户端将本地文件保存到 IPFS
+func (s *Service) SaveFileToIpfsForClient(clientName string, localPath, fsDir, filename string) (string, error) {
+	client, err := s.getClient(clientName)
+	if err != nil {
+		return "", err
+	}
+
 	// 打开临时文件
-	fsid, err := s.client.MFOpenTempFile(s.session)
+	fsid, err := client.client.MFOpenTempFile(client.session)
 	if err != nil {
 		return "", err
 	}
@@ -202,13 +237,13 @@ func (s *Service) SaveFileToIpfs(localPath, fsDir, filename string) (string, err
 	}
 
 	// 写入数据
-	_, err = s.client.MFSetData(fsid, data, 0)
+	_, err = client.client.MFSetData(fsid, data, 0)
 	if err != nil {
 		return "", err
 	}
 
 	// 确保目录存在
-	ok, err := s.MustDirExists(fsDir, true)
+	ok, err := s.MustDirExistsForClient(clientName, fsDir, true)
 	if err != nil {
 		return "", err
 	}
@@ -219,7 +254,7 @@ func (s *Service) SaveFileToIpfs(localPath, fsDir, filename string) (string, err
 
 	// 将临时文件写入到IPFS最终存档
 	nodePath := fsDir + "/" + filename
-	ipfsid, err := s.client.MFTemp2Files(fsid, nodePath)
+	ipfsid, err := client.client.MFTemp2Files(fsid, nodePath)
 	if err != nil {
 		return "", err
 	}
@@ -229,10 +264,15 @@ func (s *Service) SaveFileToIpfs(localPath, fsDir, filename string) (string, err
 
 // MustDirExists 确保目录存在
 func (s *Service) MustDirExists(path string, recursive bool) (bool, error) {
-	if !s.CheckDir(path) {
-		err := s.CreateDir(path)
+	return s.MustDirExistsForClient(s.defaultClientName, path, recursive)
+}
+
+// MustDirExistsForClient 为指定客户端确保目录存在
+func (s *Service) MustDirExistsForClient(clientName string, path string, recursive bool) (bool, error) {
+	if !s.CheckDirForClient(clientName, path) {
+		err := s.CreateDirForClient(clientName, path)
 		if err != nil {
-			logger.IpfsL.Error("create dir failed", zap.String("dir", path), zap.Error(err))
+			logger.IpfsL.Error("create dir failed", zap.String("client", clientName), zap.String("dir", path), zap.Error(err))
 			return false, err
 		}
 
@@ -243,8 +283,19 @@ func (s *Service) MustDirExists(path string, recursive bool) (bool, error) {
 }
 
 func (s *Service) Remove() {
+	s.RemoveForClient(s.defaultClientName)
+}
+
+// RemoveForClient 为指定客户端删除文件
+func (s *Service) RemoveForClient(clientName string) {
+	client, err := s.getClient(clientName)
+	if err != nil {
+		logger.IpfsL.Error("get client failed", zap.String("client", clientName), zap.Error(err))
+		return
+	}
+
 	//	recursive 递归 flush 直接删除
-	err := s.client.FilesRm(s.session, "/tmpp/26/03/14/20260324.txt", true, true)
+	err = client.client.FilesRm(client.session, "/tmpp/26/03/14/20260324.txt", true, true)
 	if err != nil {
 		return
 	}
@@ -255,13 +306,18 @@ func (s *Service) Remove() {
 // SaveFileToLocal 将 IPFS 文件保存到本地
 // filePath: IPFS 文件路径
 // localPath: 本地保存路径
-func (s *Service) SaveFileToLocal(filePath, localPath string) error {
+func (s *Service) SaveFileToLocal(clientName, filePath, localPath string) error {
+	return s.SaveFileToLocalForClient(clientName, filePath, localPath)
+}
 
-	logger.IpfsL.Info("save file to local", zap.String("file", filePath))
+// SaveFileToLocalForClient 为指定客户端将 IPFS 文件保存到本地
+func (s *Service) SaveFileToLocalForClient(clientName string, filePath, localPath string) error {
 
-	data, _, err := s.ReadFileFromIpfs(filePath)
+	logger.IpfsL.Info("save file to local", zap.String("client", clientName), zap.String("file", filePath))
+
+	data, _, err := s.ReadFileFromIpfsForClient(clientName, filePath)
 	if err != nil {
-		logger.IpfsL.Error("read file from ipfs failed", zap.String("file", filePath), zap.Error(err))
+		logger.IpfsL.Error("read file from ipfs failed", zap.String("client", clientName), zap.String("file", filePath), zap.Error(err))
 		return err
 	}
 
@@ -279,12 +335,22 @@ func (s *Service) SaveFileToLocal(filePath, localPath string) error {
 // filePath: Ipfs 文件路径（如：/np_storage/1.jpg）
 // data: 文件数据，size: 文件大小，err: 错误信息
 func (s *Service) ReadFileFromIpfs(filePath string) ([]byte, int64, error) {
-	// 打开文件 URL
-	fsid, err := s.client.MMOpenUrl(s.session, filePath)
+	return s.ReadFileFromIpfsForClient(s.defaultClientName, filePath)
+}
+
+// ReadFileFromIpfsForClient 为指定客户端从 Ipfs 读取文件数据
+func (s *Service) ReadFileFromIpfsForClient(clientName string, filePath string) ([]byte, int64, error) {
+	client, err := s.getClient(clientName)
 	if err != nil {
 		return nil, 0, err
 	}
-	defer s.client.MMClose(fsid)
+
+	// 打开文件 URL
+	fsid, err := client.client.MMOpenUrl(client.session, filePath)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer client.client.MMClose(fsid)
 
 	// 获取文件大小
 	//size, err := s.client.MFGetSize(fsid)
@@ -293,7 +359,7 @@ func (s *Service) ReadFileFromIpfs(filePath string) ([]byte, int64, error) {
 	//}
 
 	// 读取文件数据
-	data, err := s.client.MFGetData(fsid, 0, -1)
+	data, err := client.client.MFGetData(fsid, 0, -1)
 	if err != nil {
 		return nil, 0, err
 	}

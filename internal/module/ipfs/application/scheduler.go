@@ -70,7 +70,7 @@ func (s *Service) AggregateDailyReport(ctx context.Context, year int, month int,
 		return
 	}
 
-	totalTurnover, err := s.CalcDir(ctx, dir, now.Format(time.DateTime))
+	totalTurnover, err := s.CalcDir(ctx, "", dir, now.Format(time.DateTime))
 	if err != nil {
 		logger.SchedulerL.Error("日报汇总错误", zap.Error(err))
 		return
