@@ -109,16 +109,17 @@ func Initialize() (*Server, error) {
 	}
 	token.SetDefault(tokenManager)
 
-	// 初始化 HTTP 路由
-	// 注意: 此步骤会注册所有模块的路由,并初始化各模块的 Service
-	// 必须在调度器启动之前完成,确保调度任务可以安全访问其他模块的 Service
-	router := transport_http.InitRouter()
-
 	// 初始化定时任务调度器
 	// 注意: Start() 必须在所有模块初始化完成后调用,避免任务执行时依赖的 Service 未就绪
 	sched := scheduler.Default()
 
 	ipfs_application.RegisterTask()
+
+	// 初始化 HTTP 路由
+	// 注意: 此步骤会注册所有模块的路由,并初始化各模块的 Service
+	// 必须在调度器启动之前完成,确保调度任务可以安全访问其他模块的 Service
+	router := transport_http.InitRouter()
+
 	sched.Start()
 
 	return &Server{

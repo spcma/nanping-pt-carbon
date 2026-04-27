@@ -1,7 +1,6 @@
 package application
 
 import (
-	"app/internal/config"
 	"app/internal/module/scheduler"
 	"app/internal/shared/logger"
 	"context"
@@ -64,13 +63,14 @@ func (s *Service) AggregateDailyReport(ctx context.Context, year int, month int,
 
 	now := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.Local)
 
-	dir, err := parseDirByPort(config.GlobalConfig.Ipfs.Port, now)
+	dir, err := parseDirByPort(4800, now)
 	if err != nil {
 		logger.SchedulerL.Error("获取端口错误", zap.Error(err))
 		return
 	}
 
-	totalTurnover, err := s.CalcDir(ctx, "", dir, now.Format(time.DateTime))
+	//	调度任务使用4800客户端
+	totalTurnover, err := s.CalcDir(ctx, "4800", dir, now.Format(time.DateTime))
 	if err != nil {
 		logger.SchedulerL.Error("日报汇总错误", zap.Error(err))
 		return

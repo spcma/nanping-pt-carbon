@@ -924,6 +924,7 @@ func (s *Service) processGpsFile(ctx context.Context, clientName string, fullPat
 		if t == timestamp {
 			tmpTurnover := cast.ToFloat64(cv.BaiduResult) * summary.TotalDistanceKm // 周转量 = 里程 * 乘客数
 			deviceTurnover += tmpTurnover
+			break
 		}
 	}
 

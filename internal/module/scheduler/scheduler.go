@@ -1,12 +1,14 @@
 package scheduler
 
 import (
+	"app/internal/shared/entity"
 	"app/internal/shared/logger"
 	"context"
 	"fmt"
 	"sync"
 
 	"github.com/robfig/cron/v3"
+	"github.com/yitter/idgenerator-go/idgen"
 	"go.uber.org/zap"
 )
 
@@ -133,6 +135,9 @@ func (s *Scheduler) AddTask(config *TaskConfig) error {
 		if existingTask == nil {
 			// 创建新任务配置
 			taskEntity := &ScheduledTask{
+				BaseEntity: entity.BaseEntity{
+					Id: idgen.NextId(),
+				},
 				Name:        config.Name,
 				CronSpec:    config.CronSpec,
 				Description: config.Description,
