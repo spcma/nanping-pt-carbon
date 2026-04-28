@@ -3,10 +3,12 @@ package application
 import (
 	"app/internal/config"
 	carbonreportday_application "app/internal/module/carbonreportday"
+	"app/internal/module/carbonreportdetail"
 	"app/internal/module/ipfs/infrastructure"
 	"app/internal/module/ipfs/rpc"
 	"app/internal/shared/db"
 	"app/internal/shared/entity"
+	idgen "app/internal/shared/idgen"
 	"app/internal/shared/logger"
 	"app/internal/shared/timeutil"
 	"context"
@@ -564,7 +566,11 @@ func (s *Service) CalcDir(ctx context.Context, clientName string, rootDir string
 
 // CalcDirForClient 为指定客户端递归扫描目录并计算周转量
 func (s *Service) CalcDirForClient(ctx context.Context, clientName string, rootDir string, date string) (float64, error) {
+	//	记录当前时间，用于耗时统计
 	cst := time.Now()
+
+	//	生成本次计算任务的统一追溯码(TraceCode)
+	traceCode := idgen.UUID()
 
 	//	解析日期
 	now := carbon.Parse(date, carbon.Shanghai).StartOfDay()
@@ -609,10 +615,11 @@ func (s *Service) CalcDirForClient(ctx context.Context, clientName string, rootD
 		zap.String("fullDir", fullDir),
 		zap.String("startTime", startTime),
 		zap.String("endTime", endTime),
+		zap.String("traceCode", traceCode),
 	)
 
 	// 递归扫描目录并计算
-	err = s.calcDirRecursiveForClient(clientName, ctx, fullDir, date, startTime, endTime, result, 0)
+	err = s.calcDirRecursiveForClient(ctx, clientName, fullDir, date, startTime, endTime, traceCode, result, 0)
 	if err != nil {
 		logger.IpfsL.Error("递归计算目录失败", zap.String("full_dir", fullDir), zap.Error(err))
 		return 0, err
@@ -694,12 +701,12 @@ type FileResult struct {
 }
 
 // calcDirRecursive 递归扫描目录并计算周转量（并发模式）
-func (s *Service) calcDirRecursive(ctx context.Context, dir string, date string, startTime string, endTime string, result *CalcDirResult, depth int) error {
-	return s.calcDirRecursiveForClient(s.defaultClientName, ctx, dir, date, startTime, endTime, result, depth)
+func (s *Service) calcDirRecursive(ctx context.Context, dir string, date string, startTime string, endTime string, traceCode string, result *CalcDirResult, depth int) error {
+	return s.calcDirRecursiveForClient(ctx, s.defaultClientName, dir, date, startTime, endTime, traceCode, result, depth)
 }
 
 // calcDirRecursiveForClient 为指定客户端递归扫描目录并计算周转量
-func (s *Service) calcDirRecursiveForClient(clientName string, ctx context.Context, dir string, date string, startTime string, endTime string, result *CalcDirResult, depth int) error {
+func (s *Service) calcDirRecursiveForClient(ctx context.Context, clientName string, dir string, date string, startTime string, endTime string, traceCode string, result *CalcDirResult, depth int) error {
 	// 检查 context 是否被取消
 	select {
 	case <-ctx.Done():
@@ -774,7 +781,7 @@ func (s *Service) calcDirRecursiveForClient(clientName string, ctx context.Conte
 			deviceCode := link.Name
 
 			// 递归扫描子目录
-			err := s.calcDirRecursiveForClient(clientName, ctx, fullPath, date, startTime, endTime, result, depth+1)
+			err := s.calcDirRecursiveForClient(ctx, clientName, fullPath, date, startTime, endTime, traceCode, result, depth+1)
 			if err != nil {
 				logger.IpfsL.Warn("扫描子目录失败", zap.String("dir", fullPath), zap.Error(err))
 			}
@@ -794,17 +801,18 @@ func (s *Service) calcDirRecursiveForClient(clientName string, ctx context.Conte
 
 	// 串行处理文件任务
 	if len(fileTasks) > 0 {
-		s.processFilesSequential(ctx, clientName, fileTasks, startTime, endTime, result)
+		s.processFilesSequential(ctx, clientName, traceCode, fileTasks, startTime, endTime, result)
 	}
 
 	return nil
 }
 
 // processFilesSequential 串行处理文件任务
-func (s *Service) processFilesSequential(ctx context.Context, clientName string, tasks []FileTask, startTime string, endTime string, result *CalcDirResult) {
+func (s *Service) processFilesSequential(ctx context.Context, clientName string, traceCode string, tasks []FileTask, startTime string, endTime string, result *CalcDirResult) {
 	taskCount := len(tasks)
 	logger.IpfsL.Info("开始串行处理文件",
 		zap.Int("totalTasks", taskCount),
+		zap.String("traceCode", traceCode),
 	)
 
 	// 串行处理每个文件任务
@@ -823,7 +831,7 @@ func (s *Service) processFilesSequential(ctx context.Context, clientName string,
 		}
 
 		// 处理文件
-		turnover, err := s.processGpsFile(ctx, clientName, task.FullPath, task.FileName, task.DeviceCode, startTime, endTime)
+		turnover, err := s.processGpsFile(ctx, clientName, task.FullPath, task.FileName, task.DeviceCode, startTime, endTime, traceCode)
 		processedCount++
 
 		if err != nil {
@@ -865,7 +873,7 @@ func (s *Service) extractDeviceCodeFromPath(filePath string) string {
 }
 
 // processGpsFile 处理单个 GPS 文件，返回该文件的周转量
-func (s *Service) processGpsFile(ctx context.Context, clientName string, fullPath string, fileName string, deviceCode string, startTime string, endTime string) (float64, error) {
+func (s *Service) processGpsFile(ctx context.Context, clientName string, fullPath string, fileName string, deviceCode string, startTime string, endTime string, traceCode string) (float64, error) {
 	st := time.Now()
 	localPath := "./tempfile/" + fileName
 	err := s.SaveFileToLocal(clientName, fullPath, localPath)
@@ -922,15 +930,33 @@ func (s *Service) processGpsFile(ctx context.Context, clientName string, fullPat
 		return 0, nil
 	}
 
+	detail := &carbonreportdetail.CarbonReportDetail{
+		BaseEntity: entity.BaseEntity{
+			Id: idgen.NumID(),
+		},
+		TraceCode: traceCode,
+		Mileage:   summary.TotalDistanceKm,
+	}
+
 	// 计算周转量
 	var deviceTurnover float64
 	for _, cv := range cvres {
 		t := cv.CollectionTime.ToTime().Format("20060102150405")
 		if t == timestamp {
+			detail.Passenger = cast.ToInt64(cv.BaiduResult)
+			detail.Turnover = cast.ToFloat64(cv.BaiduResult) * summary.TotalDistanceKm
+			detail.CollectionTime = cv.CollectionTime
+
 			tmpTurnover := cast.ToFloat64(cv.BaiduResult) * summary.TotalDistanceKm // 周转量 = 里程 * 乘客数
 			deviceTurnover += tmpTurnover
 			break
 		}
+	}
+
+	err = db.GetDB(ctx).Model(&carbonreportdetail.CarbonReportDetail{}).Create(detail).Error
+	if err != nil {
+		logger.IpfsL.Error("save carbonreportdetail failed", zap.Error(err))
+		return 0, err
 	}
 
 	return deviceTurnover, nil
