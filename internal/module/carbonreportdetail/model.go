@@ -14,3 +14,7 @@ type CarbonReportDetail struct {
 	CollectionTime timeutil.Time `json:"collection_time" gorm:"column:collection_time"`
 	Hash           string        `json:"hash" gorm:"column:hash"`
 }
+
+func (*CarbonReportDetail) TableName() string {
+	return "carbon_report_detail"
+}
