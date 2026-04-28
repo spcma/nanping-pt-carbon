@@ -133,11 +133,11 @@ func (s *Service) SaveContentForClient(clientName string, ctx context.Context, c
 
 // ReadFile 读取文件
 func (s *Service) ReadFile(ctx context.Context, path string) ([]byte, error) {
-	return s.ReadFileForClient(s.defaultClientName, ctx, path)
+	return s.ReadFileForClient(ctx, s.defaultClientName, path)
 }
 
 // ReadFileForClient 为指定客户端读取文件
-func (s *Service) ReadFileForClient(clientName string, ctx context.Context, path string) ([]byte, error) {
+func (s *Service) ReadFileForClient(ctx context.Context, clientName string, path string) ([]byte, error) {
 
 	logger.IpfsL.Info("read file", zap.String("client", clientName), zap.String("path", path))
 

@@ -262,6 +262,7 @@ var (
 	InitL      Factory
 	IpfsL      Factory
 	SchedulerL Factory
+	IpfsRateL  Factory
 )
 
 // InitGlobalLoggers 初始化全局日志器（应在应用启动时调用）
@@ -284,6 +285,7 @@ func initGlobalLoggersInternal() {
 	InitL = NewSugarLogger("initializer")
 	IpfsL = NewSugarLogger("ipfs")
 	SchedulerL = NewSugarLogger("scheduler")
+	IpfsRateL = NewSugarLogger("ipfsrate")
 }
 
 // WithCategory 全局 WithCategory 函数

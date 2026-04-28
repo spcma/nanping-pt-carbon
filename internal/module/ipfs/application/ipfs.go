@@ -734,7 +734,12 @@ func (s *Service) calcDirRecursiveForClient(clientName string, ctx context.Conte
 	// 收集所有文件任务
 	var fileTasks []FileTask
 
-	for _, link := range lsLinks {
+	for i, link := range lsLinks {
+
+		logger.IpfsRateL.Info(fmt.Sprintf("正在处理目录，当前进度 %d/%d", i, len(lsLinks)),
+			zap.String("dir", dir),
+			zap.String("date", date))
+
 		fullPath := path.Join(dir, link.Name)
 
 		switch link.Type {

@@ -31,6 +31,8 @@ logger:
       level: info
     - name: scheduler
       level: info
+    - name: ipfsrate
+      level: info
 
 # 主业务数据库
 database:
