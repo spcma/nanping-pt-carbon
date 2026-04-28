@@ -30,9 +30,6 @@ func (i *Routes) RegisterRoutes(group *gin.RouterGroup, middlewares map[shared_h
 	{
 		// 项目管理路由 - /api/initializer/*
 		projectGroup := authTypeRequiredRoute.Group("/initializer")
-		{
-			projectGroup.GET("/project/20260323", i.handler.Add_Project_20260323)
-			projectGroup.GET("/methodology/20260323", i.handler.Add_Methodology_20260323)
-		}
+		_ = projectGroup
 	}
 }

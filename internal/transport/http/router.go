@@ -2,12 +2,12 @@ package http
 
 import (
 	initializer_http "app/internal/initializer"
-	carbonreportday_http "app/internal/module/carbonreportday"
-	carbonreportmonth_http "app/internal/module/carbonreportmonth"
+	carbonreportday_transport "app/internal/module/carbonreportday/transport/http"
+	carbonreportmonth_transport "app/internal/module/carbonreportmonth/transport/http"
 	iam_http "app/internal/module/iam/transport/http"
 	ipfs_http "app/internal/module/ipfs/transport/http"
-	methodology_http "app/internal/module/methodology"
-	project_http "app/internal/module/project"
+	methodology_transport "app/internal/module/methodology/transport/http"
+	project_transport "app/internal/module/project/transport/http"
 	scheduler_http "app/internal/module/scheduler"
 	shared_http "app/internal/shared/http"
 	"app/internal/shared/logger"
@@ -63,10 +63,10 @@ func getAllRouteRegistries() []shared_http.RouteRegistry {
 	// 收集各模块的路由注册器（使用默认实例）
 	registries = append(registries,
 		iam_http.NewIAMRoutes(),
-		project_http.NewProjectRoutes(),
-		methodology_http.NewMethodologyRoutes(),
-		carbonreportday_http.NewCarbonReportDayRoutes(),
-		carbonreportmonth_http.NewCarbonReportMonthRoutes(),
+		project_transport.NewProjectRoutes(),
+		methodology_transport.NewMethodologyRoutes(),
+		carbonreportday_transport.NewCarbonReportDayRoutes(),
+		carbonreportmonth_transport.NewCarbonReportMonthRoutes(),
 		scheduler_http.NewSchedulerRoutes(),
 		ipfs_http.NewIpfsRoutes(),
 	)

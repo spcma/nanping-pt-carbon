@@ -2,7 +2,6 @@ package application
 
 import (
 	"app/internal/config"
-	carbonreportday_application "app/internal/module/carbonreportday"
 	"app/internal/module/carbonreportdetail"
 	"app/internal/module/ipfs/infrastructure"
 	"app/internal/module/ipfs/rpc"
@@ -62,10 +61,9 @@ type IpfsClientInstance struct {
 
 // Service IPFS 服务
 type Service struct {
-	clients                   map[string]*IpfsClientInstance // 多客户端实例，key为客户端名称
-	defaultClientName         string                         // 默认客户端名称
-	ipfsDetailAppService      *IpfsDetailAppService
-	carbonReportDayAppService *carbonreportday_application.CarbonReportDayService
+	clients              map[string]*IpfsClientInstance // 多客户端实例，key为客户端名称
+	defaultClientName    string                         // 默认客户端名称
+	ipfsDetailAppService *IpfsDetailAppService
 }
 
 // NewService 创建 IPFS 服务
@@ -74,14 +72,9 @@ func NewService() *Service {
 	ipfsDetailRepo := infrastructure.NewIpfsDetailRepository()
 	ipfsDetailAppService := NewIpfsDetailAppService(ipfsDetailRepo)
 
-	// 初始化碳报告应用服务
-	carbonReportDayRepo := carbonreportday_application.NewCarbonReportDayRepository()
-	carbonReportDayAppService := carbonreportday_application.NewCarbonReportDayService(carbonReportDayRepo)
-
 	s := &Service{
-		clients:                   make(map[string]*IpfsClientInstance),
-		ipfsDetailAppService:      ipfsDetailAppService,
-		carbonReportDayAppService: carbonReportDayAppService,
+		clients:              make(map[string]*IpfsClientInstance),
+		ipfsDetailAppService: ipfsDetailAppService,
 	}
 
 	setDefaultService(s)
@@ -560,12 +553,12 @@ type BusImageDetailCv struct {
 // CalcDir 递归扫描目录并计算周转量
 // rootDir: 要扫描的根目录（直接从此目录开始递归）
 // date: 日期，格式为 "2026-03-27"，用于查询数据库和生成报告
-func (s *Service) CalcDir(ctx context.Context, clientName string, rootDir string, date string) (float64, error) {
+func (s *Service) CalcDir(ctx context.Context, clientName string, rootDir string, date string) (map[string]any, error) {
 	return s.CalcDirForClient(ctx, clientName, rootDir, date)
 }
 
 // CalcDirForClient 为指定客户端递归扫描目录并计算周转量
-func (s *Service) CalcDirForClient(ctx context.Context, clientName string, rootDir string, date string) (float64, error) {
+func (s *Service) CalcDirForClient(ctx context.Context, clientName string, rootDir string, date string) (map[string]any, error) {
 	//	记录当前时间，用于耗时统计
 	cst := time.Now()
 
@@ -579,7 +572,7 @@ func (s *Service) CalcDirForClient(ctx context.Context, clientName string, rootD
 
 	split := strings.Split(onlyDate, "-")
 	if len(split) < 3 {
-		return 0, fmt.Errorf("日期格式错误 %v", date)
+		return nil, fmt.Errorf("日期格式错误 %v", date)
 	}
 
 	year := split[0][2:]
@@ -588,13 +581,13 @@ func (s *Service) CalcDirForClient(ctx context.Context, clientName string, rootD
 
 	client, err := s.getClient(clientName)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	statInfo, err := client.client.FilesStat(client.session, rootDir)
 	if err != nil {
 		logger.IpfsL.Error("获取目录信息失败", zap.String("client", clientName), zap.String("dir", rootDir), zap.Error(err))
-		return 0, err
+		return nil, err
 	}
 
 	// 直接使用传入的 rootDir 作为扫描起点
@@ -622,27 +615,13 @@ func (s *Service) CalcDirForClient(ctx context.Context, clientName string, rootD
 	err = s.calcDirRecursiveForClient(ctx, clientName, fullDir, date, startTime, endTime, traceCode, result, 0)
 	if err != nil {
 		logger.IpfsL.Error("递归计算目录失败", zap.String("full_dir", fullDir), zap.Error(err))
-		return 0, err
+		return nil, err
 	}
 
 	totalTurnover := result.TotalTurnover
 
 	//	XX 日总周转量
 	logger.IpfsL.Info(fmt.Sprintf("%s, 总周转量为：%.4f", date, totalTurnover))
-
-	//	创建碳报告日报
-	_, err = s.carbonReportDayAppService.CreateCarbonReportDay(ctx, carbonreportday_application.CreateCarbonReportDayCommand{
-		Turnover:       totalTurnover,
-		Hash:           statInfo.Hash,
-		Baseline:       0,
-		CollectionDate: timeutil.Now(now.StdTime()),
-	})
-	if err != nil {
-		logger.IpfsL.Error("create carbon report day failed",
-			zap.String("date", date),
-			zap.Error(err),
-		)
-	}
 
 	//	 保存周转量结果到文件中
 	saveDir := fmt.Sprintf("%s/%s/%s/%s", "/tmpp", year, month, day)
@@ -664,12 +643,19 @@ func (s *Service) CalcDirForClient(ctx context.Context, clientName string, rootD
 	ipfsid, err := s.SaveContentToIpfs(saveContent.String(), saveDir, filename)
 	if err != nil {
 		logger.IpfsL.Error("save content to ipfs failed", zap.Float64("cost", time.Now().Sub(cst).Minutes()), zap.Error(err))
-		return 0, err
+		return nil, err
 	}
+
+	maps := make(map[string]any)
+	maps["turnover"] = totalTurnover
+	maps["collection_date"] = timeutil.Now(now.StdTime())
+	maps["hash"] = statInfo.Hash
+	maps["carbonReduce"] = value
+	maps["baseline"] = baseline
 
 	logger.IpfsL.Info("save content to ipfs done", zap.String("ipfs_id", ipfsid), zap.Float64("cost", time.Now().Sub(cst).Minutes()))
 
-	return totalTurnover, nil
+	return maps, nil
 }
 
 // CalcDirResult 计算结果汇总
@@ -1213,7 +1199,7 @@ func (s *Service) TriggerReconnectForClient(clientName string) {
 }
 
 // parseDirByPort 根据端口号返回不同的日期格式化路径
-func parseDirByPort(port int, date time.Time) (string, error) {
+func (s *Service) ParseDirByPort(port int, date time.Time) (string, error) {
 
 	if date.IsZero() {
 		date = time.Now()

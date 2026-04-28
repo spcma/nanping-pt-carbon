@@ -2,62 +2,9 @@ package scheduler
 
 import (
 	shared_http "app/internal/shared/http"
-	"app/internal/shared/logger"
-	"context"
-	"time"
 
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 )
-
-var defaultService *Scheduler
-
-func setDefaultService(sc *Scheduler) {
-	defaultService = sc
-}
-
-func DefaultService() *Scheduler {
-	return defaultService
-}
-
-// TaskRegistry 任务注册表
-type TaskRegistry struct {
-	tasks map[string]TaskFunc
-}
-
-// NewTaskRegistry 创建任务注册表
-func NewTaskRegistry() *TaskRegistry {
-	return &TaskRegistry{
-		tasks: make(map[string]TaskFunc),
-	}
-}
-
-// Register 注册任务函数
-func (r *TaskRegistry) Register(name string, fn TaskFunc) {
-	r.tasks[name] = fn
-	logger.SchedulerL.Info("Task function registered",
-		zap.String("task_name", name),
-	)
-}
-
-// Get 获取任务函数
-func (r *TaskRegistry) Get(name string) (TaskFunc, bool) {
-	fn, exists := r.tasks[name]
-	return fn, exists
-}
-
-// 全局任务注册表
-var defaultRegistry = NewTaskRegistry()
-
-// GetRegistry 获取默认任务注册表
-func GetRegistry() *TaskRegistry {
-	return defaultRegistry
-}
-
-// RegisterTask 便捷方法：注册任务函数
-func RegisterTask(name string, fn TaskFunc) {
-	defaultRegistry.Register(name, fn)
-}
 
 // routes 路由注册器
 type routes struct {
@@ -70,52 +17,11 @@ type routes struct {
 func NewSchedulerRoutes() shared_http.RouteRegistry {
 	scheduler := Default()
 
-	setDefaultService(scheduler)
-
 	handler := NewSchedulerHandler(scheduler)
-
-	// 注册业务任务函数到注册表(不直接添加到调度器)
-	registerTaskFunctions()
-
-	// 从数据库加载已启用的任务
-	if err := scheduler.LoadTasksFromDatabase(defaultRegistry); err != nil {
-		logger.SchedulerL.Error("Failed to load tasks from database",
-			zap.Error(err),
-		)
-		panic("Failed to load tasks from database" + err.Error())
-	}
 
 	return &routes{
 		handler: handler,
 	}
-}
-
-// registerTaskFunctions 注册任务函数到注册表(不直接添加到调度器)
-func registerTaskFunctions() {
-
-	// 报时
-	RegisterTask("report.time", func(ctx context.Context, params map[string]interface{}) error {
-		cst := time.Now()
-
-		logger.SchedulerL.Info("调度任务运行中",
-			zap.String("current_time", cst.Format("2006-01-02 15:04:05")),
-			zap.String("message", "调度任务运行中"),
-		)
-
-		if customMsg, ok := params["message"]; ok {
-			logger.SchedulerL.Info("Custom message from params",
-				zap.Any("message", customMsg),
-			)
-		}
-
-		logger.SchedulerL.Info("调度任务运行完毕",
-			zap.Duration("cost", time.Since(cst)),
-		)
-
-		return nil
-	})
-
-	logger.SchedulerL.Info("Task functions registered")
 }
 
 // RegisterRoutes 注册路由

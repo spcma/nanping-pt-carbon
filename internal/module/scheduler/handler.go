@@ -51,7 +51,7 @@ func (h *SchedulerHandler) AddTask(c *gin.Context) {
 	}
 
 	// 从任务注册表中获取任务函数
-	taskFunc, exists := GetRegistry().Get(req.TaskType)
+	taskFunc, exists := RegistryStore().Get(req.TaskType)
 	if !exists {
 		response.BadRequest(c, fmt.Sprintf("task type '%s' not found in registry", req.TaskType))
 		return

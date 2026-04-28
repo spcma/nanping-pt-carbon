@@ -268,7 +268,7 @@ func (h *IpfsHandler) CalcDir(c *gin.Context) {
 			return
 		}
 
-		logger.IpfsL.Info("calcDir completed", zap.String("rootDir", dto.RootDir), zap.String("date", dto.Date), zap.Float64("turnover", turnover))
+		logger.IpfsL.Info("calcDir completed", zap.String("rootDir", dto.RootDir), zap.String("date", dto.Date), zap.Any("turnover", turnover["turnover"]))
 	}()
 
 	response.Success(c, "计算任务已启动，请稍后查看结果")
