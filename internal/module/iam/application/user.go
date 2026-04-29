@@ -248,7 +248,7 @@ func (u *UserService) Login(ctx context.Context, cmd LoginCommand, jwtManager to
 	}
 
 	// 检查用户是否存在
-	if user.Id == 0 {
+	if user == nil || user.Id == 0 {
 		return nil, domain.ErrUserNotFound
 	}
 

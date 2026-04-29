@@ -3,6 +3,7 @@ package application
 import (
 	"app/internal/module/carbonreportday/domain"
 	"app/internal/shared/entity"
+	idgen "app/internal/shared/idgen"
 	"app/internal/shared/timeutil"
 	"context"
 	"errors"
@@ -33,6 +34,7 @@ func NewCarbonReportDayService(repo domain.CarbonReportDayRepository) *CarbonRep
 
 // CreateCarbonReportDayCommand 创建碳日报命令
 type CreateCarbonReportDayCommand struct {
+	TraceCode       string        `json:"trace_code"`
 	Hash            string        `json:"hash"`
 	UserID          int64         `json:"userId"`
 	Turnover        float64       `json:"turnover"`
@@ -42,23 +44,23 @@ type CreateCarbonReportDayCommand struct {
 }
 
 // Create 创建碳日报
-func (s *CarbonReportDayService) Create(ctx context.Context, cmd CreateCarbonReportDayCommand) (int64, error) {
-	// 调用领域层创建聚合根
-	report, err := domain.NewCarbonReportDay(
-		cmd.Turnover,
-		cmd.Baseline,
-		cmd.CollectionDate,
-		cmd.UserID,
-	)
-	if err != nil {
-		return 0, err
+func (s *CarbonReportDayService) Create(ctx context.Context, cmd *CreateCarbonReportDayCommand) (int64, error) {
+	report := &domain.CarbonReportDay{
+		BaseEntity: entity.BaseEntity{
+			Id:         idgen.NumID(),
+			CreateBy:   cmd.UserID,
+			CreateTime: timeutil.Now(),
+		},
+		TraceCode:       cmd.TraceCode,
+		Mileage:         0,
+		Turnover:        cmd.Turnover,
+		CollectionDate:  cmd.CollectionDate,
+		Hash:            cmd.Hash,
+		Baseline:        cmd.Baseline,
+		CarbonReduction: 0,
 	}
 
-	// 设置哈希值
-	report.SetHash(cmd.Hash)
-
-	// 持久化
-	err = s.repo.Create(ctx, report)
+	err := s.repo.Create(ctx, report)
 	if err != nil {
 		return 0, err
 	}

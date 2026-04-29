@@ -1,6 +1,7 @@
 package scheduled
 
 import (
+	"app/internal/module/carbonreportday/application"
 	ipfs_application "app/internal/module/ipfs/application"
 	"app/internal/module/scheduler"
 	"app/internal/shared/logger"
@@ -15,7 +16,7 @@ type IpfsService interface {
 }
 
 type CarbonReportDayScheduled struct {
-	ipfsService *ipfs_application.Service
+	ipfsService *ipfs_application.IpfsService
 }
 
 func RegisterTask() {
@@ -51,7 +52,37 @@ func RegisterTask() {
 			day = lastDay.Day()
 		}
 
-		AggregateDailyReport(ctx, year, month, day)
+		report, err := AggregateDailyReport(ctx, year, month, day)
+		if err != nil {
+			logger.SchedulerL.Error("碳日报汇总任务执行失败", zap.Error(err))
+			return err
+		}
+
+		dayService := application.Service()
+
+		cmd := &application.CreateCarbonReportDayCommand{}
+
+		if val, ok := report["totalTurnover"].(float64); ok {
+			cmd.Turnover = val
+		}
+		if val, ok := report["baseline"].(float64); ok {
+			cmd.Baseline = val
+		}
+		if val, ok := report["carbonReduce"].(float64); ok {
+			cmd.CarbonReduction = val
+		}
+		if val, ok := report["hash"].(string); ok {
+			cmd.Hash = val
+		}
+		if val, ok := report["traceCode"].(string); ok {
+			cmd.TraceCode = val
+		}
+
+		_, err = dayService.Create(ctx, cmd)
+		if err != nil {
+			logger.SchedulerL.Error("碳日报创建失败", zap.Error(err))
+			return err
+		}
 
 		logger.SchedulerL.Info("碳日报汇总任务执行成功",
 			zap.Int("year", year),
@@ -93,7 +124,37 @@ func RegisterTask() {
 			day = lastDay.Day()
 		}
 
-		AggregateDailyReport(ctx, year, month, day)
+		report, err := AggregateDailyReport(ctx, year, month, day)
+		if err != nil {
+			logger.SchedulerL.Error("碳日报汇总任务执行失败", zap.Error(err))
+			return err
+		}
+
+		dayService := application.Service()
+
+		cmd := &application.CreateCarbonReportDayCommand{}
+
+		if val, ok := report["totalTurnover"].(float64); ok {
+			cmd.Turnover = val
+		}
+		if val, ok := report["baseline"].(float64); ok {
+			cmd.Baseline = val
+		}
+		if val, ok := report["carbonReduce"].(float64); ok {
+			cmd.CarbonReduction = val
+		}
+		if val, ok := report["hash"].(string); ok {
+			cmd.Hash = val
+		}
+		if val, ok := report["traceCode"].(string); ok {
+			cmd.TraceCode = val
+		}
+
+		_, err = dayService.Create(ctx, cmd)
+		if err != nil {
+			logger.SchedulerL.Error("碳日报创建失败", zap.Error(err))
+			return err
+		}
 
 		logger.SchedulerL.Info("碳日报汇总任务执行成功",
 			zap.Int("year", year),
@@ -112,7 +173,7 @@ func AggregateDailyReport(ctx context.Context, year int, month int, day int) (ma
 		zap.Int("day", day),
 	)
 
-	ipfs := ipfs_application.DefaultService()
+	ipfs := ipfs_application.Ipfs()
 
 	now := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.Local)
 

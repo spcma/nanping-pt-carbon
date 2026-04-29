@@ -18,7 +18,7 @@ import (
 // saveDistanceResult 将里程计算结果保存到文件
 // fileName: 原文件名（如：gps_20260314142635.txt）
 // summary: 里程汇总信息
-func (s *Service) saveDistanceResult(fileName string, summary DistanceSummary) error {
+func (s *IpfsService) saveDistanceResult(fileName string, summary DistanceSummary) error {
 	// 生成结果文件路径，例如：./distance_result/gps_20260314142635_distance.txt
 	resultDir := "./distance_result"
 
@@ -55,7 +55,7 @@ func (s *Service) saveDistanceResult(fileName string, summary DistanceSummary) e
 // fileName: 文件名
 // records: GPS 记录列表
 // summary: 里程汇总信息
-func (s *Service) saveIpfsDetailToDB(deviceCode, fileName string, timestamp int64, turnover float64, passenger int64, records []Record, summary DistanceSummary) error {
+func (s *IpfsService) saveIpfsDetailToDB(deviceCode, fileName string, timestamp int64, turnover float64, passenger int64, records []Record, summary DistanceSummary) error {
 	if len(records) == 0 {
 		return nil
 	}
@@ -88,12 +88,12 @@ func (s *Service) saveIpfsDetailToDB(deviceCode, fileName string, timestamp int6
 }
 
 // SaveContent 保存内容到文件
-func (s *Service) SaveContent(ctx context.Context, content, fsDir, filename string) (string, error) {
+func (s *IpfsService) SaveContent(ctx context.Context, content, fsDir, filename string) (string, error) {
 	return s.SaveContentForClient(s.defaultClientName, ctx, content, fsDir, filename)
 }
 
 // SaveContentForClient 为指定客户端保存内容到文件
-func (s *Service) SaveContentForClient(clientName string, ctx context.Context, content, fsDir, filename string) (string, error) {
+func (s *IpfsService) SaveContentForClient(clientName string, ctx context.Context, content, fsDir, filename string) (string, error) {
 	client, err := s.getClient(clientName)
 	if err != nil {
 		return "", err
@@ -132,12 +132,12 @@ func (s *Service) SaveContentForClient(clientName string, ctx context.Context, c
 }
 
 // ReadFile 读取文件
-func (s *Service) ReadFile(ctx context.Context, path string) ([]byte, error) {
+func (s *IpfsService) ReadFile(ctx context.Context, path string) ([]byte, error) {
 	return s.ReadFileForClient(ctx, s.defaultClientName, path)
 }
 
 // ReadFileForClient 为指定客户端读取文件
-func (s *Service) ReadFileForClient(ctx context.Context, clientName string, path string) ([]byte, error) {
+func (s *IpfsService) ReadFileForClient(ctx context.Context, clientName string, path string) ([]byte, error) {
 
 	logger.IpfsL.Info("read file", zap.String("client", clientName), zap.String("path", path))
 
@@ -166,12 +166,12 @@ func (s *Service) ReadFileForClient(ctx context.Context, clientName string, path
 	return nil, nil
 }
 
-func (s *Service) SaveContentToIpfs(content, fsDir, filename string) (string, error) {
+func (s *IpfsService) SaveContentToIpfs(content, fsDir, filename string) (string, error) {
 	return s.SaveContentToIpfsForClient(s.defaultClientName, content, fsDir, filename)
 }
 
 // SaveContentToIpfsForClient 为指定客户端保存内容到IPFS
-func (s *Service) SaveContentToIpfsForClient(clientName string, content, fsDir, filename string) (string, error) {
+func (s *IpfsService) SaveContentToIpfsForClient(clientName string, content, fsDir, filename string) (string, error) {
 
 	logger.IpfsL.Info("save content to file", zap.String("client", clientName), zap.String("fsDir", fsDir), zap.String("filename", filename), zap.String("content", content))
 
@@ -213,12 +213,12 @@ func (s *Service) SaveContentToIpfsForClient(clientName string, content, fsDir, 
 }
 
 // SaveFileToIpfs 将本地文件保存到 IPFS
-func (s *Service) SaveFileToIpfs(localPath, fsDir, filename string) (string, error) {
+func (s *IpfsService) SaveFileToIpfs(localPath, fsDir, filename string) (string, error) {
 	return s.SaveFileToIpfsForClient(s.defaultClientName, localPath, fsDir, filename)
 }
 
 // SaveFileToIpfsForClient 为指定客户端将本地文件保存到 IPFS
-func (s *Service) SaveFileToIpfsForClient(clientName string, localPath, fsDir, filename string) (string, error) {
+func (s *IpfsService) SaveFileToIpfsForClient(clientName string, localPath, fsDir, filename string) (string, error) {
 	client, err := s.getClient(clientName)
 	if err != nil {
 		return "", err
@@ -263,12 +263,12 @@ func (s *Service) SaveFileToIpfsForClient(clientName string, localPath, fsDir, f
 }
 
 // MustDirExists 确保目录存在
-func (s *Service) MustDirExists(path string, recursive bool) (bool, error) {
+func (s *IpfsService) MustDirExists(path string, recursive bool) (bool, error) {
 	return s.MustDirExistsForClient(s.defaultClientName, path, recursive)
 }
 
 // MustDirExistsForClient 为指定客户端确保目录存在
-func (s *Service) MustDirExistsForClient(clientName string, path string, recursive bool) (bool, error) {
+func (s *IpfsService) MustDirExistsForClient(clientName string, path string, recursive bool) (bool, error) {
 	if !s.CheckDirForClient(clientName, path) {
 		err := s.CreateDirForClient(clientName, path)
 		if err != nil {
@@ -282,12 +282,12 @@ func (s *Service) MustDirExistsForClient(clientName string, path string, recursi
 	return true, nil
 }
 
-func (s *Service) Remove() {
+func (s *IpfsService) Remove() {
 	s.RemoveForClient(s.defaultClientName)
 }
 
 // RemoveForClient 为指定客户端删除文件
-func (s *Service) RemoveForClient(clientName string) {
+func (s *IpfsService) RemoveForClient(clientName string) {
 	client, err := s.getClient(clientName)
 	if err != nil {
 		logger.IpfsL.Error("get client failed", zap.String("client", clientName), zap.Error(err))
@@ -306,12 +306,12 @@ func (s *Service) RemoveForClient(clientName string) {
 // SaveFileToLocal 将 IPFS 文件保存到本地
 // filePath: IPFS 文件路径
 // localPath: 本地保存路径
-func (s *Service) SaveFileToLocal(clientName, filePath, localPath string) error {
+func (s *IpfsService) SaveFileToLocal(clientName, filePath, localPath string) error {
 	return s.SaveFileToLocalForClient(clientName, filePath, localPath)
 }
 
 // SaveFileToLocalForClient 为指定客户端将 IPFS 文件保存到本地
-func (s *Service) SaveFileToLocalForClient(clientName string, filePath, localPath string) error {
+func (s *IpfsService) SaveFileToLocalForClient(clientName string, filePath, localPath string) error {
 
 	logger.IpfsL.Info("save file to local", zap.String("client", clientName), zap.String("file", filePath))
 
@@ -334,12 +334,12 @@ func (s *Service) SaveFileToLocalForClient(clientName string, filePath, localPat
 // ReadFileFromIpfs 从 Ipfs 读取文件数据
 // filePath: Ipfs 文件路径（如：/np_storage/1.jpg）
 // data: 文件数据，size: 文件大小，err: 错误信息
-func (s *Service) ReadFileFromIpfs(filePath string) ([]byte, int64, error) {
+func (s *IpfsService) ReadFileFromIpfs(filePath string) ([]byte, int64, error) {
 	return s.ReadFileFromIpfsForClient(s.defaultClientName, filePath)
 }
 
 // ReadFileFromIpfsForClient 为指定客户端从 Ipfs 读取文件数据
-func (s *Service) ReadFileFromIpfsForClient(clientName string, filePath string) ([]byte, int64, error) {
+func (s *IpfsService) ReadFileFromIpfsForClient(clientName string, filePath string) ([]byte, int64, error) {
 	client, err := s.getClient(clientName)
 	if err != nil {
 		return nil, 0, err

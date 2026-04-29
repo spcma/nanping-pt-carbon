@@ -17,10 +17,10 @@ import (
 )
 
 type IpfsHandler struct {
-	appService *application.Service
+	appService *application.IpfsService
 }
 
-func NewIpfsHandler(appService *application.Service) *IpfsHandler {
+func NewIpfsHandler(appService *application.IpfsService) *IpfsHandler {
 	return &IpfsHandler{
 		appService: appService,
 	}

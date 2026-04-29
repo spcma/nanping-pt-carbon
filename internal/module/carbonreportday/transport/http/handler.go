@@ -3,9 +3,11 @@ package transport
 import (
 	"app/internal/module/carbonreportday/application"
 	"app/internal/module/carbonreportday/domain"
+	ipfs_application "app/internal/module/ipfs/application"
 	platform_http "app/internal/platform/http"
 	"app/internal/platform/http/response"
 	"app/internal/shared/logger"
+	"context"
 	"net/http"
 	"strconv"
 
@@ -44,7 +46,7 @@ func (h *CarbonReportDayHandler) Create(c *gin.Context) {
 	}
 	cmd.UserID = securityUser.ID
 
-	id, err := h.appService.Create(platform_http.Ctx(c), cmd)
+	id, err := h.appService.Create(platform_http.Ctx(c), &cmd)
 	if err != nil {
 		logger.Error("carbon_report_day", "create carbon report day failed",
 			zap.Error(err),
@@ -144,4 +146,42 @@ func (h *CarbonReportDayHandler) GetPage(c *gin.Context) {
 	}
 
 	response.Success(c, res)
+}
+
+func (h *CarbonReportDayHandler) ReportDay(c *gin.Context) {
+	type CalcDirDto struct {
+		RootDir    string `json:"rootDir" form:"rootDir"` // 要扫描的根目录，如 "/aibk/26/03/27"
+		Date       string `json:"date" form:"date"`       // 日期，格式 "2026-03-27"
+		ClientName string `json:"clientName" form:"clientName"`
+	}
+
+	var dto CalcDirDto
+	if err := c.ShouldBindQuery(&dto); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+
+	if dto.RootDir == "" {
+		response.BadRequest(c, "请指定目录")
+		return
+	}
+
+	if dto.Date == "" {
+		response.BadRequest(c, "请指定日期")
+		return
+	}
+
+	go func() {
+		ctx := context.Background()
+
+		ipfsService := ipfs_application.Ipfs()
+
+		turnover, err := ipfsService.CalcDir(ctx, dto.ClientName, dto.RootDir, dto.Date)
+		if err != nil {
+			logger.IpfsL.Error("calcDir failed", zap.String("rootDir", dto.RootDir), zap.String("date", dto.Date), zap.Error(err))
+			return
+		}
+
+		logger.IpfsL.Info("calcDir completed", zap.String("rootDir", dto.RootDir), zap.String("date", dto.Date), zap.Any("turnover", turnover["turnover"]))
+	}()
 }

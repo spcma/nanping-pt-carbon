@@ -28,15 +28,55 @@ import (
 const baseline = 0.11564
 
 // 全局服务实例，供定时任务使用
-var defaultService *Service
+var (
+	defaultService *IpfsService
+	_once          sync.Once
+)
 
-// DefaultService 获取默认的碳报告月报服务实例
-func DefaultService() *Service {
+// Ipfs 获取默认的碳报告月报服务实例
+func Ipfs() *IpfsService {
+	if defaultService == nil {
+		_once.Do(func() {
+			// 初始化仓储和應用服務
+			ipfsDetailRepo := infrastructure.NewIpfsDetailRepository()
+			ipfsDetailAppService := NewIpfsDetailAppService(ipfsDetailRepo)
+
+			s := &IpfsService{
+				clients:              make(map[string]*IpfsClientInstance),
+				ipfsDetailAppService: ipfsDetailAppService,
+			}
+
+			if config.GlobalConfig.Ipfs.Status {
+				config1 := &IpfsClientConfig{
+					Name:     "4080",
+					Port:     4080,
+					BasePath: "/aibk",
+					Enabled:  true,
+				}
+				err := s.InitClient(config1)
+				if err != nil {
+					panic(fmt.Sprintf("init config[%d] ipfs client failed: %v", 4080, err))
+				}
+
+				config2 := &IpfsClientConfig{
+					Name:     "4800",
+					Port:     4800,
+					BasePath: "/npbus",
+					Enabled:  true,
+				}
+				err = s.InitClient(config2)
+				if err != nil {
+					panic(fmt.Sprintf("init config[%d] ipfs client failed: %v", 4800, err))
+				}
+
+				//	设置默认客户端名称
+				s.defaultClientName = "4080"
+			}
+
+			defaultService = s
+		})
+	}
 	return defaultService
-}
-
-func setDefaultService(service *Service) {
-	defaultService = service
 }
 
 // IpfsClientConfig IPFS客户端配置
@@ -59,60 +99,17 @@ type IpfsClientInstance struct {
 	mutex            sync.Mutex    // 客户端操作互斥锁
 }
 
-// Service IPFS 服务
-type Service struct {
+// Ipfs IPFS 服务
+type IpfsService struct {
 	clients              map[string]*IpfsClientInstance // 多客户端实例，key为客户端名称
 	defaultClientName    string                         // 默认客户端名称
 	ipfsDetailAppService *IpfsDetailAppService
 }
 
-// NewService 创建 IPFS 服务
-func NewService() *Service {
-	// 初始化仓储和應用服務
-	ipfsDetailRepo := infrastructure.NewIpfsDetailRepository()
-	ipfsDetailAppService := NewIpfsDetailAppService(ipfsDetailRepo)
-
-	s := &Service{
-		clients:              make(map[string]*IpfsClientInstance),
-		ipfsDetailAppService: ipfsDetailAppService,
-	}
-
-	setDefaultService(s)
-
-	if config.GlobalConfig.Ipfs.Status {
-		config1 := &IpfsClientConfig{
-			Name:     "4080",
-			Port:     4080,
-			BasePath: "/aibk",
-			Enabled:  true,
-		}
-		err := s.InitClient(config1)
-		if err != nil {
-			panic(fmt.Sprintf("init config[%d] ipfs client failed: %v", 4080, err))
-		}
-
-		config2 := &IpfsClientConfig{
-			Name:     "4800",
-			Port:     4800,
-			BasePath: "/npbus",
-			Enabled:  true,
-		}
-		err = s.InitClient(config2)
-		if err != nil {
-			panic(fmt.Sprintf("init config[%d] ipfs client failed: %v", 4800, err))
-		}
-
-		//	设置默认客户端名称
-		s.defaultClientName = "4080"
-	}
-
-	return s
-}
-
 var sessionInvalid = "2:session id is not safe!"
 
 // AuthForClient 对指定客户端进行认证
-func (s *Service) AuthForClient(clientName ...string) error {
+func (s *IpfsService) AuthForClient(clientName ...string) error {
 	// 如果没有传入客户端名称，使用默认客户端
 	name := s.defaultClientName
 	if len(clientName) > 0 && clientName[0] != "" {
@@ -142,12 +139,12 @@ func (s *Service) AuthForClient(clientName ...string) error {
 }
 
 // 默认配置检查目录是否存在
-func (s *Service) CheckDir(dir string) bool {
+func (s *IpfsService) CheckDir(dir string) bool {
 	return s.CheckDirForClient(s.defaultClientName, dir)
 }
 
 // CheckDirForClient 检查指定客户端的目录
-func (s *Service) CheckDirForClient(clientName string, dir string) bool {
+func (s *IpfsService) CheckDirForClient(clientName string, dir string) bool {
 	err := s.AuthForClient(clientName)
 	if err != nil {
 		return false
@@ -181,12 +178,12 @@ func (s *Service) CheckDirForClient(clientName string, dir string) bool {
 	return true
 }
 
-func (s *Service) FileStat(dir string) (any, error) {
+func (s *IpfsService) FileStat(dir string) (any, error) {
 	return s.FileStatForClient(s.defaultClientName, dir)
 }
 
 // FileStatForClient 获取指定客户端的文件状态
-func (s *Service) FileStatForClient(clientName string, dir string) (any, error) {
+func (s *IpfsService) FileStatForClient(clientName string, dir string) (any, error) {
 	client, err := s.getClient(clientName)
 	if err != nil {
 		return nil, err
@@ -220,12 +217,12 @@ func (s *Service) FileStatForClient(clientName string, dir string) (any, error) 
 }
 
 // CreateDir 创建目录
-func (s *Service) CreateDir(dir string) error {
+func (s *IpfsService) CreateDir(dir string) error {
 	return s.CreateDirForClient(s.defaultClientName, dir)
 }
 
 // CreateDirForClient 为指定客户端创建目录
-func (s *Service) CreateDirForClient(clientName string, dir string) error {
+func (s *IpfsService) CreateDirForClient(clientName string, dir string) error {
 	if dir == "" {
 		return errors.New("目录为空")
 	}
@@ -261,7 +258,7 @@ type DirDto struct {
 // ListDir 列出目录
 //
 //	gps_20260301180732.txt
-func (s *Service) ListDir(ctx context.Context, clientName, dir string) ([]*DirDto, error) {
+func (s *IpfsService) ListDir(ctx context.Context, clientName, dir string) ([]*DirDto, error) {
 	if clientName == "" {
 		clientName = s.defaultClientName
 	}
@@ -269,7 +266,7 @@ func (s *Service) ListDir(ctx context.Context, clientName, dir string) ([]*DirDt
 }
 
 // ListDirForClient 列出指定客户端的目录
-func (s *Service) ListDirForClient(ctx context.Context, clientName string, dir string) ([]*DirDto, error) {
+func (s *IpfsService) ListDirForClient(ctx context.Context, clientName string, dir string) ([]*DirDto, error) {
 	if dir == "" {
 		return nil, errors.New("目录为空")
 	}
@@ -365,12 +362,12 @@ type ScanDirResponse struct {
 const maxScanDepth = 50
 
 // ScanDir 递归扫描目录，遍历所有子目录和文件
-func (s *Service) ScanDir(ctx context.Context, rootDir string) (*ScanDirResponse, error) {
+func (s *IpfsService) ScanDir(ctx context.Context, rootDir string) (*ScanDirResponse, error) {
 	return s.ScanDirForClient(s.defaultClientName, ctx, rootDir)
 }
 
 // ScanDirForClient 为指定客户端递归扫描目录
-func (s *Service) ScanDirForClient(clientName string, ctx context.Context, rootDir string) (*ScanDirResponse, error) {
+func (s *IpfsService) ScanDirForClient(clientName string, ctx context.Context, rootDir string) (*ScanDirResponse, error) {
 	if rootDir == "" {
 		return nil, errors.New("目录为空")
 	}
@@ -410,12 +407,12 @@ func (s *Service) ScanDirForClient(clientName string, ctx context.Context, rootD
 }
 
 // scanDirRecursive 递归扫描目录
-func (s *Service) scanDirRecursive(ctx context.Context, dir string, response *ScanDirResponse, depth int, parentPath string) error {
+func (s *IpfsService) scanDirRecursive(ctx context.Context, dir string, response *ScanDirResponse, depth int, parentPath string) error {
 	return s.scanDirRecursiveForClient(s.defaultClientName, ctx, dir, response, depth, parentPath)
 }
 
 // scanDirRecursiveForClient 为指定客户端递归扫描目录
-func (s *Service) scanDirRecursiveForClient(clientName string, ctx context.Context, dir string, response *ScanDirResponse, depth int, parentPath string) error {
+func (s *IpfsService) scanDirRecursiveForClient(clientName string, ctx context.Context, dir string, response *ScanDirResponse, depth int, parentPath string) error {
 	// 检查 context 是否被取消
 	select {
 	case <-ctx.Done():
@@ -498,12 +495,12 @@ func (s *Service) scanDirRecursiveForClient(clientName string, ctx context.Conte
 }
 
 // DeleteFile 删除文件
-func (s *Service) DeleteFile(ctx context.Context, path string) error {
+func (s *IpfsService) DeleteFile(ctx context.Context, path string) error {
 	return s.DeleteFileForClient(s.defaultClientName, ctx, path)
 }
 
 // DeleteFileForClient 为指定客户端删除文件
-func (s *Service) DeleteFileForClient(clientName string, ctx context.Context, path string) error {
+func (s *IpfsService) DeleteFileForClient(clientName string, ctx context.Context, path string) error {
 	if path == "" {
 		return errors.New("文件路径为空")
 	}
@@ -526,7 +523,7 @@ func (s *Service) DeleteFileForClient(clientName string, ctx context.Context, pa
 }
 
 // UploadFile 上传文件
-func (s *Service) UploadFile(tmpfilePath, uploadDir, filename string) (string, error) {
+func (s *IpfsService) UploadFile(tmpfilePath, uploadDir, filename string) (string, error) {
 
 	//	上传文件到 IPFS
 	ipfsid, err := s.SaveFileToIpfs(tmpfilePath, uploadDir, filename)
@@ -553,12 +550,12 @@ type BusImageDetailCv struct {
 // CalcDir 递归扫描目录并计算周转量
 // rootDir: 要扫描的根目录（直接从此目录开始递归）
 // date: 日期，格式为 "2026-03-27"，用于查询数据库和生成报告
-func (s *Service) CalcDir(ctx context.Context, clientName string, rootDir string, date string) (map[string]any, error) {
+func (s *IpfsService) CalcDir(ctx context.Context, clientName string, rootDir string, date string) (map[string]any, error) {
 	return s.CalcDirForClient(ctx, clientName, rootDir, date)
 }
 
 // CalcDirForClient 为指定客户端递归扫描目录并计算周转量
-func (s *Service) CalcDirForClient(ctx context.Context, clientName string, rootDir string, date string) (map[string]any, error) {
+func (s *IpfsService) CalcDirForClient(ctx context.Context, clientName string, rootDir string, date string) (map[string]any, error) {
 	//	记录当前时间，用于耗时统计
 	cst := time.Now()
 
@@ -650,8 +647,9 @@ func (s *Service) CalcDirForClient(ctx context.Context, clientName string, rootD
 	maps["turnover"] = totalTurnover
 	maps["collection_date"] = timeutil.Now(now.StdTime())
 	maps["hash"] = statInfo.Hash
-	maps["carbonReduce"] = value
+	maps["carbonReduction"] = value
 	maps["baseline"] = baseline
+	maps["traceCode"] = traceCode
 
 	logger.IpfsL.Info("save content to ipfs done", zap.String("ipfs_id", ipfsid), zap.Float64("cost", time.Now().Sub(cst).Minutes()))
 
@@ -687,12 +685,12 @@ type FileResult struct {
 }
 
 // calcDirRecursive 递归扫描目录并计算周转量（并发模式）
-func (s *Service) calcDirRecursive(ctx context.Context, dir string, date string, startTime string, endTime string, traceCode string, result *CalcDirResult, depth int) error {
+func (s *IpfsService) calcDirRecursive(ctx context.Context, dir string, date string, startTime string, endTime string, traceCode string, result *CalcDirResult, depth int) error {
 	return s.calcDirRecursiveForClient(ctx, s.defaultClientName, dir, date, startTime, endTime, traceCode, result, depth)
 }
 
 // calcDirRecursiveForClient 为指定客户端递归扫描目录并计算周转量
-func (s *Service) calcDirRecursiveForClient(ctx context.Context, clientName string, dir string, date string, startTime string, endTime string, traceCode string, result *CalcDirResult, depth int) error {
+func (s *IpfsService) calcDirRecursiveForClient(ctx context.Context, clientName string, dir string, date string, startTime string, endTime string, traceCode string, result *CalcDirResult, depth int) error {
 	// 检查 context 是否被取消
 	select {
 	case <-ctx.Done():
@@ -794,7 +792,7 @@ func (s *Service) calcDirRecursiveForClient(ctx context.Context, clientName stri
 }
 
 // processFilesSequential 串行处理文件任务
-func (s *Service) processFilesSequential(ctx context.Context, clientName string, traceCode string, tasks []FileTask, startTime string, endTime string, result *CalcDirResult) {
+func (s *IpfsService) processFilesSequential(ctx context.Context, clientName string, traceCode string, tasks []FileTask, startTime string, endTime string, result *CalcDirResult) {
 	taskCount := len(tasks)
 	logger.IpfsL.Info("开始串行处理文件",
 		zap.Int("totalTasks", taskCount),
@@ -849,7 +847,7 @@ func (s *Service) processFilesSequential(ctx context.Context, clientName string,
 
 // extractDeviceCodeFromPath 从路径中提取设备编码
 // 路径格式: /root/year/month/day/deviceCode/gps_xxx.txt
-func (s *Service) extractDeviceCodeFromPath(filePath string) string {
+func (s *IpfsService) extractDeviceCodeFromPath(filePath string) string {
 	parts := strings.Split(filePath, "/")
 	if len(parts) >= 2 {
 		// 设备编码是文件所在目录的名称
@@ -859,7 +857,7 @@ func (s *Service) extractDeviceCodeFromPath(filePath string) string {
 }
 
 // processGpsFile 处理单个 GPS 文件，返回该文件的周转量
-func (s *Service) processGpsFile(ctx context.Context, clientName string, fullPath string, fileName string, deviceCode string, startTime string, endTime string, traceCode string) (float64, error) {
+func (s *IpfsService) processGpsFile(ctx context.Context, clientName string, fullPath string, fileName string, deviceCode string, startTime string, endTime string, traceCode string) (float64, error) {
 	st := time.Now()
 	localPath := "./tempfile/" + fileName
 	err := s.SaveFileToLocal(clientName, fullPath, localPath)
@@ -948,12 +946,12 @@ func (s *Service) processGpsFile(ctx context.Context, clientName string, fullPat
 	return deviceTurnover, nil
 }
 
-func (s *Service) ReadDirTest(path string) error {
+func (s *IpfsService) ReadDirTest(path string) error {
 	return s.ReadDirTestForClient(s.defaultClientName, path)
 }
 
 // ReadDirTestForClient 为指定客户端测试读取目录
-func (s *Service) ReadDirTestForClient(clientName string, path string) error {
+func (s *IpfsService) ReadDirTestForClient(clientName string, path string) error {
 	client, err := s.getClient(clientName)
 	if err != nil {
 		return err
@@ -977,7 +975,7 @@ func (s *Service) ReadDirTestForClient(clientName string, path string) error {
 }
 
 // Close 关闭连接
-func (s *Service) Close() {
+func (s *IpfsService) Close() {
 	// 关闭所有客户端
 	for name, client := range s.clients {
 		// 停止客户端守护程序
@@ -1001,12 +999,12 @@ func (s *Service) Close() {
 
 // startPassportGuardian 启动通行证自动守护程序
 // 定时检查通行证是否即将过期，并自动刷新
-func (s *Service) startPassportGuardian() {
+func (s *IpfsService) startPassportGuardian() {
 	s.startPassportGuardianForClient(s.clients[s.defaultClientName])
 }
 
 // startPassportGuardianForClient 为指定客户端启动通行证自动守护程序
-func (s *Service) startPassportGuardianForClient(client *IpfsClientInstance) {
+func (s *IpfsService) startPassportGuardianForClient(client *IpfsClientInstance) {
 	if client == nil {
 		return
 	}
@@ -1036,12 +1034,12 @@ func (s *Service) startPassportGuardianForClient(client *IpfsClientInstance) {
 }
 
 // refreshPassport 刷新通行证
-func (s *Service) refreshPassport() error {
+func (s *IpfsService) refreshPassport() error {
 	return s.refreshPassportForClient(s.clients[s.defaultClientName])
 }
 
 // refreshPassportForClient 为指定客户端刷新通行证
-func (s *Service) refreshPassportForClient(client *IpfsClientInstance) error {
+func (s *IpfsService) refreshPassportForClient(client *IpfsClientInstance) error {
 	if client == nil {
 		return errors.New("客户端为空")
 	}
@@ -1063,7 +1061,7 @@ func (s *Service) refreshPassportForClient(client *IpfsClientInstance) error {
 
 // startClientGuardian 启动客户端连接守护程序
 // 定时检测连接状态，发现断开自动重连
-func (s *Service) startClientGuardian() {
+func (s *IpfsService) startClientGuardian() {
 	client := s.clients[s.defaultClientName]
 	if client != nil {
 		s.startClientGuardianForClient(client)
@@ -1071,7 +1069,7 @@ func (s *Service) startClientGuardian() {
 }
 
 // startClientGuardianForClient 为指定客户端启动连接守护程序
-func (s *Service) startClientGuardianForClient(client *IpfsClientInstance) {
+func (s *IpfsService) startClientGuardianForClient(client *IpfsClientInstance) {
 	if client == nil {
 		return
 	}
@@ -1123,7 +1121,7 @@ func (s *Service) startClientGuardianForClient(client *IpfsClientInstance) {
 }
 
 // executeReconnect 执行重连操作（带锁保护）
-func (s *Service) executeReconnect() {
+func (s *IpfsService) executeReconnect() {
 	client := s.clients[s.defaultClientName]
 	if client != nil {
 		s.executeReconnectForClient(client)
@@ -1131,7 +1129,7 @@ func (s *Service) executeReconnect() {
 }
 
 // executeReconnectForClient 为指定客户端执行重连操作（带锁保护）
-func (s *Service) executeReconnectForClient(client *IpfsClientInstance) {
+func (s *IpfsService) executeReconnectForClient(client *IpfsClientInstance) {
 	if client == nil {
 		return
 	}
@@ -1147,12 +1145,12 @@ func (s *Service) executeReconnectForClient(client *IpfsClientInstance) {
 }
 
 // reconnectClient 重新连接客户端
-func (s *Service) reconnectClient() error {
+func (s *IpfsService) reconnectClient() error {
 	return s.reconnectClientForClient(s.clients[s.defaultClientName])
 }
 
 // reconnectClientForClient 为指定客户端重新连接
-func (s *Service) reconnectClientForClient(client *IpfsClientInstance) error {
+func (s *IpfsService) reconnectClientForClient(client *IpfsClientInstance) error {
 	if client == nil {
 		return errors.New("客户端为空")
 	}
@@ -1173,12 +1171,12 @@ func (s *Service) reconnectClientForClient(client *IpfsClientInstance) error {
 
 // TriggerReconnect 触发立即重连（供其他方法调用）
 // 当其他方法检测到连接断开时，可以调用此方法立即触发重连
-func (s *Service) TriggerReconnect() {
+func (s *IpfsService) TriggerReconnect() {
 	s.TriggerReconnectForClient(s.defaultClientName)
 }
 
 // TriggerReconnectForClient 触发指定客户端立即重连
-func (s *Service) TriggerReconnectForClient(clientName string) {
+func (s *IpfsService) TriggerReconnectForClient(clientName string) {
 	client, err := s.getClient(clientName)
 	if err != nil {
 		logger.IpfsL.Warn("客户端不存在，无法触发重连", zap.String("client", clientName))
@@ -1199,7 +1197,7 @@ func (s *Service) TriggerReconnectForClient(clientName string) {
 }
 
 // parseDirByPort 根据端口号返回不同的日期格式化路径
-func (s *Service) ParseDirByPort(port int, date time.Time) (string, error) {
+func (s *IpfsService) ParseDirByPort(port int, date time.Time) (string, error) {
 
 	if date.IsZero() {
 		date = time.Now()
@@ -1230,7 +1228,7 @@ func (s *Service) ParseDirByPort(port int, date time.Time) (string, error) {
 // ==================== 客户端管理方法 ====================
 
 // InitClient 初始化一个新的IPFS客户端
-func (s *Service) InitClient(config *IpfsClientConfig) error {
+func (s *IpfsService) InitClient(config *IpfsClientConfig) error {
 	if config == nil {
 		return errors.New("客户端配置不能为空")
 	}
@@ -1281,7 +1279,7 @@ func (s *Service) InitClient(config *IpfsClientConfig) error {
 }
 
 // getClient 获取指定名称的客户端
-func (s *Service) getClient(name string) (*IpfsClientInstance, error) {
+func (s *IpfsService) getClient(name string) (*IpfsClientInstance, error) {
 	client, ok := s.clients[name]
 	if !ok {
 		return nil, fmt.Errorf("客户端不存在: %s", name)
@@ -1290,17 +1288,17 @@ func (s *Service) getClient(name string) (*IpfsClientInstance, error) {
 }
 
 // GetClient 公开方法：获取指定名称的客户端
-func (s *Service) GetClient(name string) (*IpfsClientInstance, error) {
+func (s *IpfsService) GetClient(name string) (*IpfsClientInstance, error) {
 	return s.getClient(name)
 }
 
 // GetAllClients 获取所有客户端
-func (s *Service) GetAllClients() map[string]*IpfsClientInstance {
+func (s *IpfsService) GetAllClients() map[string]*IpfsClientInstance {
 	return s.clients
 }
 
 // SetDefaultClient 设置默认客户端
-func (s *Service) SetDefaultClient(name string) error {
+func (s *IpfsService) SetDefaultClient(name string) error {
 	if _, ok := s.clients[name]; !ok {
 		return fmt.Errorf("客户端不存在: %s", name)
 	}
@@ -1309,6 +1307,6 @@ func (s *Service) SetDefaultClient(name string) error {
 }
 
 // GetDefaultClientName 获取默认客户端名称
-func (s *Service) GetDefaultClientName() string {
+func (s *IpfsService) GetDefaultClientName() string {
 	return s.defaultClientName
 }

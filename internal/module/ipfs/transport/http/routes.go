@@ -13,7 +13,7 @@ type ipfsRoutes struct {
 
 func NewIpfsRoutes() shared_http.RouteRegistry {
 
-	service := application.NewService()
+	service := application.Ipfs()
 	handler := NewIpfsHandler(service)
 
 	return &ipfsRoutes{
