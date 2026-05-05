@@ -6,7 +6,6 @@ import (
 	platform_http "app/internal/platform/http"
 	"app/internal/platform/http/response"
 	"app/internal/shared/logger"
-	"net/http"
 	"strconv"
 	"time"
 
@@ -29,27 +28,29 @@ func NewProjectHandler(appService *application.ProjectAppService) *ProjectHandle
 
 // Create 创建项目
 func (h *ProjectHandler) Create(c *gin.Context) {
-	var cmd application.CreateProjectCommand
-	if err := c.ShouldBindJSON(&cmd); err != nil {
-		logger.RuntimeL.Error("create project failed", zap.Error(err))
-		response.BadRequest(c, "invalid request")
-		return
-	}
 
 	securityUser := platform_http.GetCurrentUser(c)
 	if securityUser == nil {
-		response.BadRequest(c, "unauthorized")
+		response.Unauthorized(c, "")
 		return
 	}
+
+	var cmd application.CreateProjectCommand
+	if err := c.ShouldBindJSON(&cmd); err != nil {
+		response.BadRequest(c, "")
+		return
+	}
+
 	cmd.UserID = securityUser.ID
 
 	id, err := h.appService.Create(platform_http.Ctx(c), cmd)
 	if err != nil {
-		logger.Error("project", "create project failed",
+		logger.RuntimeL.Error("create project failed",
 			zap.String("name", cmd.Name),
 			zap.Error(err),
 		)
-		response.Error(c, http.StatusInternalServerError, err.Error())
+
+		response.InternalError(c, "")
 		return
 	}
 
@@ -57,30 +58,33 @@ func (h *ProjectHandler) Create(c *gin.Context) {
 		zap.Int64("project_id", id),
 		zap.String("name", cmd.Name),
 	)
-	response.Success(c, gin.H{"id": id})
+
+	response.Success(c, nil)
 }
 
 // Update 更新项目
 func (h *ProjectHandler) Update(c *gin.Context) {
-	idStr := c.Query("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		response.Error(c, http.StatusBadRequest, "invalid id")
+	user := platform_http.GetCurrentUser(c)
+	if user == nil {
+		response.Unauthorized(c, "user is nil")
 		return
 	}
 
 	var cmd application.UpdateProjectCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
+		response.BadRequest(c, "")
 		return
 	}
-	cmd.ID = id
 
-	user := platform_http.GetCurrentUser(c)
 	cmd.UserID = user.ID
 
 	if err := h.appService.Update(platform_http.Ctx(c), cmd); err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
+		logger.RuntimeL.Error("update project failed",
+			zap.Int64("project_id", cmd.ID),
+			zap.Error(err),
+		)
+
+		response.InternalError(c, "")
 		return
 	}
 
@@ -89,17 +93,32 @@ func (h *ProjectHandler) Update(c *gin.Context) {
 
 // Delete 删除项目
 func (h *ProjectHandler) Delete(c *gin.Context) {
-	idStr := c.Query("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		response.Error(c, http.StatusBadRequest, "invalid id")
+	user := platform_http.GetCurrentUser(c)
+	if user == nil {
+		response.Unauthorized(c, "")
 		return
 	}
 
-	user := platform_http.GetCurrentUser(c)
+	var params map[string]any
+	if err := c.ShouldBindJSON(&params); err != nil {
+		response.BadRequest(c, "")
+		return
+	}
+
+	var id int64
+	if v, ok := params["id"].(int64); !ok {
+		response.BadRequest(c, "invalid id")
+		return
+	} else {
+		id = v
+	}
 
 	if err := h.appService.Delete(platform_http.Ctx(c), id, user.ID); err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
+		logger.RuntimeL.Error("delete project failed",
+			zap.Int64("project_id", id),
+			zap.Error(err),
+		)
+		response.InternalError(c, "")
 		return
 	}
 
@@ -111,13 +130,17 @@ func (h *ProjectHandler) GetByID(c *gin.Context) {
 	idStr := c.Query("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		response.Error(c, http.StatusBadRequest, "invalid id")
+		response.BadRequest(c, "invalid id")
 		return
 	}
 
 	project, err := h.appService.GetByID(platform_http.Ctx(c), id)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
+		logger.RuntimeL.Error("get project failed",
+			zap.Int64("project_id", id),
+			zap.Error(err),
+		)
+		response.InternalError(c, "查询失败")
 		return
 	}
 
@@ -128,13 +151,17 @@ func (h *ProjectHandler) GetByID(c *gin.Context) {
 func (h *ProjectHandler) GetByQuery(c *gin.Context) {
 	var query domain.ProjectQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
+		response.BadRequest(c, "invalid request")
 		return
 	}
 
 	project, err := h.appService.GetByQuery(platform_http.Ctx(c), &query)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
+		logger.RuntimeL.Error("get project failed",
+			zap.Int64("project_id", query.ID),
+			zap.Error(err),
+		)
+		response.InternalError(c, "")
 		return
 	}
 
@@ -159,7 +186,7 @@ type ProjectDetail struct {
 func (h *ProjectHandler) GetList(c *gin.Context) {
 	list, err := h.appService.GetList(platform_http.Ctx(c))
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
+		response.InternalError(c, "获取项目列表失败")
 		return
 	}
 
@@ -186,7 +213,7 @@ func (h *ProjectHandler) GetList(c *gin.Context) {
 func (h *ProjectHandler) GetPage(c *gin.Context) {
 	var query domain.ProjectPageQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
+		response.BadRequest(c, "查询参数格式错误")
 		return
 	}
 
@@ -194,7 +221,7 @@ func (h *ProjectHandler) GetPage(c *gin.Context) {
 
 	projects, err := h.appService.GetPage(platform_http.Ctx(c), &query)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
+		response.InternalError(c, "分页查询项目失败")
 		return
 	}
 
@@ -206,7 +233,7 @@ func (h *ProjectHandler) ChangeStatus(c *gin.Context) {
 	idStr := c.Query("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		response.Error(c, http.StatusBadRequest, "invalid id")
+		response.BadRequest(c, "项目ID格式错误")
 		return
 	}
 
@@ -214,7 +241,7 @@ func (h *ProjectHandler) ChangeStatus(c *gin.Context) {
 		Status string `json:"status"`
 	}
 	if err := c.ShouldBindJSON(&cmd); err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
+		response.BadRequest(c, "请求参数格式错误")
 		return
 	}
 
@@ -226,7 +253,7 @@ func (h *ProjectHandler) ChangeStatus(c *gin.Context) {
 	}
 
 	if err := h.appService.ChangeStatus(platform_http.Ctx(c), changeCmd); err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
+		response.InternalError(c, "变更项目状态失败")
 		return
 	}
 
@@ -238,14 +265,14 @@ func (h *ProjectHandler) Activate(c *gin.Context) {
 	idStr := c.Query("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		response.Error(c, http.StatusBadRequest, "invalid id")
+		response.BadRequest(c, "项目ID格式错误")
 		return
 	}
 
 	user := platform_http.GetCurrentUser(c)
 
 	if err := h.appService.ActivateProject(platform_http.Ctx(c), id, user.ID); err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
+		response.InternalError(c, "激活项目失败")
 		return
 	}
 
@@ -257,14 +284,14 @@ func (h *ProjectHandler) Complete(c *gin.Context) {
 	idStr := c.Query("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		response.Error(c, http.StatusBadRequest, "invalid id")
+		response.BadRequest(c, "项目ID格式错误")
 		return
 	}
 
 	user := platform_http.GetCurrentUser(c)
 
 	if err := h.appService.CompleteProject(platform_http.Ctx(c), id, user.ID); err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
+		response.InternalError(c, "完成项目失败")
 		return
 	}
 
@@ -276,14 +303,14 @@ func (h *ProjectHandler) Cancel(c *gin.Context) {
 	idStr := c.Query("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		response.Error(c, http.StatusBadRequest, "invalid id")
+		response.BadRequest(c, "项目ID格式错误")
 		return
 	}
 
 	user := platform_http.GetCurrentUser(c)
 
 	if err := h.appService.CancelProject(platform_http.Ctx(c), id, user.ID); err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
+		response.InternalError(c, "取消项目失败")
 		return
 	}
 
