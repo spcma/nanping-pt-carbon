@@ -118,6 +118,7 @@ func (s *IpfsService) AuthForClient(clientName ...string) error {
 
 	client, err := s.getClient(name)
 	if err != nil {
+		logger.IpfsL.Error("获取客户端实例失败", zap.String("client", name), zap.Error(err))
 		return err
 	}
 
@@ -578,6 +579,7 @@ func (s *IpfsService) CalcDirForClient(ctx context.Context, clientName string, r
 
 	client, err := s.getClient(clientName)
 	if err != nil {
+		logger.SchedulerL.Error("获取客户端失败", zap.String("client", clientName), zap.Error(err))
 		return nil, err
 	}
 
@@ -1009,15 +1011,14 @@ func (s *IpfsService) startPassportGuardianForClient(client *IpfsClientInstance)
 		return
 	}
 
-	// 每 30 分钟检查一次通行证状态
-	ticker := time.NewTicker(30 * time.Minute)
+	// 每3分钟检查一次通行证状态
+	ticker := time.NewTicker(time.Minute * 3)
 	defer ticker.Stop()
 
 	logger.IpfsL.Info("通行证自动守护程序已启动", zap.String("client", client.config.Name))
 
 	for range ticker.C {
-		// 检查通行证是否将在 1 小时内过期
-		if client.ppt != "" && client.ppt_expire_time.Sub(time.Now()) < 1*time.Hour {
+		if client.ppt != "" && client.ppt_expire_time.Before(time.Now()) {
 			logger.IpfsL.Info("通行证即将过期，正在自动刷新...", zap.String("client", client.config.Name))
 
 			// 重新获取通行证
@@ -1051,7 +1052,7 @@ func (s *IpfsService) refreshPassportForClient(client *IpfsClientInstance) error
 	}
 
 	client.ppt = passport
-	client.ppt_expire_time = time.Now().Add(24 * time.Hour)
+	client.ppt_expire_time = time.Now().Add(time.Hour) // 一小时过期
 
 	logger.IpfsL.Info("通行证已刷新",
 		zap.String("client", client.config.Name),
@@ -1240,7 +1241,8 @@ func (s *IpfsService) InitClient(config *IpfsClientConfig) error {
 
 	// 创建客户端实例
 	client := &IpfsClientInstance{
-		config: config,
+		config:          config,
+		ppt_expire_time: time.Now().Add(time.Hour),
 	}
 
 	// 获取通行证
@@ -1262,6 +1264,9 @@ func (s *IpfsService) InitClient(config *IpfsClientConfig) error {
 		delete(s.clients, config.Name)
 		return fmt.Errorf("登录失败: %v", err)
 	}
+
+	//	开启自动刷新session的守护程序
+	go s.startPassportGuardianForClient(client)
 
 	// 初始化通道
 	client.guardianStop = make(chan struct{})
