@@ -26,15 +26,16 @@ func NewRoleHandler(appService *application.RoleAppService) *RoleHandler {
 
 // Create creates a system role
 func (h *RoleHandler) Create(c *gin.Context) {
-	var cmd application.CreateSysRoleCommand
-	if err := c.ShouldBindJSON(&cmd); err != nil {
-		response.BadRequest(c, err.Error())
-		return
-	}
 
 	currentUser := platform_http.GetCurrentUser(c)
 	if currentUser == nil {
-		response.Forbidden(c, "user not found")
+		response.Unauthorized(c, "")
+		return
+	}
+
+	var cmd application.CreateSysRoleCommand
+	if err := c.ShouldBindJSON(&cmd); err != nil {
+		response.BadRequest(c, err.Error())
 		return
 	}
 
@@ -55,6 +56,11 @@ func (h *RoleHandler) Create(c *gin.Context) {
 
 // Update updates a system role
 func (h *RoleHandler) Update(c *gin.Context) {
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Unauthorized(c, "")
+		return
+	}
 
 	var cmd application.UpdateSysRoleCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
@@ -67,11 +73,6 @@ func (h *RoleHandler) Update(c *gin.Context) {
 		return
 	}
 
-	currentUser := platform_http.GetCurrentUser(c)
-	if currentUser == nil {
-		response.Forbidden(c, "user not found")
-		return
-	}
 	cmd.UserID = currentUser.ID
 
 	if err := h.appService.UpdateRole(platform_http.Ctx(c), cmd); err != nil {
@@ -88,6 +89,12 @@ func (h *RoleHandler) Update(c *gin.Context) {
 
 // Delete deletes a system role
 func (h *RoleHandler) Delete(c *gin.Context) {
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Unauthorized(c, "")
+		return
+	}
+
 	type DeleteSysRoleCommand struct {
 		ID     int64 `json:"id"`
 		UserID int64 `json:"userid"`
@@ -104,11 +111,6 @@ func (h *RoleHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	currentUser := platform_http.GetCurrentUser(c)
-	if currentUser == nil {
-		response.Forbidden(c, "user not found")
-		return
-	}
 	cmd.UserID = currentUser.ID
 
 	if cmd.UserID == 0 {
@@ -180,6 +182,13 @@ func (h *RoleHandler) GetPage(c *gin.Context) {
 
 // ChangeStatus changes role status
 func (h *RoleHandler) ChangeStatus(c *gin.Context) {
+
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Unauthorized(c, "")
+		return
+	}
+
 	idStr := c.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
@@ -195,11 +204,6 @@ func (h *RoleHandler) ChangeStatus(c *gin.Context) {
 		return
 	}
 
-	currentUser := platform_http.GetCurrentUser(c)
-	if currentUser == nil {
-		response.Forbidden(c, "user not found")
-		return
-	}
 	if err = h.appService.ChangeRoleStatus(platform_http.Ctx(c), application.ChangeRoleStatusCommand{ID: id, Status: domain.RoleStatus(cmd.Status), UserID: currentUser.ID}); err != nil {
 		logger.RuntimeL.Error("change role status failed",
 			zap.Int64("role_id", id),

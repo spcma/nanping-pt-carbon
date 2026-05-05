@@ -27,6 +27,13 @@ func NewCarbonReportMonthHandler(appService *application.CarbonReportMonthAppSer
 
 // Create 创建碳月报
 func (h *CarbonReportMonthHandler) Create(c *gin.Context) {
+
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Unauthorized(c, "")
+		return
+	}
+
 	var cmd application.CreateCarbonReportMonthCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
 		logger.Warn("carbon_report_month", "create carbon report month - invalid request",
@@ -36,11 +43,6 @@ func (h *CarbonReportMonthHandler) Create(c *gin.Context) {
 		return
 	}
 
-	currentUser := platform_http.GetCurrentUser(c)
-	if currentUser == nil {
-		response.Unauthorized(c, "未授权访问")
-		return
-	}
 	cmd.UserID = currentUser.ID
 
 	id, err := h.appService.Create(platform_http.Ctx(c), cmd)
@@ -61,6 +63,12 @@ func (h *CarbonReportMonthHandler) Create(c *gin.Context) {
 
 // Update 更新碳月报
 func (h *CarbonReportMonthHandler) Update(c *gin.Context) {
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Unauthorized(c, "")
+		return
+	}
+
 	idStr := c.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
@@ -75,11 +83,6 @@ func (h *CarbonReportMonthHandler) Update(c *gin.Context) {
 	}
 	cmd.ID = id
 
-	currentUser := platform_http.GetCurrentUser(c)
-	if currentUser == nil {
-		response.Unauthorized(c, "未授权访问")
-		return
-	}
 	cmd.UserID = currentUser.ID
 
 	if err := h.appService.Update(platform_http.Ctx(c), cmd); err != nil {
@@ -96,16 +99,16 @@ func (h *CarbonReportMonthHandler) Update(c *gin.Context) {
 
 // Delete 删除碳月报
 func (h *CarbonReportMonthHandler) Delete(c *gin.Context) {
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Unauthorized(c, "")
+		return
+	}
+
 	idStr := c.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		response.BadRequest(c, "无效的ID")
-		return
-	}
-
-	currentUser := platform_http.GetCurrentUser(c)
-	if currentUser == nil {
-		response.Unauthorized(c, "未授权访问")
 		return
 	}
 

@@ -8,8 +8,8 @@ import (
 	"app/internal/platform/http/response"
 	"app/internal/shared/logger"
 	"context"
-	"strconv"
 
+	"github.com/spf13/cast"
 	"go.uber.org/zap"
 
 	"github.com/gin-gonic/gin"
@@ -29,17 +29,18 @@ func NewCarbonReportDayHandler(appService *application.CarbonReportDayService) *
 
 // Create 创建碳日报
 func (h *CarbonReportDayHandler) Create(c *gin.Context) {
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Unauthorized(c, "")
+		return
+	}
+
 	var cmd application.CreateCarbonReportDayCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
 		response.BadRequest(c, "请求参数错误")
 		return
 	}
 
-	currentUser := platform_http.GetCurrentUser(c)
-	if currentUser == nil {
-		response.Forbidden(c, "用户信息异常")
-		return
-	}
 	cmd.UserID = currentUser.ID
 
 	id, err := h.appService.Create(platform_http.Ctx(c), &cmd)
@@ -59,17 +60,18 @@ func (h *CarbonReportDayHandler) Create(c *gin.Context) {
 
 // Update 更新碳日报
 func (h *CarbonReportDayHandler) Update(c *gin.Context) {
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Unauthorized(c, "")
+		return
+	}
+
 	var cmd application.UpdateCarbonReportDayCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
 		response.BadRequest(c, "invalid request")
 		return
 	}
 
-	currentUser := platform_http.GetCurrentUser(c)
-	if currentUser == nil {
-		response.Forbidden(c, "用户信息异常")
-		return
-	}
 	cmd.UserID = currentUser.ID
 
 	if err := h.appService.Update(platform_http.Ctx(c), cmd); err != nil {
@@ -86,17 +88,25 @@ func (h *CarbonReportDayHandler) Update(c *gin.Context) {
 
 // Delete 删除碳日报
 func (h *CarbonReportDayHandler) Delete(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		response.BadRequest(c, "invalid id")
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Unauthorized(c, "")
 		return
 	}
 
-	currentUser := platform_http.GetCurrentUser(c)
-	if currentUser == nil {
-		response.Forbidden(c, "用户信息异常")
+	var param map[string]any
+	err := c.ShouldBindJSON(&param)
+	if err != nil {
+		response.BadRequest(c, "invalid request")
 		return
+	}
+
+	var id int64
+	if v, ok := param["id"].(int64); !ok {
+		response.BadRequest(c, "invalid id")
+		return
+	} else {
+		id = v
 	}
 
 	if err := h.appService.Delete(platform_http.Ctx(c), id, currentUser.ID); err != nil {
@@ -110,9 +120,10 @@ func (h *CarbonReportDayHandler) Delete(c *gin.Context) {
 
 // GetByID 根据ID获取碳日报
 func (h *CarbonReportDayHandler) GetByID(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
+
+	idstr := c.Query("id")
+	id := cast.ToInt64(idstr)
+	if id == 0 {
 		response.BadRequest(c, "invalid id")
 		return
 	}

@@ -59,7 +59,7 @@ func AuthMiddleware(jwtManager token.Manager) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authToken := c.GetHeader("Authorization")
 		if authToken == "" {
-			response.Unauthorized(c, "未授权")
+			response.Unauthorized(c, "未登录")
 			c.Abort()
 			return
 		}
@@ -67,7 +67,7 @@ func AuthMiddleware(jwtManager token.Manager) gin.HandlerFunc {
 		claims, err := parseToken(authToken, jwtManager)
 		if err != nil {
 			logger.Error("auth", "Token validation failed: "+err.Error())
-			response.Unauthorized(c, "令牌无效")
+			response.Unauthorized(c, "登录失效")
 			c.Abort()
 			return
 		}

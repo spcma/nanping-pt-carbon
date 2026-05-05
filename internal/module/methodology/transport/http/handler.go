@@ -29,6 +29,12 @@ func NewMethodologyHandler(appService *application.MethodologyAppService) *Metho
 
 // Create 创建方法学
 func (h *MethodologyHandler) Create(c *gin.Context) {
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Unauthorized(c, "")
+		return
+	}
+
 	var cmd application.CreateMethodologyCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
 		logger.Warn("methodology", "create methodology - invalid request",
@@ -38,11 +44,6 @@ func (h *MethodologyHandler) Create(c *gin.Context) {
 		return
 	}
 
-	currentUser := platform_http.GetCurrentUser(c)
-	if currentUser == nil {
-		response.Forbidden(c, "user not found")
-		return
-	}
 	cmd.UserID = currentUser.ID
 
 	id, err := h.appService.Create(platform_http.Ctx(c), cmd)
@@ -64,10 +65,9 @@ func (h *MethodologyHandler) Create(c *gin.Context) {
 
 // Update 更新方法学
 func (h *MethodologyHandler) Update(c *gin.Context) {
-	idStr := c.Query("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		response.BadRequest(c, "无效的ID")
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Unauthorized(c, "")
 		return
 	}
 
@@ -76,18 +76,12 @@ func (h *MethodologyHandler) Update(c *gin.Context) {
 		response.BadRequest(c, "请求参数错误")
 		return
 	}
-	cmd.ID = id
 
-	currentUser := platform_http.GetCurrentUser(c)
-	if currentUser == nil {
-		response.Forbidden(c, "user not found")
-		return
-	}
 	cmd.UserID = currentUser.ID
 
 	if err := h.appService.Update(platform_http.Ctx(c), cmd); err != nil {
 		logger.RuntimeL.Error("update methodology failed",
-			zap.Int64("methodology_id", id),
+			zap.Int64("methodology_id", cmd.UserID),
 			zap.Error(err),
 		)
 		response.InternalError(c, "更新失败")
@@ -99,22 +93,26 @@ func (h *MethodologyHandler) Update(c *gin.Context) {
 
 // Delete 删除方法学
 func (h *MethodologyHandler) Delete(c *gin.Context) {
-	idStr := c.Query("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		response.BadRequest(c, "无效的ID")
-		return
-	}
 
 	currentUser := platform_http.GetCurrentUser(c)
 	if currentUser == nil {
-		response.Forbidden(c, "user not found")
+		response.Unauthorized(c, "")
 		return
 	}
 
-	if err := h.appService.Delete(platform_http.Ctx(c), id, currentUser.ID); err != nil {
+	type deleteDto struct {
+		ID int64 `json:"id"`
+	}
+
+	var dto deleteDto
+	if err := c.ShouldBindJSON(&dto); err != nil {
+		response.BadRequest(c, "请求参数错误")
+		return
+	}
+
+	if err := h.appService.Delete(platform_http.Ctx(c), dto.ID, currentUser.ID); err != nil {
 		logger.RuntimeL.Error("delete methodology failed",
-			zap.Int64("methodology_id", id),
+			zap.Int64("methodology_id", dto.ID),
 			zap.Error(err),
 		)
 		response.InternalError(c, "删除失败")
@@ -241,6 +239,13 @@ func (h *MethodologyHandler) GetPage(c *gin.Context) {
 
 // ChangeStatus 变更方法学状态
 func (h *MethodologyHandler) ChangeStatus(c *gin.Context) {
+
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Unauthorized(c, "")
+		return
+	}
+
 	idStr := c.Query("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
@@ -253,12 +258,6 @@ func (h *MethodologyHandler) ChangeStatus(c *gin.Context) {
 	}
 	if err := c.ShouldBindJSON(&cmd); err != nil {
 		response.BadRequest(c, "请求参数错误")
-		return
-	}
-
-	currentUser := platform_http.GetCurrentUser(c)
-	if currentUser == nil {
-		response.Forbidden(c, "user not found")
 		return
 	}
 
@@ -283,16 +282,17 @@ func (h *MethodologyHandler) ChangeStatus(c *gin.Context) {
 
 // Activate 启用方法学
 func (h *MethodologyHandler) Activate(c *gin.Context) {
+
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Unauthorized(c, "")
+		return
+	}
+
 	idStr := c.Query("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		response.BadRequest(c, "无效的ID")
-		return
-	}
-
-	currentUser := platform_http.GetCurrentUser(c)
-	if currentUser == nil {
-		response.Forbidden(c, "user not found")
 		return
 	}
 
@@ -310,16 +310,16 @@ func (h *MethodologyHandler) Activate(c *gin.Context) {
 
 // Deactivate 禁用方法学
 func (h *MethodologyHandler) Deactivate(c *gin.Context) {
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Unauthorized(c, "")
+		return
+	}
+
 	idStr := c.Query("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		response.BadRequest(c, "无效的ID")
-		return
-	}
-
-	currentUser := platform_http.GetCurrentUser(c)
-	if currentUser == nil {
-		response.Forbidden(c, "user not found")
 		return
 	}
 

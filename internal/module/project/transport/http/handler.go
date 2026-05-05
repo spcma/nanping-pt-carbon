@@ -31,7 +31,7 @@ func (h *ProjectHandler) Create(c *gin.Context) {
 
 	currentUser := platform_http.GetCurrentUser(c)
 	if currentUser == nil {
-		response.Forbidden(c, "")
+		response.Unauthorized(c, "")
 		return
 	}
 
@@ -66,7 +66,7 @@ func (h *ProjectHandler) Create(c *gin.Context) {
 func (h *ProjectHandler) Update(c *gin.Context) {
 	currentUser := platform_http.GetCurrentUser(c)
 	if currentUser == nil {
-		response.Unauthorized(c, "user is nil")
+		response.Unauthorized(c, "")
 		return
 	}
 
@@ -238,6 +238,13 @@ func (h *ProjectHandler) GetPage(c *gin.Context) {
 
 // ChangeStatus 变更项目状态
 func (h *ProjectHandler) ChangeStatus(c *gin.Context) {
+
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Unauthorized(c, "")
+		return
+	}
+
 	idStr := c.Query("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
@@ -250,12 +257,6 @@ func (h *ProjectHandler) ChangeStatus(c *gin.Context) {
 	}
 	if err := c.ShouldBindJSON(&cmd); err != nil {
 		response.BadRequest(c, "请求参数格式错误")
-		return
-	}
-
-	currentUser := platform_http.GetCurrentUser(c)
-	if currentUser == nil {
-		response.Forbidden(c, "用户未登录")
 		return
 	}
 
@@ -280,16 +281,17 @@ func (h *ProjectHandler) ChangeStatus(c *gin.Context) {
 
 // Activate 激活项目
 func (h *ProjectHandler) Activate(c *gin.Context) {
+
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Unauthorized(c, "")
+		return
+	}
+
 	idStr := c.Query("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		response.BadRequest(c, "项目ID格式错误")
-		return
-	}
-
-	currentUser := platform_http.GetCurrentUser(c)
-	if currentUser == nil {
-		response.Forbidden(c, "用户未登录")
 		return
 	}
 
@@ -307,16 +309,16 @@ func (h *ProjectHandler) Activate(c *gin.Context) {
 
 // Complete 完成项目
 func (h *ProjectHandler) Complete(c *gin.Context) {
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Unauthorized(c, "")
+		return
+	}
+
 	idStr := c.Query("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		response.BadRequest(c, "项目ID格式错误")
-		return
-	}
-
-	currentUser := platform_http.GetCurrentUser(c)
-	if currentUser == nil {
-		response.Forbidden(c, "user not found")
 		return
 	}
 
@@ -334,16 +336,17 @@ func (h *ProjectHandler) Complete(c *gin.Context) {
 
 // Cancel 取消项目
 func (h *ProjectHandler) Cancel(c *gin.Context) {
+
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Unauthorized(c, "")
+		return
+	}
+
 	idStr := c.Query("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		response.BadRequest(c, "项目ID格式错误")
-		return
-	}
-
-	currentUser := platform_http.GetCurrentUser(c)
-	if currentUser == nil {
-		response.Forbidden(c, "user not found")
 		return
 	}
 

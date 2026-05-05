@@ -27,6 +27,12 @@ func NewProjectMembersHandler(appService *application.ProjectMembersAppService) 
 
 // Create 创建项目成员
 func (h *ProjectMembersHandler) Create(c *gin.Context) {
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Unauthorized(c, "")
+		return
+	}
+
 	var cmd application.CreateProjectMemberCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
 		logger.Warn("project", "create project member - invalid request",
@@ -36,12 +42,6 @@ func (h *ProjectMembersHandler) Create(c *gin.Context) {
 		return
 	}
 
-	// 获取操作员用户信息
-	currentUser := platform_http.GetCurrentUser(c)
-	if currentUser == nil {
-		response.Forbidden(c, "用户未登录")
-		return
-	}
 	cmd.CreateBy = currentUser.ID
 
 	id, err := h.appService.CreateProjectMember(platform_http.Ctx(c), &cmd)
@@ -86,7 +86,7 @@ func (h *ProjectMembersHandler) Update(c *gin.Context) {
 	// 获取操作员用户信息
 	currentUser := platform_http.GetCurrentUser(c)
 	if currentUser == nil {
-		response.Forbidden(c, "用户未登录")
+		response.Unauthorized(c, "")
 		return
 	}
 	cmd.CreateBy = currentUser.ID

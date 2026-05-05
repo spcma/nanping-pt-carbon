@@ -346,6 +346,13 @@ func (h *UserHandler) ChangePassword(c *gin.Context) {
 
 // ChangeStatus changes user status
 func (h *UserHandler) ChangeStatus(c *gin.Context) {
+
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Unauthorized(c, "")
+		return
+	}
+
 	idStr := c.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
@@ -361,11 +368,6 @@ func (h *UserHandler) ChangeStatus(c *gin.Context) {
 		return
 	}
 
-	currentUser := platform_http.GetCurrentUser(c)
-	if currentUser == nil {
-		response.Forbidden(c, "当前用户不存在")
-		return
-	}
 	if err = h.appService.ChangeUserStatus(platform_http.Ctx(c), id, domain.UserStatus(cmd.Status), currentUser.ID); err != nil {
 		logger.RuntimeL.Error("change user status failed",
 			zap.Int64("user_id", id),
