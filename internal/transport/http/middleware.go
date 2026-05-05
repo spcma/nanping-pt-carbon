@@ -72,6 +72,12 @@ func AuthMiddleware(jwtManager token.Manager) gin.HandlerFunc {
 			return
 		}
 
+		if claims.UserID == 0 {
+			response.Unauthorized(c, "用户不存在")
+			c.Abort()
+			return
+		}
+
 		// 将用户信息存入上下文
 		user := &security.User{
 			ID:       claims.UserID,
