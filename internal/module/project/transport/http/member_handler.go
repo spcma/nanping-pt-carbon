@@ -6,7 +6,6 @@ import (
 	platform_http "app/internal/platform/http"
 	"app/internal/platform/http/response"
 	"app/internal/shared/logger"
-	"net/http"
 	"strconv"
 
 	"go.uber.org/zap"
@@ -33,13 +32,17 @@ func (h *ProjectMembersHandler) Create(c *gin.Context) {
 		logger.Warn("project", "create project member - invalid request",
 			zap.String("error", err.Error()),
 		)
-		response.Error(c, http.StatusBadRequest, err.Error())
+		response.BadRequest(c, "请求参数错误")
 		return
 	}
 
 	// 获取操作员用户信息
-	user := platform_http.GetCurrentUser(c)
-	cmd.CreateBy = user.ID
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Forbidden(c, "用户未登录")
+		return
+	}
+	cmd.CreateBy = currentUser.ID
 
 	id, err := h.appService.CreateProjectMember(platform_http.Ctx(c), &cmd)
 	if err != nil {
@@ -48,7 +51,7 @@ func (h *ProjectMembersHandler) Create(c *gin.Context) {
 			zap.Int64("user_id", cmd.UserId),
 			zap.Error(err),
 		)
-		response.Error(c, http.StatusInternalServerError, err.Error())
+		response.InternalError(c, "创建项目成员失败")
 		return
 	}
 
@@ -64,28 +67,36 @@ func (h *ProjectMembersHandler) Create(c *gin.Context) {
 func (h *ProjectMembersHandler) Update(c *gin.Context) {
 	idStr := c.Query("id")
 	if idStr == "" {
-		response.Error(c, http.StatusBadRequest, "id is required")
+		response.BadRequest(c, "ID不能为空")
 		return
 	}
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		response.Error(c, http.StatusBadRequest, "invalid id")
+		response.BadRequest(c, "无效的ID")
 		return
 	}
 
 	var cmd application.UpdateProjectMemberCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
+		response.BadRequest(c, "请求参数错误")
 		return
 	}
 	cmd.ID = id
 
 	// 获取操作员用户信息
-	user := platform_http.GetCurrentUser(c)
-	cmd.CreateBy = user.ID
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Forbidden(c, "用户未登录")
+		return
+	}
+	cmd.CreateBy = currentUser.ID
 
 	if err := h.appService.UpdateProjectMember(platform_http.Ctx(c), cmd); err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
+		logger.RuntimeL.Error("update project member failed",
+			zap.Int64("member_id", cmd.ID),
+			zap.Error(err),
+		)
+		response.InternalError(c, "更新项目成员失败")
 		return
 	}
 
@@ -96,12 +107,12 @@ func (h *ProjectMembersHandler) Update(c *gin.Context) {
 func (h *ProjectMembersHandler) Delete(c *gin.Context) {
 	idStr := c.Query("id")
 	if idStr == "" {
-		response.Error(c, http.StatusBadRequest, "id is required")
+		response.BadRequest(c, "ID不能为空")
 		return
 	}
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		response.Error(c, http.StatusBadRequest, "invalid id")
+		response.BadRequest(c, "无效的ID")
 		return
 	}
 
@@ -112,7 +123,11 @@ func (h *ProjectMembersHandler) Delete(c *gin.Context) {
 	}
 
 	if err := h.appService.DeleteProjectMember(platform_http.Ctx(c), cmd); err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
+		logger.RuntimeL.Error("delete project member failed",
+			zap.Int64("member_id", cmd.ID),
+			zap.Error(err),
+		)
+		response.InternalError(c, "删除项目成员失败")
 		return
 	}
 
@@ -128,7 +143,7 @@ func (h *ProjectMembersHandler) GetList(c *gin.Context) {
 
 	var query GetByProjectIDRequest
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
+		response.BadRequest(c, "请求参数错误")
 		return
 	}
 
@@ -138,7 +153,11 @@ func (h *ProjectMembersHandler) GetList(c *gin.Context) {
 	if query.ProjectID > 0 {
 		members, err = h.appService.GetProjectMembersByProjectID(platform_http.Ctx(c), query.ProjectID)
 		if err != nil {
-			response.Error(c, http.StatusInternalServerError, err.Error())
+			logger.RuntimeL.Error("get project members by project id failed",
+				zap.Int64("project_id", query.ProjectID),
+				zap.Error(err),
+			)
+			response.InternalError(c, "获取项目成员失败")
 			return
 		}
 	}
@@ -146,7 +165,11 @@ func (h *ProjectMembersHandler) GetList(c *gin.Context) {
 	if query.UserID > 0 {
 		members, err = h.appService.GetProjectMembersByUserID(platform_http.Ctx(c), query.UserID)
 		if err != nil {
-			response.Error(c, http.StatusInternalServerError, err.Error())
+			logger.RuntimeL.Error("get project members by user id failed",
+				zap.Int64("user_id", query.UserID),
+				zap.Error(err),
+			)
+			response.InternalError(c, "获取项目成员失败")
 			return
 		}
 	}
@@ -158,18 +181,22 @@ func (h *ProjectMembersHandler) GetList(c *gin.Context) {
 func (h *ProjectMembersHandler) GetByUserID(c *gin.Context) {
 	userIDStr := c.Query("userId")
 	if userIDStr == "" {
-		response.Error(c, http.StatusBadRequest, "userId is required")
+		response.BadRequest(c, "userId不能为空")
 		return
 	}
 	userID, err := strconv.ParseInt(userIDStr, 10, 64)
 	if err != nil {
-		response.Error(c, http.StatusBadRequest, "invalid userId")
+		response.BadRequest(c, "无效的userId")
 		return
 	}
 
 	members, err := h.appService.GetProjectMembersByUserID(platform_http.Ctx(c), userID)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
+		logger.RuntimeL.Error("get project members by user id failed",
+			zap.Int64("user_id", userID),
+			zap.Error(err),
+		)
+		response.InternalError(c, "获取项目成员失败")
 		return
 	}
 
@@ -180,7 +207,7 @@ func (h *ProjectMembersHandler) GetByUserID(c *gin.Context) {
 func (h *ProjectMembersHandler) GetPage(c *gin.Context) {
 	var query domain.ProjectMembersPageQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
+		response.BadRequest(c, "请求参数错误")
 		return
 	}
 
@@ -188,7 +215,12 @@ func (h *ProjectMembersHandler) GetPage(c *gin.Context) {
 
 	members, err := h.appService.GetProjectMemberPage(platform_http.Ctx(c), &query)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
+		logger.RuntimeL.Error("get project member page failed",
+			zap.Int("page_num", query.PageNum),
+			zap.Int("page_size", query.PageSize),
+			zap.Error(err),
+		)
+		response.InternalError(c, "分页查询项目成员失败")
 		return
 	}
 

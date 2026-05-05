@@ -253,16 +253,16 @@ func formatDuration(d time.Duration) string {
 var (
 	defaultL Factory // 默认分类的日志器
 
-	RuntimeL   Factory
-	ErrorL     Factory
-	DebugL     Factory
-	IamL       Factory
-	TrafficL   Factory
+	RuntimeL   Factory //
+	ErrorL     Factory //
+	DebugL     Factory //
+	TrafficL   Factory //
+	IamL       Factory //
 	HTTPL      Factory
-	InitL      Factory
-	IpfsL      Factory
-	SchedulerL Factory
-	IpfsRateL  Factory
+	InitL      Factory // 初始化日志管理器
+	IpfsL      Factory // ipfs日志管理器
+	SchedulerL Factory // 调度任务日志管理器
+	IpfsRateL  Factory // ipfs限速日志管理器（debug）
 )
 
 // InitGlobalLoggers 初始化全局日志器（应在应用启动时调用）
@@ -280,6 +280,7 @@ func initGlobalLoggersInternal() {
 	RuntimeL = NewSugarLogger("runtime")
 	ErrorL = NewSugarLogger("error")
 	DebugL = NewSugarLogger("debug")
+	TrafficL = NewSugarLogger("traffic")
 	IamL = NewSugarLogger("iam")
 	HTTPL = NewSugarLogger("http")
 	InitL = NewSugarLogger("initializer")

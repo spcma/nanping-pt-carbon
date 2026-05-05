@@ -4,7 +4,6 @@ import (
 	"app/internal/platform/http/response"
 	"app/internal/shared/logger"
 	"fmt"
-	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -156,12 +155,16 @@ func (h *SchedulerHandler) EnableTask(c *gin.Context) {
 func (h *SchedulerHandler) DisableTask(c *gin.Context) {
 	taskName := c.Param("name")
 	if taskName == "" {
-		response.Error(c, http.StatusBadRequest, "task name is required")
+		response.BadRequest(c, "任务名称不能为空")
 		return
 	}
 
 	if err := h.scheduler.DisableTask(taskName); err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
+		logger.SchedulerL.Error("disable task failed",
+			zap.String("task_name", taskName),
+			zap.Error(err),
+		)
+		response.InternalError(c, "禁用任务失败")
 		return
 	}
 

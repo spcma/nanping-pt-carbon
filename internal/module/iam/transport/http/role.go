@@ -6,7 +6,6 @@ import (
 	platform_http "app/internal/platform/http"
 	"app/internal/platform/http/response"
 	"app/internal/shared/logger"
-	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -33,14 +32,21 @@ func (h *RoleHandler) Create(c *gin.Context) {
 		return
 	}
 
-	if user := platform_http.GetCurrentUser(c); user != nil {
-		cmd.UserID = user.ID
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Forbidden(c, "user not found")
+		return
 	}
+
+	cmd.UserID = currentUser.ID
 
 	id, err := h.appService.CreateRole(platform_http.Ctx(c), cmd)
 	if err != nil {
-		logger.RuntimeL.WithTraceID(platform_http.GetTraceID(c)).Error("角色创建失败", zap.Error(err))
-		response.InternalError(c, err.Error())
+		logger.RuntimeL.Error("create role failed",
+			zap.String("role_name", cmd.Name),
+			zap.Error(err),
+		)
+		response.InternalError(c, "创建角色失败")
 		return
 	}
 
@@ -52,21 +58,28 @@ func (h *RoleHandler) Update(c *gin.Context) {
 
 	var cmd application.UpdateSysRoleCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
+		response.BadRequest(c, "请求参数错误")
 		return
 	}
 
 	if cmd.ID == 0 {
-		response.Error(c, http.StatusBadRequest, "id is required")
+		response.BadRequest(c, "ID不能为空")
 		return
 	}
 
-	if user := platform_http.GetCurrentUser(c); user != nil {
-		cmd.UserID = user.ID
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Forbidden(c, "user not found")
+		return
 	}
+	cmd.UserID = currentUser.ID
 
 	if err := h.appService.UpdateRole(platform_http.Ctx(c), cmd); err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
+		logger.RuntimeL.Error("update role failed",
+			zap.Int64("role_id", cmd.ID),
+			zap.Error(err),
+		)
+		response.InternalError(c, "更新角色失败")
 		return
 	}
 
@@ -91,9 +104,12 @@ func (h *RoleHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	if user := platform_http.GetCurrentUser(c); user != nil {
-		cmd.UserID = user.ID
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Forbidden(c, "user not found")
+		return
 	}
+	cmd.UserID = currentUser.ID
 
 	if cmd.UserID == 0 {
 		response.BadRequest(c, "user is required")
@@ -114,13 +130,17 @@ func (h *RoleHandler) GetByID(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		response.Error(c, http.StatusBadRequest, "invalid id")
+		response.BadRequest(c, "无效的ID")
 		return
 	}
 
 	role, err := h.appService.GetRoleByID(platform_http.Ctx(c), id)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
+		logger.RuntimeL.Error("get role failed",
+			zap.Int64("role_id", id),
+			zap.Error(err),
+		)
+		response.InternalError(c, "获取角色失败")
 		return
 	}
 
@@ -131,7 +151,7 @@ func (h *RoleHandler) GetByID(c *gin.Context) {
 func (h *RoleHandler) GetPage(c *gin.Context) {
 	var query domain.SysRolePageQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
+		response.BadRequest(c, "请求参数错误")
 		return
 	}
 
@@ -146,7 +166,12 @@ func (h *RoleHandler) GetPage(c *gin.Context) {
 
 	res, err := h.appService.GetRolePage(platform_http.Ctx(c), &query)
 	if err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
+		logger.RuntimeL.Error("get role page failed",
+			zap.Int("page_num", query.PageNum),
+			zap.Int("page_size", query.PageSize),
+			zap.Error(err),
+		)
+		response.InternalError(c, "分页查询角色失败")
 		return
 	}
 
@@ -158,7 +183,7 @@ func (h *RoleHandler) ChangeStatus(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		response.Error(c, http.StatusBadRequest, "invalid id")
+		response.BadRequest(c, "无效的ID")
 		return
 	}
 
@@ -166,13 +191,22 @@ func (h *RoleHandler) ChangeStatus(c *gin.Context) {
 		Status string `json:"status"`
 	}
 	if err := c.ShouldBindJSON(&cmd); err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
+		response.BadRequest(c, "请求参数错误")
 		return
 	}
 
-	user := platform_http.GetCurrentUser(c)
-	if err := h.appService.ChangeRoleStatus(platform_http.Ctx(c), application.ChangeRoleStatusCommand{ID: id, Status: domain.RoleStatus(cmd.Status), UserID: user.ID}); err != nil {
-		response.Error(c, http.StatusInternalServerError, err.Error())
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Forbidden(c, "user not found")
+		return
+	}
+	if err = h.appService.ChangeRoleStatus(platform_http.Ctx(c), application.ChangeRoleStatusCommand{ID: id, Status: domain.RoleStatus(cmd.Status), UserID: currentUser.ID}); err != nil {
+		logger.RuntimeL.Error("change role status failed",
+			zap.Int64("role_id", id),
+			zap.String("status", cmd.Status),
+			zap.Error(err),
+		)
+		response.InternalError(c, "变更角色状态失败")
 		return
 	}
 

@@ -38,7 +38,12 @@ func (h *IpfsHandler) ListDir(c *gin.Context) {
 
 	listDir, err := h.appService.ListDir(platform_http.Ctx(c), clientName, dir)
 	if err != nil {
-		response.InternalError(c, err.Error())
+		logger.RuntimeL.Error("list ipfs dir failed",
+			zap.String("dir", dir),
+			zap.String("client_name", clientName),
+			zap.Error(err),
+		)
+		response.InternalError(c, "列出目录失败")
 		return
 	}
 
@@ -64,7 +69,11 @@ func (h *IpfsHandler) CreateDir(c *gin.Context) {
 
 	err := h.appService.CreateDir(dto.Dir)
 	if err != nil {
-		response.InternalError(c, err.Error())
+		logger.RuntimeL.Error("create ipfs dir failed",
+			zap.String("dir", dto.Dir),
+			zap.Error(err),
+		)
+		response.InternalError(c, "创建目录失败")
 		return
 	}
 
@@ -90,7 +99,11 @@ func (h *IpfsHandler) DeleteFile(c *gin.Context) {
 
 	err := h.appService.DeleteFile(platform_http.Ctx(c), dto.Path)
 	if err != nil {
-		response.InternalError(c, err.Error())
+		logger.RuntimeL.Error("delete ipfs file failed",
+			zap.String("path", dto.Path),
+			zap.Error(err),
+		)
+		response.InternalError(c, "删除文件失败")
 		return
 	}
 
@@ -154,7 +167,12 @@ func (h *IpfsHandler) DownloadFile(c *gin.Context) {
 
 	data, _, err := h.appService.ReadFileFromIpfs(dto.Path)
 	if err != nil {
-		response.InternalError(c, "下载失败："+err.Error())
+		logger.RuntimeL.Error("download ipfs file failed",
+			zap.String("path", dto.Path),
+			zap.String("filename", dto.Filename),
+			zap.Error(err),
+		)
+		response.InternalError(c, "下载失败")
 		return
 	}
 
@@ -181,7 +199,11 @@ func (h *IpfsHandler) Stat(c *gin.Context) {
 
 	fileStat, err := h.appService.FileStat(path)
 	if err != nil {
-		response.InternalError(c, err.Error())
+		logger.RuntimeL.Error("get ipfs file stat failed",
+			zap.String("path", path),
+			zap.Error(err),
+		)
+		response.InternalError(c, "获取文件信息失败")
 		return
 	}
 
@@ -198,7 +220,11 @@ func (h *IpfsHandler) Read(c *gin.Context) {
 
 	bytes, count, err := h.appService.ReadFileFromIpfs(path)
 	if err != nil {
-		response.InternalError(c, err.Error())
+		logger.RuntimeL.Error("read ipfs file failed",
+			zap.String("path", path),
+			zap.Error(err),
+		)
+		response.InternalError(c, "读取文件失败")
 		return
 	}
 

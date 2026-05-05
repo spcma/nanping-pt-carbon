@@ -8,7 +8,6 @@ import (
 	"app/internal/platform/http/response"
 	"app/internal/shared/logger"
 	"context"
-	"net/http"
 	"strconv"
 
 	"go.uber.org/zap"
@@ -32,23 +31,20 @@ func NewCarbonReportDayHandler(appService *application.CarbonReportDayService) *
 func (h *CarbonReportDayHandler) Create(c *gin.Context) {
 	var cmd application.CreateCarbonReportDayCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
-		logger.Warn("carbon_report_day", "create carbon report day - invalid request",
-			zap.String("error", err.Error()),
-		)
-		response.Error(c, http.StatusBadRequest, err.Error())
+		response.BadRequest(c, "请求参数错误")
 		return
 	}
 
-	securityUser := platform_http.GetCurrentUser(c)
-	if securityUser == nil {
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
 		response.Forbidden(c, "用户信息异常")
 		return
 	}
-	cmd.UserID = securityUser.ID
+	cmd.UserID = currentUser.ID
 
 	id, err := h.appService.Create(platform_http.Ctx(c), &cmd)
 	if err != nil {
-		logger.Error("carbon_report_day", "create carbon report day failed",
+		logger.RuntimeL.Error("create carbon report day failed",
 			zap.Error(err),
 		)
 		response.InternalError(c, "创建失败")
@@ -56,7 +52,7 @@ func (h *CarbonReportDayHandler) Create(c *gin.Context) {
 	}
 
 	logger.Info("carbon_report_day", "carbon report day created successfully",
-		zap.Int64("report_id", id),
+		zap.Int64("id", id),
 	)
 	response.Success(c, gin.H{"id": id})
 }
@@ -69,16 +65,19 @@ func (h *CarbonReportDayHandler) Update(c *gin.Context) {
 		return
 	}
 
-	user := platform_http.GetCurrentUser(c)
-	if user == nil {
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
 		response.Forbidden(c, "用户信息异常")
 		return
 	}
-	cmd.UserID = user.ID
+	cmd.UserID = currentUser.ID
 
 	if err := h.appService.Update(platform_http.Ctx(c), cmd); err != nil {
+		logger.RuntimeL.Error("update carbon report day failed",
+			zap.Int64("report_id", cmd.ID),
+			zap.Error(err),
+		)
 		response.InternalError(c, "更新失败")
-		response.Error(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -94,13 +93,13 @@ func (h *CarbonReportDayHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	user := platform_http.GetCurrentUser(c)
-	if user == nil {
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
 		response.Forbidden(c, "用户信息异常")
 		return
 	}
 
-	if err := h.appService.Delete(platform_http.Ctx(c), id, user.ID); err != nil {
+	if err := h.appService.Delete(platform_http.Ctx(c), id, currentUser.ID); err != nil {
 		logger.RuntimeL.Error("delete carbon report day failed", zap.Error(err))
 		response.InternalError(c, "删除失败")
 		return
@@ -140,7 +139,11 @@ func (h *CarbonReportDayHandler) GetPage(c *gin.Context) {
 
 	res, err := h.appService.GetPage(platform_http.Ctx(c), &query)
 	if err != nil {
-		logger.RuntimeL.Error("get carbon report day page failed", zap.Error(err))
+		logger.RuntimeL.Error("get carbon report day page failed",
+			zap.Int("page_num", query.PageNum),
+			zap.Int("page_size", query.PageSize),
+			zap.Error(err),
+		)
 		response.InternalError(c, "获取失败")
 		return
 	}

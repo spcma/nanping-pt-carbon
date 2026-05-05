@@ -29,9 +29,9 @@ func NewProjectHandler(appService *application.ProjectAppService) *ProjectHandle
 // Create 创建项目
 func (h *ProjectHandler) Create(c *gin.Context) {
 
-	securityUser := platform_http.GetCurrentUser(c)
-	if securityUser == nil {
-		response.Unauthorized(c, "")
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Forbidden(c, "")
 		return
 	}
 
@@ -41,7 +41,7 @@ func (h *ProjectHandler) Create(c *gin.Context) {
 		return
 	}
 
-	cmd.UserID = securityUser.ID
+	cmd.UserID = currentUser.ID
 
 	id, err := h.appService.Create(platform_http.Ctx(c), cmd)
 	if err != nil {
@@ -50,7 +50,7 @@ func (h *ProjectHandler) Create(c *gin.Context) {
 			zap.Error(err),
 		)
 
-		response.InternalError(c, "")
+		response.InternalError(c, "创建项目失败")
 		return
 	}
 
@@ -64,8 +64,8 @@ func (h *ProjectHandler) Create(c *gin.Context) {
 
 // Update 更新项目
 func (h *ProjectHandler) Update(c *gin.Context) {
-	user := platform_http.GetCurrentUser(c)
-	if user == nil {
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
 		response.Unauthorized(c, "user is nil")
 		return
 	}
@@ -76,7 +76,7 @@ func (h *ProjectHandler) Update(c *gin.Context) {
 		return
 	}
 
-	cmd.UserID = user.ID
+	cmd.UserID = currentUser.ID
 
 	if err := h.appService.Update(platform_http.Ctx(c), cmd); err != nil {
 		logger.RuntimeL.Error("update project failed",
@@ -84,7 +84,7 @@ func (h *ProjectHandler) Update(c *gin.Context) {
 			zap.Error(err),
 		)
 
-		response.InternalError(c, "")
+		response.InternalError(c, "更新项目失败")
 		return
 	}
 
@@ -93,8 +93,8 @@ func (h *ProjectHandler) Update(c *gin.Context) {
 
 // Delete 删除项目
 func (h *ProjectHandler) Delete(c *gin.Context) {
-	user := platform_http.GetCurrentUser(c)
-	if user == nil {
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
 		response.Unauthorized(c, "")
 		return
 	}
@@ -113,12 +113,12 @@ func (h *ProjectHandler) Delete(c *gin.Context) {
 		id = v
 	}
 
-	if err := h.appService.Delete(platform_http.Ctx(c), id, user.ID); err != nil {
+	if err := h.appService.Delete(platform_http.Ctx(c), id, currentUser.ID); err != nil {
 		logger.RuntimeL.Error("delete project failed",
 			zap.Int64("project_id", id),
 			zap.Error(err),
 		)
-		response.InternalError(c, "")
+		response.InternalError(c, "删除项目失败")
 		return
 	}
 
@@ -140,7 +140,7 @@ func (h *ProjectHandler) GetByID(c *gin.Context) {
 			zap.Int64("project_id", id),
 			zap.Error(err),
 		)
-		response.InternalError(c, "查询失败")
+		response.InternalError(c, "根据ID查询项目失败")
 		return
 	}
 
@@ -161,7 +161,7 @@ func (h *ProjectHandler) GetByQuery(c *gin.Context) {
 			zap.Int64("project_id", query.ID),
 			zap.Error(err),
 		)
-		response.InternalError(c, "")
+		response.InternalError(c, "条件查询项目失败")
 		return
 	}
 
@@ -186,6 +186,9 @@ type ProjectDetail struct {
 func (h *ProjectHandler) GetList(c *gin.Context) {
 	list, err := h.appService.GetList(platform_http.Ctx(c))
 	if err != nil {
+		logger.RuntimeL.Error("get project list failed",
+			zap.Error(err),
+		)
 		response.InternalError(c, "获取项目列表失败")
 		return
 	}
@@ -221,6 +224,11 @@ func (h *ProjectHandler) GetPage(c *gin.Context) {
 
 	projects, err := h.appService.GetPage(platform_http.Ctx(c), &query)
 	if err != nil {
+		logger.RuntimeL.Error("get project page failed",
+			zap.Int("page_num", query.PageNum),
+			zap.Int("page_size", query.PageSize),
+			zap.Error(err),
+		)
 		response.InternalError(c, "分页查询项目失败")
 		return
 	}
@@ -245,14 +253,24 @@ func (h *ProjectHandler) ChangeStatus(c *gin.Context) {
 		return
 	}
 
-	user := platform_http.GetCurrentUser(c)
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Forbidden(c, "用户未登录")
+		return
+	}
+
 	changeCmd := application.ChangeProjectStatusCommand{
 		ID:     id,
 		Status: domain.ProjectStatus(cmd.Status),
-		UserID: user.ID,
+		UserID: currentUser.ID,
 	}
 
 	if err := h.appService.ChangeStatus(platform_http.Ctx(c), changeCmd); err != nil {
+		logger.RuntimeL.Error("change project status failed",
+			zap.Int64("project_id", id),
+			zap.String("status", cmd.Status),
+			zap.Error(err),
+		)
 		response.InternalError(c, "变更项目状态失败")
 		return
 	}
@@ -269,9 +287,17 @@ func (h *ProjectHandler) Activate(c *gin.Context) {
 		return
 	}
 
-	user := platform_http.GetCurrentUser(c)
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Forbidden(c, "用户未登录")
+		return
+	}
 
-	if err := h.appService.ActivateProject(platform_http.Ctx(c), id, user.ID); err != nil {
+	if err := h.appService.ActivateProject(platform_http.Ctx(c), id, currentUser.ID); err != nil {
+		logger.RuntimeL.Error("activate project failed",
+			zap.Int64("project_id", id),
+			zap.Error(err),
+		)
 		response.InternalError(c, "激活项目失败")
 		return
 	}
@@ -288,9 +314,17 @@ func (h *ProjectHandler) Complete(c *gin.Context) {
 		return
 	}
 
-	user := platform_http.GetCurrentUser(c)
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Forbidden(c, "user not found")
+		return
+	}
 
-	if err := h.appService.CompleteProject(platform_http.Ctx(c), id, user.ID); err != nil {
+	if err := h.appService.CompleteProject(platform_http.Ctx(c), id, currentUser.ID); err != nil {
+		logger.RuntimeL.Error("complete project failed",
+			zap.Int64("project_id", id),
+			zap.Error(err),
+		)
 		response.InternalError(c, "完成项目失败")
 		return
 	}
@@ -307,9 +341,17 @@ func (h *ProjectHandler) Cancel(c *gin.Context) {
 		return
 	}
 
-	user := platform_http.GetCurrentUser(c)
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Forbidden(c, "user not found")
+		return
+	}
 
-	if err := h.appService.CancelProject(platform_http.Ctx(c), id, user.ID); err != nil {
+	if err := h.appService.CancelProject(platform_http.Ctx(c), id, currentUser.ID); err != nil {
+		logger.RuntimeL.Error("cancel project failed",
+			zap.Int64("project_id", id),
+			zap.Error(err),
+		)
 		response.InternalError(c, "取消项目失败")
 		return
 	}
