@@ -4,7 +4,7 @@ server:
 
 ipfs:
   port: 4800
-#  port: 4080
+  #  port: 4080
   status: false # 是否开启ipfs服务, 运行环境中没有ipfs会导致初始化失败
 
 logger:
@@ -17,22 +17,6 @@ logger:
     max_backups: 5
     max_age: 30
     compress: false
-  other:
-    path: "./logs/other"
-    level: info
-  categories:
-    - name: http
-      level: info
-    - name: error
-      level: error
-    - name: iam
-      level: info
-    - name: ipfs
-      level: info
-    - name: scheduler
-      level: info
-    - name: ipfsrate
-      level: info
 
 # 主业务数据库
 database:

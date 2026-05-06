@@ -31,14 +31,14 @@ func NewDataInitializer(db *gorm.DB) *DataInitializer {
 
 // Initialize 初始化所有基础数据
 func (i *DataInitializer) Initialize() error {
-	logger.Info("initialize", "starting data initialization...")
+	logger.InitL.Info("starting data initialization...")
 
 	// 初始化超级管理员用户
 	if err := i.initSuperAdminUser(); err != nil {
 		return fmt.Errorf("failed to init super admin user: %w", err)
 	}
 
-	logger.Info("initialize", "data initialization completed successfully")
+	logger.InitL.Info("data initialization completed successfully")
 	return nil
 }
 

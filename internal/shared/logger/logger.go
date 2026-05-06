@@ -24,12 +24,12 @@ const (
 )
 
 type LogConfig struct {
-	Level       string           `mapstructure:"level" label:"日志等级"`
-	Path        string           `mapstructure:"path" label:"日志目录"`
-	Development bool             `mapstructure:"development"`
-	Rotation    RotationConfig   `mapstructure:"rotation"`
-	Other       OtherConfig      `mapstructure:"other"`
-	Categories  []CategoryConfig `mapstructure:"categories"`
+	Level       string         `mapstructure:"level" label:"日志等级"`
+	Path        string         `mapstructure:"path" label:"日志目录"`
+	Development bool           `mapstructure:"development"`
+	Rotation    RotationConfig `mapstructure:"rotation"`
+	//Other       OtherConfig      `mapstructure:"other"`
+	//Categories []CategoryConfig `mapstructure:"categories"`
 }
 
 type RotationConfig struct {
@@ -47,7 +47,7 @@ type OtherConfig struct {
 
 type CategoryConfig struct {
 	Path     string `mapstructure:"path"`
-	Name     string `mapstructure:"name"`
+	Category string `mapstructure:"name"`
 	Filename string `mapstructure:"filename"`
 	Level    string `mapstructure:"level"`
 }
@@ -91,13 +91,13 @@ func NewLoggerFactory(config *LogConfig) (*Logger, error) {
 		config.Path = "./logs/"
 	}
 
-	if config.Other.Path == "" {
-		config.Other.Path = "./logs/other/"
-	}
-
-	if config.Other.Level == "" {
-		config.Other.Level = InfoLevel
-	}
+	//if config.Other.Path == "" {
+	//	config.Other.Path = "./logs/other/"
+	//}
+	//
+	//if config.Other.Level == "" {
+	//	config.Other.Level = InfoLevel
+	//}
 
 	// 创建日志目录
 	if err := os.MkdirAll(config.Path, 0755); err != nil {
@@ -257,25 +257,30 @@ func (pl *Logger) createFallbackLogger() *zap.Logger {
 func (pl *Logger) initCategoryLogger(category string) error {
 	// 查找配置
 	var categoryConfig *CategoryConfig
-	for _, cfg := range pl.config.Categories {
-		if cfg.Name == category {
-			categoryConfig = &cfg
+	for _, cfg := range loggersv1 {
+		if cfg.Category == category {
+			categoryConfig = cfg
 			break
 		}
 	}
 
+	var path string
+
 	if categoryConfig == nil {
+		path = pl.config.Path + "/other/" + category
 		categoryConfig = &CategoryConfig{
-			Name:     category,
-			Filename: fmt.Sprintf("%s/%s/log.log", pl.config.Other.Path, category),
-			Level:    pl.config.Other.Level,
+			Category: category,
+			Filename: path + "/log.log",
+			Level:    "info",
 		}
 	} else {
-		categoryConfig.Filename = fmt.Sprintf("%s/%s/log.log", pl.config.Path, category)
+		path = pl.config.Path + "/" + category
+		categoryConfig.Category = category
+		categoryConfig.Filename = path + "/log.log"
 	}
 
 	// 创建日志目录
-	if err := os.MkdirAll(pl.config.Other.Path+"/"+category, 0755); err != nil {
+	if err := os.MkdirAll(path, 0755); err != nil {
 		return err
 	}
 
