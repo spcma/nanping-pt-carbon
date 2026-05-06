@@ -108,10 +108,3 @@ func (r *iamRoutes) RegisterRoutes(group *gin.RouterGroup, middlewares map[share
 		}
 	}
 }
-
-// Handlers 包含所有 HTTP 处理器
-type Handlers struct {
-	UserHandler *UserHandler
-	RoleHandler *RoleHandler
-	AuthHandler *AuthHandler // 认证处理器
-}
