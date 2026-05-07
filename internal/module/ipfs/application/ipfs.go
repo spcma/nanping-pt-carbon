@@ -1254,26 +1254,6 @@ func (s *IpfsService) InitClient(config *IpfsClientConfig) error {
 	client.guardianStop = make(chan struct{})
 	client.reconnectTrigger = make(chan struct{}, 1)
 
-	//// 获取通行证
-	//err := s.refreshPassportForClient(client)
-	//if err != nil {
-	//	return fmt.Errorf("获取通行证失败: %v", err)
-	//}
-	//
-	//// 初始化RPC客户端
-	//client.client = rpc.InitLApiStubByUrl(fmt.Sprintf("127.0.0.1:%d", config.Port))
-	//
-	//// 先将客户端存储到映射中，以便后续认证时可以找到
-	//s.clients[config.Name] = client
-	//
-	//// 登录获取session（此时client已经在s.clients中）
-	//err = s.refreshSession(config.Name)
-	//if err != nil {
-	//	// 登录失败，从映射中移除
-	//	delete(s.clients, config.Name)
-	//	return fmt.Errorf("登录失败: %v", err)
-	//}
-
 	// 启动守护程序
 	go s.startClientGuardianForClient(client)
 
