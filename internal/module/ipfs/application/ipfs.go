@@ -553,11 +553,6 @@ type BusImageDetailCv struct {
 // rootDir: 要扫描的根目录（直接从此目录开始递归）
 // date: 日期，格式为 "2026-03-27"，用于查询数据库和生成报告
 func (s *IpfsService) CalcDir(ctx context.Context, clientName string, rootDir string, date string) (map[string]any, error) {
-	return s.CalcDirForClient(ctx, clientName, rootDir, date)
-}
-
-// CalcDirForClient 为指定客户端递归扫描目录并计算周转量
-func (s *IpfsService) CalcDirForClient(ctx context.Context, clientName string, rootDir string, date string) (map[string]any, error) {
 	//	记录当前时间，用于耗时统计
 	cst := time.Now()
 

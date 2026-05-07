@@ -189,7 +189,7 @@ func (h *CarbonReportDayHandler) ReportDay(c *gin.Context) {
 
 		ipfsService := ipfs_application.Ipfs()
 
-		turnover, err := ipfsService.CalcDir(ctx, dto.ClientName, dto.RootDir, dto.Date)
+		report, err := ipfsService.CalcDir(ctx, dto.ClientName, dto.RootDir, dto.Date)
 		if err != nil {
 			logger.IpfsL.Error("calcDir failed",
 				zap.String("rootDir", dto.RootDir),
@@ -198,9 +198,35 @@ func (h *CarbonReportDayHandler) ReportDay(c *gin.Context) {
 			return
 		}
 
+		cmd := &application.CreateCarbonReportDayCommand{}
+
+		if val, ok := report["totalTurnover"].(float64); ok {
+			cmd.Turnover = val
+		}
+		if val, ok := report["baseline"].(float64); ok {
+			cmd.Baseline = val
+		}
+		if val, ok := report["carbonReduce"].(float64); ok {
+			cmd.CarbonReduction = val
+		}
+		if val, ok := report["hash"].(string); ok {
+			cmd.Hash = val
+		}
+		if val, ok := report["traceCode"].(string); ok {
+			cmd.TraceCode = val
+		}
+
+		_, err = h.appService.Create(ctx, cmd)
+		if err != nil {
+			logger.SchedulerL.Error("碳日报创建失败", zap.Error(err))
+			return
+		}
+
 		logger.IpfsL.Info("calcDir completed",
 			zap.String("rootDir", dto.RootDir),
 			zap.String("date", dto.Date),
-			zap.Any("turnover", turnover["turnover"]))
+			zap.Any("turnover", report["turnover"]))
 	}()
+
+	response.Success(c, "计算任务已启动，请稍后查看结果")
 }
