@@ -82,25 +82,25 @@ func (h *IpfsHandler) CreateDir(c *gin.Context) {
 
 func (h *IpfsHandler) DeleteFile(c *gin.Context) {
 
-	type DeleteFileDto struct {
+	type deleteRequest struct {
 		Path string `json:"path"`
 	}
 
-	var dto DeleteFileDto
-	if err := c.ShouldBindJSON(&dto); err != nil {
+	var request deleteRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
 		response.BadRequest(c, err.Error())
 		return
 	}
 
-	if dto.Path == "" {
+	if request.Path == "" {
 		response.BadRequest(c, "path is required")
 		return
 	}
 
-	err := h.appService.DeleteFile(platform_http.Ctx(c), dto.Path)
+	err := h.appService.DeleteFile(platform_http.Ctx(c), request.Path)
 	if err != nil {
 		logger.RuntimeL.Error("delete ipfs file failed",
-			zap.String("path", dto.Path),
+			zap.String("path", request.Path),
 			zap.Error(err),
 		)
 		response.InternalError(c, "删除文件失败")
@@ -145,31 +145,31 @@ func (h *IpfsHandler) UploadFile(c *gin.Context) {
 
 func (h *IpfsHandler) DownloadFile(c *gin.Context) {
 
-	type downloadDto struct {
+	type downloadRequest struct {
 		Path     string `json:"path" form:"path"`
 		Filename string `json:"filename" form:"filename"`
 	}
 
-	var dto downloadDto
-	if err := c.ShouldBindQuery(&dto); err != nil {
+	var req downloadRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
 		response.BadRequest(c, err.Error())
 		return
 	}
 
-	if dto.Path == "" {
+	if req.Path == "" {
 		response.BadRequest(c, "path is required")
 		return
 	}
 
-	if dto.Filename == "" {
-		dto.Filename = filepath.Base(dto.Path)
+	if req.Filename == "" {
+		req.Filename = filepath.Base(req.Path)
 	}
 
-	data, _, err := h.appService.ReadFileFromIpfs(dto.Path)
+	data, _, err := h.appService.ReadFileFromIpfs(req.Path)
 	if err != nil {
 		logger.RuntimeL.Error("download ipfs file failed",
-			zap.String("path", dto.Path),
-			zap.String("filename", dto.Filename),
+			zap.String("path", req.Path),
+			zap.String("filename", req.Filename),
 			zap.Error(err),
 		)
 		response.InternalError(c, "下载失败")
@@ -177,12 +177,12 @@ func (h *IpfsHandler) DownloadFile(c *gin.Context) {
 	}
 
 	logger.IpfsL.Info("download file",
-		zap.String("path", dto.Path),
-		zap.String("filename", dto.Filename),
+		zap.String("path", req.Path),
+		zap.String("filename", req.Filename),
 		zap.Any("data", string(data)))
 
 	// 设置响应头
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename*=UTF-8''%s", dto.Filename))
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename*=UTF-8''%s", req.Filename))
 	c.Header("Content-Type", "application/octet-stream")
 	c.Header("Content-Length", fmt.Sprintf("%d", len(data)))
 
@@ -235,66 +235,66 @@ func (h *IpfsHandler) Read(c *gin.Context) {
 
 // ScanDir 递归扫描目录
 func (h *IpfsHandler) ScanDir(c *gin.Context) {
-	type ScanDirDto struct {
+	type scanDirRequest struct {
 		RootDir string `json:"rootDir" form:"rootDir"`
 	}
 
-	var dto ScanDirDto
-	if err := c.ShouldBindQuery(&dto); err != nil {
+	var req scanDirRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
 		response.BadRequest(c, err.Error())
 		return
 	}
 
-	if dto.RootDir == "" {
+	if req.RootDir == "" {
 		response.BadRequest(c, "请指定根目录")
 		return
 	}
 
 	go func() {
 		ctx := context.Background()
-		result, err := h.appService.ScanDir(ctx, dto.RootDir)
+		result, err := h.appService.ScanDir(ctx, req.RootDir)
 		if err != nil {
 			response.InternalError(c, err.Error())
 			return
 		}
-		logger.IpfsL.Info("scanDir completed", zap.String("rootDir", dto.RootDir), zap.Any("result", result))
+		logger.IpfsL.Info("scanDir completed", zap.String("rootDir", req.RootDir), zap.Any("result", result))
 	}()
 
 	response.Success(c, "scanDir task running...")
 }
 
 func (h *IpfsHandler) CalcDir(c *gin.Context) {
-	type CalcDirDto struct {
+	type calcDirRequest struct {
 		RootDir    string `json:"rootDir" form:"rootDir"` // 要扫描的根目录，如 "/aibk/26/03/27"
 		Date       string `json:"date" form:"date"`       // 日期，格式 "2026-03-27"
 		ClientName string `json:"clientName" form:"clientName"`
 	}
 
-	var dto CalcDirDto
-	if err := c.ShouldBindQuery(&dto); err != nil {
+	var req calcDirRequest
+	if err := c.ShouldBindQuery(&req); err != nil {
 		response.BadRequest(c, err.Error())
 		return
 	}
 
-	if dto.RootDir == "" {
+	if req.RootDir == "" {
 		response.BadRequest(c, "请指定目录")
 		return
 	}
 
-	if dto.Date == "" {
+	if req.Date == "" {
 		response.BadRequest(c, "请指定日期")
 		return
 	}
 
 	go func() {
 		ctx := context.Background()
-		turnover, err := h.appService.CalcDir(ctx, dto.ClientName, dto.RootDir, dto.Date)
+		turnover, err := h.appService.CalcDir(ctx, req.ClientName, req.RootDir, req.Date)
 		if err != nil {
-			logger.IpfsL.Error("calcDir failed", zap.String("rootDir", dto.RootDir), zap.String("date", dto.Date), zap.Error(err))
+			logger.IpfsL.Error("calcDir failed", zap.String("rootDir", req.RootDir), zap.String("date", req.Date), zap.Error(err))
 			return
 		}
 
-		logger.IpfsL.Info("calcDir completed", zap.String("rootDir", dto.RootDir), zap.String("date", dto.Date), zap.Any("turnover", turnover["turnover"]))
+		logger.IpfsL.Info("calcDir completed", zap.String("rootDir", req.RootDir), zap.String("date", req.Date), zap.Any("turnover", turnover["turnover"]))
 	}()
 
 	response.Success(c, "计算任务已启动，请稍后查看结果")

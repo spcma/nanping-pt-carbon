@@ -96,9 +96,7 @@ func (r *iamRoutes) RegisterRoutes(group *gin.RouterGroup, middlewares map[share
 			sysRoleGroup.POST("", r.roleHandler.Create)
 			sysRoleGroup.PUT("", r.roleHandler.Update)
 			sysRoleGroup.DELETE("", r.roleHandler.Delete)
-			sysRoleGroup.GET("", r.roleHandler.GetByID) // 仅 ID 查询
-			//sysRoleGroup.GET("query", r.rolesHandler.GetByQuery) // 综合查询
-			sysRoleGroup.PUT("/status", r.roleHandler.ChangeStatus)
+			sysRoleGroup.GET("", r.roleHandler.GetByID)
 		}
 
 		// 系统角色列表 - /api/roles/*

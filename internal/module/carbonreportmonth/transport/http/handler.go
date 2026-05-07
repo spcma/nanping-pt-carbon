@@ -6,8 +6,8 @@ import (
 	platform_http "app/internal/platform/http"
 	"app/internal/platform/http/response"
 	"app/internal/shared/logger"
-	"strconv"
 
+	"github.com/spf13/cast"
 	"go.uber.org/zap"
 
 	"github.com/gin-gonic/gin"
@@ -36,10 +36,7 @@ func (h *CarbonReportMonthHandler) Create(c *gin.Context) {
 
 	var cmd application.CreateCarbonReportMonthCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
-		logger.Warn("carbon_report_month", "create carbon report month - invalid request",
-			zap.String("error", err.Error()),
-		)
-		response.BadRequest(c, "请求参数错误")
+		response.BadRequest(c, "")
 		return
 	}
 
@@ -47,7 +44,7 @@ func (h *CarbonReportMonthHandler) Create(c *gin.Context) {
 
 	id, err := h.appService.Create(platform_http.Ctx(c), cmd)
 	if err != nil {
-		logger.RuntimeL.Error("create carbon report month failed",
+		logger.RuntimeL.Error("create carbon_report_month failed",
 			zap.String("collection_date", cmd.CollectionDate),
 			zap.Error(err),
 		)
@@ -55,9 +52,11 @@ func (h *CarbonReportMonthHandler) Create(c *gin.Context) {
 		return
 	}
 
-	logger.Info("carbon_report_month", "carbon report month created successfully",
+	logger.RuntimeL.Info("create carbon_report_month success",
+		zap.String("collection_date", cmd.CollectionDate),
 		zap.Int64("report_id", id),
 	)
+
 	response.Success(c, gin.H{"id": id})
 }
 
@@ -69,25 +68,18 @@ func (h *CarbonReportMonthHandler) Update(c *gin.Context) {
 		return
 	}
 
-	idStr := c.Param("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		response.BadRequest(c, "无效的ID")
-		return
-	}
-
 	var cmd application.UpdateCarbonReportMonthCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
-		response.BadRequest(c, "请求参数错误")
+		response.BadRequest(c, "")
 		return
 	}
-	cmd.ID = id
 
 	cmd.UserID = currentUser.ID
 
 	if err := h.appService.Update(platform_http.Ctx(c), cmd); err != nil {
-		logger.RuntimeL.Error("update carbon report month failed",
-			zap.Int64("report_id", id),
+		logger.RuntimeL.Error("update carbon_report_month failed",
+			zap.Int64("report_id", cmd.ID),
+			zap.Int64("update_by", cmd.UserID),
 			zap.Error(err),
 		)
 		response.InternalError(c, "更新失败")
@@ -105,16 +97,20 @@ func (h *CarbonReportMonthHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	idStr := c.Param("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		response.BadRequest(c, "无效的ID")
+	type deleteRequest struct {
+		ID int64 `json:"id"`
+	}
+
+	var req deleteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "")
 		return
 	}
 
-	if err := h.appService.Delete(platform_http.Ctx(c), id, currentUser.ID); err != nil {
-		logger.RuntimeL.Error("delete carbon report month failed",
-			zap.Int64("report_id", id),
+	if err := h.appService.Delete(platform_http.Ctx(c), req.ID, currentUser.ID); err != nil {
+		logger.RuntimeL.Error("delete carbon_report_month failed",
+			zap.Int64("report_id", req.ID),
+			zap.Int64("delete_by", currentUser.ID),
 			zap.Error(err),
 		)
 		response.InternalError(c, "删除失败")
@@ -127,15 +123,15 @@ func (h *CarbonReportMonthHandler) Delete(c *gin.Context) {
 // GetByID 根据ID获取碳月报
 func (h *CarbonReportMonthHandler) GetByID(c *gin.Context) {
 	idStr := c.Param("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		response.BadRequest(c, "无效的ID")
+	id := cast.ToInt64(idStr)
+	if id == 0 {
+		response.BadRequest(c, "invalid id")
 		return
 	}
 
 	report, err := h.appService.GetByID(platform_http.Ctx(c), id)
 	if err != nil {
-		logger.RuntimeL.Error("get carbon report month failed",
+		logger.RuntimeL.Error("get carbon_report_month failed",
 			zap.Int64("report_id", id),
 			zap.Error(err),
 		)
@@ -150,7 +146,7 @@ func (h *CarbonReportMonthHandler) GetByID(c *gin.Context) {
 func (h *CarbonReportMonthHandler) GetPage(c *gin.Context) {
 	var query domain.CarbonReportMonthPageQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.BadRequest(c, "请求参数错误")
+		response.BadRequest(c, "")
 		return
 	}
 
@@ -158,7 +154,7 @@ func (h *CarbonReportMonthHandler) GetPage(c *gin.Context) {
 
 	res, err := h.appService.GetPage(platform_http.Ctx(c), &query)
 	if err != nil {
-		logger.RuntimeL.Error("get carbon report month page failed",
+		logger.RuntimeL.Error("get carbon_report_month page failed",
 			zap.Int("page_num", query.PageNum),
 			zap.Int("page_size", query.PageSize),
 			zap.Error(err),

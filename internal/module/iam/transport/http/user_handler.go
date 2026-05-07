@@ -6,8 +6,8 @@ import (
 	platform_http "app/internal/platform/http"
 	"app/internal/platform/http/response"
 	"app/internal/shared/logger"
-	"strconv"
 
+	"github.com/spf13/cast"
 	"go.uber.org/zap"
 
 	"github.com/gin-gonic/gin"
@@ -27,25 +27,23 @@ func NewUserHandler(appService *application.UserService) *UserHandler {
 
 // Create creates a system user
 func (h *UserHandler) Create(c *gin.Context) {
-	var cmd application.CreateUserCommand
-	if err := c.ShouldBindJSON(&cmd); err != nil {
-		logger.Warn("iam", "create currentUser - invalid request",
-			zap.String("error", err.Error()),
-		)
-		response.BadRequest(c, "请求参数错误")
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Unauthorized(c, "")
 		return
 	}
 
-	currentUser := platform_http.GetCurrentUser(c)
-	if currentUser == nil {
-		response.BadRequest(c, "user not found")
+	var cmd application.CreateUserCommand
+	if err := c.ShouldBindJSON(&cmd); err != nil {
+		response.BadRequest(c, "")
 		return
 	}
+
 	cmd.UserID = currentUser.ID
 
 	id, err := h.appService.Create(platform_http.Ctx(c), cmd)
 	if err != nil {
-		logger.RuntimeL.Error("create user failed",
+		logger.IamL.Error("create user failed",
 			zap.String("username", *cmd.Username),
 			zap.Error(err),
 		)
@@ -53,27 +51,37 @@ func (h *UserHandler) Create(c *gin.Context) {
 		return
 	}
 
-	logger.Info("iam", "currentUser created successfully",
+	logger.IamL.Info("currentUser created successfully",
 		zap.Int64("user_id", id),
 		zap.String("username", *cmd.Username),
-	)
+		zap.Int64("create_by", currentUser.ID))
+
 	response.Success(c, gin.H{"id": id})
 }
 
 // Update updates a system user
 func (h *UserHandler) Update(c *gin.Context) {
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Unauthorized(c, "")
+		return
+	}
+
 	var cmd application.UpdateUserCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
 		response.BadRequest(c, "请求参数错误")
 		return
 	}
 
+	cmd.UserID = currentUser.ID
+
 	if err := h.appService.Update(platform_http.Ctx(c), cmd); err != nil {
-		logger.RuntimeL.Error("update user failed",
+		logger.IamL.Error("update user failed",
 			zap.Int64("user_id", cmd.ID),
+			zap.Int64("update_by", currentUser.ID),
 			zap.Error(err),
 		)
-		response.InternalError(c, "更新用户失败")
+		response.InternalError(c, "更新用户信息失败")
 		return
 	}
 
@@ -82,25 +90,32 @@ func (h *UserHandler) Update(c *gin.Context) {
 
 // Delete deletes a system user
 func (h *UserHandler) Delete(c *gin.Context) {
-	var param application.DeleteUserCommand
-	if err := c.ShouldBindJSON(&param); err != nil {
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Unauthorized(c, "")
+		return
+	}
+
+	var cmd application.DeleteUserCommand
+	if err := c.ShouldBindJSON(&cmd); err != nil {
 		response.BadRequest(c, "请求参数错误")
 		return
 	}
 
-	currentUser := platform_http.GetCurrentUser(c)
-	if currentUser == nil {
-		response.BadRequest(c, "user not found")
+	if cmd.ID == 0 {
+		response.BadRequest(c, "无效的ID")
 		return
 	}
 
-	param.UserID = currentUser.ID
+	cmd.UserID = currentUser.ID
 
-	if err := h.appService.Delete(platform_http.Ctx(c), &param); err != nil {
-		logger.RuntimeL.Error("delete user failed",
-			zap.Int64("user_id", param.ID),
+	if err := h.appService.Delete(platform_http.Ctx(c), &cmd); err != nil {
+		logger.IamL.Error("delete user failed",
+			zap.Int64("user_id", cmd.ID),
+			zap.Int64("delete_by", currentUser.ID),
 			zap.Error(err),
 		)
+
 		response.InternalError(c, "删除用户失败")
 		return
 	}
@@ -110,19 +125,19 @@ func (h *UserHandler) Delete(c *gin.Context) {
 
 func (h *UserHandler) GetById(c *gin.Context) {
 	idStr := c.Query("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
+	id := cast.ToInt64(idStr)
+	if id == 0 {
 		response.BadRequest(c, "无效的ID")
 		return
 	}
 
 	user, err := h.appService.GetByID(platform_http.Ctx(c), id)
 	if err != nil {
-		logger.RuntimeL.Error("get user failed",
+		logger.IamL.Error("get user failed",
 			zap.Int64("user_id", id),
 			zap.Error(err),
 		)
-		response.InternalError(c, "获取用户失败")
+		response.InternalError(c, "获取用户信息失败")
 		return
 	}
 
@@ -133,13 +148,13 @@ func (h *UserHandler) GetById(c *gin.Context) {
 func (h *UserHandler) GetByQuery(c *gin.Context) {
 	var query domain.UserQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.BadRequest(c, "请求参数错误")
+		response.BadRequest(c, "")
 		return
 	}
 
 	user, err := h.appService.GetByQuery(platform_http.Ctx(c), &query)
 	if err != nil {
-		logger.RuntimeL.Error("get user by query failed",
+		logger.IamL.Error("get user by query failed",
 			zap.Error(err),
 		)
 		response.InternalError(c, "查询用户失败")
@@ -152,7 +167,7 @@ func (h *UserHandler) GetByQuery(c *gin.Context) {
 func (h *UserHandler) GetList(c *gin.Context) {
 	list, err := h.appService.GetList(platform_http.Ctx(c))
 	if err != nil {
-		logger.RuntimeL.Error("get user list failed",
+		logger.IamL.Error("get user list failed",
 			zap.Error(err),
 		)
 		response.InternalError(c, "获取用户列表失败")
@@ -166,7 +181,7 @@ func (h *UserHandler) GetList(c *gin.Context) {
 func (h *UserHandler) GetPage(c *gin.Context) {
 	var query domain.UsersPageQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.BadRequest(c, "请求参数错误")
+		response.BadRequest(c, "")
 		return
 	}
 
@@ -174,7 +189,7 @@ func (h *UserHandler) GetPage(c *gin.Context) {
 
 	res, err := h.appService.GetPage(platform_http.Ctx(c), &query)
 	if err != nil {
-		logger.RuntimeL.Error("get user page failed",
+		logger.IamL.Error("get user page failed",
 			zap.Int("page_num", query.PageNum),
 			zap.Int("page_size", query.PageSize),
 			zap.Error(err),
@@ -205,7 +220,7 @@ func (h *UserHandler) GetPublicPage(c *gin.Context) {
 
 	res, err := h.appService.GetPage(platform_http.Ctx(c), &query)
 	if err != nil {
-		logger.RuntimeL.Error("get public user page failed",
+		logger.IamL.Error("get public user page failed",
 			zap.Int("page_num", query.PageNum),
 			zap.Int("page_size", query.PageSize),
 			zap.Error(err),
@@ -219,13 +234,13 @@ func (h *UserHandler) GetPublicPage(c *gin.Context) {
 	// 根据是否登录返回不同信息
 	if currentUser != nil {
 		// 已登录：返回增强信息
-		logger.Debug("iam", "public page accessed by authenticated user",
-			zap.Int64("user_id", currentUser.ID),
-		)
+		logger.IamL.Info("public page accessed by authenticated user", zap.Int64("user_id", currentUser.ID))
+
 		h.respondWithEnhancedUsers(c, res.Data, res.Total)
 	} else {
 		// 未登录：返回基础公开信息
-		logger.Debug("iam", "public page accessed by anonymous user")
+		logger.IamL.Info("public page accessed by anonymous user")
+
 		h.respondWithPublicUsers(c, res.Data, res.Total)
 	}
 }
@@ -289,7 +304,7 @@ func (h *UserHandler) respondWithEnhancedUsers(c *gin.Context, users []*domain.U
 func (h *UserHandler) ResetPassword(c *gin.Context) {
 	var cmd application.ChangePasswordCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "")
 		return
 	}
 
@@ -306,7 +321,11 @@ func (h *UserHandler) ResetPassword(c *gin.Context) {
 	//	仅管理员可以强制修改密码，后续需要加 force 赋值校验
 	err := h.appService.ChangePassword(platform_http.Ctx(c), &cmd)
 	if err != nil {
-		response.BadRequest(c, err.Error())
+		logger.IamL.Error("reset password failed",
+			zap.Int64("user_id", cmd.Id),
+			zap.Error(err))
+
+		response.InternalError(c, "修改密码失败")
 		return
 	}
 
@@ -317,7 +336,7 @@ func (h *UserHandler) ResetPassword(c *gin.Context) {
 func (h *UserHandler) ChangePassword(c *gin.Context) {
 	var cmd application.ChangePasswordCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
-		response.BadRequest(c, "请求参数错误")
+		response.BadRequest(c, "")
 		return
 	}
 
@@ -333,10 +352,11 @@ func (h *UserHandler) ChangePassword(c *gin.Context) {
 
 	err := h.appService.ChangePassword(platform_http.Ctx(c), &cmd)
 	if err != nil {
-		logger.RuntimeL.Error("change password failed",
+		logger.IamL.Error("change password failed",
 			zap.Int64("user_id", cmd.Id),
 			zap.Error(err),
 		)
+
 		response.InternalError(c, "修改密码失败")
 		return
 	}
@@ -353,24 +373,25 @@ func (h *UserHandler) ChangeStatus(c *gin.Context) {
 		return
 	}
 
-	idStr := c.Param("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		response.BadRequest(c, "无效的ID")
-		return
-	}
-
-	var cmd struct {
+	type changStatusRequest struct {
+		ID     int64  `json:"id"`
 		Status string `json:"status"`
 	}
+
+	var cmd changStatusRequest
 	if err := c.ShouldBindJSON(&cmd); err != nil {
-		response.BadRequest(c, "请求参数错误")
+		response.BadRequest(c, "")
 		return
 	}
 
-	if err = h.appService.ChangeUserStatus(platform_http.Ctx(c), id, domain.UserStatus(cmd.Status), currentUser.ID); err != nil {
-		logger.RuntimeL.Error("change user status failed",
-			zap.Int64("user_id", id),
+	if cmd.ID == 0 {
+		response.BadRequest(c, "id is required")
+		return
+	}
+
+	if err := h.appService.ChangeUserStatus(platform_http.Ctx(c), cmd.ID, domain.UserStatus(cmd.Status), currentUser.ID); err != nil {
+		logger.IamL.Error("change user status failed",
+			zap.Int64("user_id", cmd.ID),
 			zap.String("status", cmd.Status),
 			zap.Error(err),
 		)
@@ -378,5 +399,5 @@ func (h *UserHandler) ChangeStatus(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, nil)
+	response.Success(c, "状态修改成功")
 }

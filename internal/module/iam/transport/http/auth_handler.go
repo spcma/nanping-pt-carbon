@@ -32,16 +32,13 @@ func NewAuthHandler(appService *application.UserService, tokenManager token.Mana
 func (h *AuthHandler) Register(c *gin.Context) {
 	var cmd application.RegisterCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
-		logger.Warn("iam", "register - invalid request",
-			zap.String("error", err.Error()),
-		)
-		response.BadRequest(c, "请求参数错误")
+		response.BadRequest(c, "")
 		return
 	}
 
 	id, err := h.appService.Register(platform_http.Ctx(c), cmd)
 	if err != nil {
-		logger.RuntimeL.Error("register failed",
+		logger.IamL.Error("register failed",
 			zap.String("username", cmd.Username),
 			zap.Error(err),
 		)
@@ -50,10 +47,10 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	logger.Info("iam", "user registered successfully",
+	logger.IamL.Info("user registered successfully",
 		zap.Int64("user_id", id),
-		zap.String("username", cmd.Username),
-	)
+		zap.String("username", cmd.Username))
+
 	response.Success(c, gin.H{"id": id})
 }
 
@@ -61,16 +58,13 @@ func (h *AuthHandler) Register(c *gin.Context) {
 func (h *AuthHandler) Login(c *gin.Context) {
 	var cmd application.LoginCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
-		logger.Warn("iam", "login - invalid request",
-			zap.String("error", err.Error()),
-		)
-		response.BadRequest(c, "请求参数错误")
+		response.BadRequest(c, "")
 		return
 	}
 
 	resp, err := h.appService.Login(platform_http.Ctx(c), cmd, h.tokenManager)
 	if err != nil {
-		logger.RuntimeL.Warn("login failed",
+		logger.IamL.Error("login failed",
 			zap.String("username", cmd.Username),
 			zap.Error(err),
 		)
@@ -89,9 +83,10 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	logger.Info("iam", "user logged in successfully",
-		zap.String("username", cmd.Username),
+	logger.IamL.Info("login success",
 		zap.Int64("user_id", resp.UserInfo.ID),
-	)
+		zap.String("username", cmd.Username),
+		zap.String("token", resp.Token))
+
 	response.Success(c, resp)
 }

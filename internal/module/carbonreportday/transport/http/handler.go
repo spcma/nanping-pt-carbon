@@ -37,7 +37,7 @@ func (h *CarbonReportDayHandler) Create(c *gin.Context) {
 
 	var cmd application.CreateCarbonReportDayCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
-		response.BadRequest(c, "请求参数错误")
+		response.BadRequest(c, "")
 		return
 	}
 
@@ -45,16 +45,18 @@ func (h *CarbonReportDayHandler) Create(c *gin.Context) {
 
 	id, err := h.appService.Create(platform_http.Ctx(c), &cmd)
 	if err != nil {
-		logger.RuntimeL.Error("create carbon report day failed",
+		logger.RuntimeL.Error("create carbon_report_day failed",
 			zap.Error(err),
 		)
 		response.InternalError(c, "创建失败")
 		return
 	}
 
-	logger.Info("carbon_report_day", "carbon report day created successfully",
+	logger.RuntimeL.Info("create carbon_report_day success",
 		zap.Int64("id", id),
+		zap.Int64("create_by", cmd.UserID),
 	)
+
 	response.Success(c, gin.H{"id": id})
 }
 
@@ -68,15 +70,16 @@ func (h *CarbonReportDayHandler) Update(c *gin.Context) {
 
 	var cmd application.UpdateCarbonReportDayCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
-		response.BadRequest(c, "invalid request")
+		response.BadRequest(c, "")
 		return
 	}
 
 	cmd.UserID = currentUser.ID
 
 	if err := h.appService.Update(platform_http.Ctx(c), cmd); err != nil {
-		logger.RuntimeL.Error("update carbon report day failed",
+		logger.RuntimeL.Error("update carbon_report_day failed",
 			zap.Int64("report_id", cmd.ID),
+			zap.Int64("update_by", cmd.UserID),
 			zap.Error(err),
 		)
 		response.InternalError(c, "更新失败")
@@ -94,23 +97,19 @@ func (h *CarbonReportDayHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	var param map[string]any
-	err := c.ShouldBindJSON(&param)
-	if err != nil {
-		response.BadRequest(c, "invalid request")
+	type deleteRequest struct {
+		ID int64 `json:"id"`
+	}
+
+	var req deleteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "")
 		return
 	}
 
-	var id int64
-	if v, ok := param["id"].(int64); !ok {
-		response.BadRequest(c, "invalid id")
-		return
-	} else {
-		id = v
-	}
-
-	if err := h.appService.Delete(platform_http.Ctx(c), id, currentUser.ID); err != nil {
-		logger.RuntimeL.Error("delete carbon report day failed", zap.Error(err))
+	if err := h.appService.Delete(platform_http.Ctx(c), req.ID, currentUser.ID); err != nil {
+		logger.RuntimeL.Error("delete carbon_report_day failed",
+			zap.Error(err))
 		response.InternalError(c, "删除失败")
 		return
 	}
@@ -130,7 +129,7 @@ func (h *CarbonReportDayHandler) GetByID(c *gin.Context) {
 
 	report, err := h.appService.GetByID(platform_http.Ctx(c), id)
 	if err != nil {
-		logger.RuntimeL.Error("get carbon report day failed", zap.Error(err))
+		logger.RuntimeL.Error("get carbon_report_day failed", zap.Error(err))
 		response.InternalError(c, "获取失败")
 		return
 	}
@@ -142,7 +141,7 @@ func (h *CarbonReportDayHandler) GetByID(c *gin.Context) {
 func (h *CarbonReportDayHandler) GetPage(c *gin.Context) {
 	var query domain.CarbonReportDayPageQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.BadRequest(c, "invalid request")
+		response.BadRequest(c, "")
 		return
 	}
 
@@ -163,15 +162,15 @@ func (h *CarbonReportDayHandler) GetPage(c *gin.Context) {
 }
 
 func (h *CarbonReportDayHandler) ReportDay(c *gin.Context) {
-	type CalcDirDto struct {
+	type calcDirRequest struct {
 		RootDir    string `json:"rootDir" form:"rootDir"` // 要扫描的根目录，如 "/aibk/26/03/27"
 		Date       string `json:"date" form:"date"`       // 日期，格式 "2026-03-27"
 		ClientName string `json:"clientName" form:"clientName"`
 	}
 
-	var dto CalcDirDto
+	var dto calcDirRequest
 	if err := c.ShouldBindQuery(&dto); err != nil {
-		response.BadRequest(c, err.Error())
+		response.BadRequest(c, "")
 		return
 	}
 
@@ -192,10 +191,16 @@ func (h *CarbonReportDayHandler) ReportDay(c *gin.Context) {
 
 		turnover, err := ipfsService.CalcDir(ctx, dto.ClientName, dto.RootDir, dto.Date)
 		if err != nil {
-			logger.IpfsL.Error("calcDir failed", zap.String("rootDir", dto.RootDir), zap.String("date", dto.Date), zap.Error(err))
+			logger.IpfsL.Error("calcDir failed",
+				zap.String("rootDir", dto.RootDir),
+				zap.String("date", dto.Date),
+				zap.Error(err))
 			return
 		}
 
-		logger.IpfsL.Info("calcDir completed", zap.String("rootDir", dto.RootDir), zap.String("date", dto.Date), zap.Any("turnover", turnover["turnover"]))
+		logger.IpfsL.Info("calcDir completed",
+			zap.String("rootDir", dto.RootDir),
+			zap.String("date", dto.Date),
+			zap.Any("turnover", turnover["turnover"]))
 	}()
 }

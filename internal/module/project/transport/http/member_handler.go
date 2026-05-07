@@ -35,10 +35,7 @@ func (h *ProjectMembersHandler) Create(c *gin.Context) {
 
 	var cmd application.CreateProjectMemberCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
-		logger.Warn("project", "create project member - invalid request",
-			zap.String("error", err.Error()),
-		)
-		response.BadRequest(c, "请求参数错误")
+		response.BadRequest(c, "")
 		return
 	}
 
@@ -46,33 +43,26 @@ func (h *ProjectMembersHandler) Create(c *gin.Context) {
 
 	id, err := h.appService.CreateProjectMember(platform_http.Ctx(c), &cmd)
 	if err != nil {
-		logger.Error("project", "create project member failed",
-			zap.Int64("project_id", cmd.ProjectId),
-			zap.Int64("user_id", cmd.UserId),
-			zap.Error(err),
+		logger.RuntimeL.Error("create project member failed",
+			zap.Int64("create_by", currentUser.ID),
 		)
 		response.InternalError(c, "创建项目成员失败")
 		return
 	}
 
-	logger.Info("project", "project member created successfully",
-		zap.Int64("member_id", id),
-		zap.Int64("project_id", cmd.ProjectId),
-		zap.Int64("user_id", cmd.UserId),
+	logger.RuntimeL.Info("project member created successfully",
+		zap.Int64("id", id),
+		zap.Int64("create_by", currentUser.ID),
 	)
+
 	response.Success(c, gin.H{"id": id})
 }
 
 // Update 更新项目成员
 func (h *ProjectMembersHandler) Update(c *gin.Context) {
-	idStr := c.Query("id")
-	if idStr == "" {
-		response.BadRequest(c, "ID不能为空")
-		return
-	}
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		response.BadRequest(c, "无效的ID")
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Unauthorized(c, "")
 		return
 	}
 
@@ -81,19 +71,12 @@ func (h *ProjectMembersHandler) Update(c *gin.Context) {
 		response.BadRequest(c, "请求参数错误")
 		return
 	}
-	cmd.ID = id
-
-	// 获取操作员用户信息
-	currentUser := platform_http.GetCurrentUser(c)
-	if currentUser == nil {
-		response.Unauthorized(c, "")
-		return
-	}
-	cmd.CreateBy = currentUser.ID
+	cmd.UserID = currentUser.ID
 
 	if err := h.appService.UpdateProjectMember(platform_http.Ctx(c), cmd); err != nil {
 		logger.RuntimeL.Error("update project member failed",
-			zap.Int64("member_id", cmd.ID),
+			zap.Int64("id", cmd.ID),
+			zap.Int64("update_by", cmd.UserID),
 			zap.Error(err),
 		)
 		response.InternalError(c, "更新项目成员失败")
@@ -105,26 +88,24 @@ func (h *ProjectMembersHandler) Update(c *gin.Context) {
 
 // Delete 删除项目成员
 func (h *ProjectMembersHandler) Delete(c *gin.Context) {
-	idStr := c.Query("id")
-	if idStr == "" {
-		response.BadRequest(c, "ID不能为空")
-		return
-	}
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		response.BadRequest(c, "无效的ID")
+	currentUser := platform_http.GetCurrentUser(c)
+	if currentUser == nil {
+		response.Unauthorized(c, "")
 		return
 	}
 
-	user := platform_http.GetCurrentUser(c)
-	cmd := application.DeleteProjectMemberCommand{
-		ID:       id,
-		CreateBy: user.ID,
+	var cmd application.DeleteProjectMemberCommand
+	if err := c.ShouldBindJSON(&cmd); err != nil {
+		response.BadRequest(c, "")
+		return
 	}
+
+	cmd.UserID = currentUser.ID
 
 	if err := h.appService.DeleteProjectMember(platform_http.Ctx(c), cmd); err != nil {
 		logger.RuntimeL.Error("delete project member failed",
-			zap.Int64("member_id", cmd.ID),
+			zap.Int64("id", cmd.ID),
+			zap.Int64("delete_by", cmd.UserID),
 			zap.Error(err),
 		)
 		response.InternalError(c, "删除项目成员失败")
@@ -136,12 +117,12 @@ func (h *ProjectMembersHandler) Delete(c *gin.Context) {
 
 // GetList 获取项目成员列表
 func (h *ProjectMembersHandler) GetList(c *gin.Context) {
-	type GetByProjectIDRequest struct {
+	type getRequest struct {
 		ProjectID int64 `json:"projectId"`
 		UserID    int64 `json:"userId"`
 	}
 
-	var query GetByProjectIDRequest
+	var query getRequest
 	if err := c.ShouldBindQuery(&query); err != nil {
 		response.BadRequest(c, "请求参数错误")
 		return

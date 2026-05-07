@@ -53,9 +53,9 @@ func (s *ProjectMembersAppService) CreateProjectMember(ctx context.Context, cmd 
 
 // UpdateProjectMemberCommand 更新项目成员命令
 type UpdateProjectMemberCommand struct {
-	ID       int64  `json:"id"`
-	Role     string `json:"role"`
-	CreateBy int64  // 操作人 ID
+	ID     int64  `json:"id"`
+	Role   string `json:"role"`
+	UserID int64
 }
 
 // UpdateProjectMember 更新项目成员
@@ -70,13 +70,13 @@ func (s *ProjectMembersAppService) UpdateProjectMember(ctx context.Context, cmd 
 	}
 
 	// 调用领域行为
-	return member.UpdateRole(cmd.Role, cmd.CreateBy)
+	return member.UpdateRole(cmd.Role, cmd.UserID)
 }
 
 // DeleteProjectMemberCommand 删除项目成员命令
 type DeleteProjectMemberCommand struct {
-	ID       int64 `json:"id"`
-	CreateBy int64
+	ID     int64 `json:"id"`
+	UserID int64
 }
 
 // DeleteProjectMember 删除项目成员
@@ -91,7 +91,7 @@ func (s *ProjectMembersAppService) DeleteProjectMember(ctx context.Context, cmd 
 	}
 
 	// 调用领域行为
-	return member.Delete(cmd.CreateBy)
+	return member.Delete(cmd.UserID)
 }
 
 // GetProjectMemberByID 根据 ID 获取项目成员

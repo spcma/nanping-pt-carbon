@@ -6,10 +6,8 @@ import (
 	platform_http "app/internal/platform/http"
 	"app/internal/platform/http/response"
 	"app/internal/shared/logger"
-	"strconv"
 	"time"
 
-	"github.com/spf13/cast"
 	"go.uber.org/zap"
 
 	"github.com/gin-gonic/gin"
@@ -37,10 +35,7 @@ func (h *MethodologyHandler) Create(c *gin.Context) {
 
 	var cmd application.CreateMethodologyCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
-		logger.Warn("methodology", "create methodology - invalid request",
-			zap.String("error", err.Error()),
-		)
-		response.BadRequest(c, "请求参数错误")
+		response.BadRequest(c, "")
 		return
 	}
 
@@ -50,15 +45,17 @@ func (h *MethodologyHandler) Create(c *gin.Context) {
 	if err != nil {
 		logger.RuntimeL.Error("create methodology failed",
 			zap.String("name", cmd.Name),
+			zap.Int64("create_by", cmd.UserID),
 			zap.Error(err),
 		)
 		response.InternalError(c, "创建失败")
 		return
 	}
 
-	logger.Info("methodology", "methodology created successfully",
+	logger.RuntimeL.Info("create methodology successfully",
 		zap.Int64("methodology_id", id),
 		zap.String("name", cmd.Name),
+		zap.Int64("create_by", cmd.UserID),
 	)
 	response.Success(c, gin.H{"id": id})
 }
@@ -73,7 +70,7 @@ func (h *MethodologyHandler) Update(c *gin.Context) {
 
 	var cmd application.UpdateMethodologyCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
-		response.BadRequest(c, "请求参数错误")
+		response.BadRequest(c, "")
 		return
 	}
 
@@ -82,6 +79,7 @@ func (h *MethodologyHandler) Update(c *gin.Context) {
 	if err := h.appService.Update(platform_http.Ctx(c), cmd); err != nil {
 		logger.RuntimeL.Error("update methodology failed",
 			zap.Int64("methodology_id", cmd.UserID),
+			zap.Int64("update_by", cmd.UserID),
 			zap.Error(err),
 		)
 		response.InternalError(c, "更新失败")
@@ -100,19 +98,20 @@ func (h *MethodologyHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	type deleteDto struct {
+	type deleteRequest struct {
 		ID int64 `json:"id"`
 	}
 
-	var dto deleteDto
+	var dto deleteRequest
 	if err := c.ShouldBindJSON(&dto); err != nil {
-		response.BadRequest(c, "请求参数错误")
+		response.BadRequest(c, "")
 		return
 	}
 
 	if err := h.appService.Delete(platform_http.Ctx(c), dto.ID, currentUser.ID); err != nil {
 		logger.RuntimeL.Error("delete methodology failed",
 			zap.Int64("methodology_id", dto.ID),
+			zap.Int64("delete_by", currentUser.ID),
 			zap.Error(err),
 		)
 		response.InternalError(c, "删除失败")
@@ -124,22 +123,21 @@ func (h *MethodologyHandler) Delete(c *gin.Context) {
 
 // GetById 根据ID获取方法学
 func (h *MethodologyHandler) GetById(c *gin.Context) {
-	idStr := c.Query("id")
-	if idStr == "" {
+	var query domain.MethodologyQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.BadRequest(c, "")
+		return
+	}
+
+	if query.ID == nil {
 		response.BadRequest(c, "id is required")
 		return
 	}
 
-	id := cast.ToInt64(idStr)
-	if id == 0 {
-		response.BadRequest(c, "invalid id")
-		return
-	}
-
-	methodology, err := h.appService.GetByID(platform_http.Ctx(c), id)
+	methodology, err := h.appService.GetByID(platform_http.Ctx(c), *query.ID)
 	if err != nil {
 		logger.RuntimeL.Error("get methodology failed",
-			zap.Int64("methodology_id", id),
+			zap.Int64("methodology_id", *query.ID),
 			zap.Error(err),
 		)
 		response.InternalError(c, "获取失败")
@@ -153,7 +151,7 @@ func (h *MethodologyHandler) GetById(c *gin.Context) {
 func (h *MethodologyHandler) GetByQuery(c *gin.Context) {
 	var query domain.MethodologyQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.BadRequest(c, "请求参数错误")
+		response.BadRequest(c, "")
 		return
 	}
 
@@ -217,7 +215,7 @@ func (h *MethodologyHandler) GetList(c *gin.Context) {
 func (h *MethodologyHandler) GetPage(c *gin.Context) {
 	var query domain.MethodologyPageQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
-		response.BadRequest(c, "请求参数错误")
+		response.BadRequest(c, "")
 		return
 	}
 
@@ -246,89 +244,21 @@ func (h *MethodologyHandler) ChangeStatus(c *gin.Context) {
 		return
 	}
 
-	idStr := c.Query("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		response.BadRequest(c, "无效的ID")
-		return
-	}
-
-	var cmd struct {
-		Status string `json:"status"`
-	}
+	var cmd application.ChangeMethodologyStatusCommand
 	if err := c.ShouldBindJSON(&cmd); err != nil {
-		response.BadRequest(c, "请求参数错误")
+		response.BadRequest(c, "")
 		return
 	}
 
-	changeCmd := application.ChangeMethodologyStatusCommand{
-		ID:     id,
-		Status: domain.MethodologyStatus(cmd.Status),
-		UserID: currentUser.ID,
-	}
+	cmd.UserID = currentUser.ID
 
-	if err := h.appService.ChangeStatus(platform_http.Ctx(c), changeCmd); err != nil {
+	if err := h.appService.ChangeStatus(platform_http.Ctx(c), cmd); err != nil {
 		logger.RuntimeL.Error("change methodology status failed",
-			zap.Int64("methodology_id", id),
-			zap.String("status", cmd.Status),
+			zap.Int64("methodology_id", cmd.ID),
+			zap.String("status", string(cmd.Status)),
 			zap.Error(err),
 		)
 		response.InternalError(c, "变更状态失败")
-		return
-	}
-
-	response.Success(c, nil)
-}
-
-// Activate 启用方法学
-func (h *MethodologyHandler) Activate(c *gin.Context) {
-
-	currentUser := platform_http.GetCurrentUser(c)
-	if currentUser == nil {
-		response.Unauthorized(c, "")
-		return
-	}
-
-	idStr := c.Query("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		response.BadRequest(c, "无效的ID")
-		return
-	}
-
-	if err := h.appService.Activate(platform_http.Ctx(c), id, currentUser.ID); err != nil {
-		logger.RuntimeL.Error("activate methodology failed",
-			zap.Int64("methodology_id", id),
-			zap.Error(err),
-		)
-		response.InternalError(c, "启用失败")
-		return
-	}
-
-	response.Success(c, nil)
-}
-
-// Deactivate 禁用方法学
-func (h *MethodologyHandler) Deactivate(c *gin.Context) {
-	currentUser := platform_http.GetCurrentUser(c)
-	if currentUser == nil {
-		response.Unauthorized(c, "")
-		return
-	}
-
-	idStr := c.Query("id")
-	id, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		response.BadRequest(c, "无效的ID")
-		return
-	}
-
-	if err := h.appService.Deactivate(platform_http.Ctx(c), id, currentUser.ID); err != nil {
-		logger.RuntimeL.Error("deactivate methodology failed",
-			zap.Int64("methodology_id", id),
-			zap.Error(err),
-		)
-		response.InternalError(c, "禁用失败")
 		return
 	}
 

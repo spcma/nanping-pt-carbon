@@ -36,14 +36,12 @@ func (r *MethodologyRoutes) RegisterRoutes(group *gin.RouterGroup, middlewares m
 		methodologyGroup.Use(authMiddleware)
 	}
 	{
-		methodologyGroup.POST("", r.handler.Create)               // 创建方法学
-		methodologyGroup.PUT("", r.handler.Update)                // 更新方法学
-		methodologyGroup.DELETE("", r.handler.Delete)             // 删除方法学
-		methodologyGroup.GET("", r.handler.GetById)               // 根据ID查询
-		methodologyGroup.GET("/query", r.handler.GetByQuery)      // 综合查询
-		methodologyGroup.PUT("/status", r.handler.ChangeStatus)   // 变更状态
-		methodologyGroup.PUT("/activate", r.handler.Activate)     // 启用
-		methodologyGroup.PUT("/deactivate", r.handler.Deactivate) // 禁用
+		methodologyGroup.POST("", r.handler.Create)             // 创建方法学
+		methodologyGroup.PUT("", r.handler.Update)              // 更新方法学
+		methodologyGroup.DELETE("", r.handler.Delete)           // 删除方法学
+		methodologyGroup.GET("", r.handler.GetById)             // 根据ID查询
+		methodologyGroup.GET("/query", r.handler.GetByQuery)    // 综合查询
+		methodologyGroup.PUT("/status", r.handler.ChangeStatus) // 变更状态
 	}
 
 	// 方法学列表路由 - /api/methodologies/*

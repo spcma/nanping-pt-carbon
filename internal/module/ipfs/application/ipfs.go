@@ -89,14 +89,15 @@ type IpfsClientConfig struct {
 
 // IpfsClientInstance IPFS客户端实例
 type IpfsClientInstance struct {
-	config           *IpfsClientConfig
-	ppt              string    // 通行证
-	ppt_expire_time  time.Time // 过期时间
-	session          string    // 会话token
-	client           *rpc.LApiStub
-	guardianStop     chan struct{} // 客户端守护程序停止信号
-	reconnectTrigger chan struct{} // 重连触发信号
-	mutex            sync.Mutex    // 客户端操作互斥锁
+	config              *IpfsClientConfig
+	ppt                 string    // 通行证
+	ppt_expire_time     time.Time // 过期时间
+	session             string    // 会话token
+	session_expire_time time.Time
+	client              *rpc.LApiStub
+	guardianStop        chan struct{} // 客户端守护程序停止信号
+	reconnectTrigger    chan struct{} // 重连触发信号
+	mutex               sync.Mutex    // 客户端操作互斥锁
 }
 
 // Ipfs IPFS 服务
@@ -108,8 +109,8 @@ type IpfsService struct {
 
 var sessionInvalid = "2:session id is not safe!"
 
-// AuthForClient 对指定客户端进行认证
-func (s *IpfsService) AuthForClient(clientName ...string) error {
+// refreshSession 对指定客户端进行认证
+func (s *IpfsService) refreshSession(clientName ...string) error {
 	// 如果没有传入客户端名称，使用默认客户端
 	name := s.defaultClientName
 	if len(clientName) > 0 && clientName[0] != "" {
@@ -146,7 +147,7 @@ func (s *IpfsService) CheckDir(dir string) bool {
 
 // CheckDirForClient 检查指定客户端的目录
 func (s *IpfsService) CheckDirForClient(clientName string, dir string) bool {
-	err := s.AuthForClient(clientName)
+	err := s.refreshSession(clientName)
 	if err != nil {
 		return false
 	}
@@ -228,7 +229,7 @@ func (s *IpfsService) CreateDirForClient(clientName string, dir string) error {
 		return errors.New("目录为空")
 	}
 
-	err := s.AuthForClient(clientName)
+	err := s.refreshSession(clientName)
 	if err != nil {
 		return err
 	}
@@ -272,7 +273,7 @@ func (s *IpfsService) ListDirForClient(ctx context.Context, clientName string, d
 		return nil, errors.New("目录为空")
 	}
 
-	err := s.AuthForClient(clientName)
+	err := s.refreshSession(clientName)
 	if err != nil {
 		return nil, err
 	}
@@ -381,7 +382,7 @@ func (s *IpfsService) ScanDirForClient(clientName string, ctx context.Context, r
 
 	logger.IpfsL.Info("正在扫描目录", zap.String("client", clientName), zap.String("rootDir", rootDir))
 
-	err := s.AuthForClient(clientName)
+	err := s.refreshSession(clientName)
 	if err != nil {
 		return nil, err
 	}
@@ -506,7 +507,7 @@ func (s *IpfsService) DeleteFileForClient(clientName string, ctx context.Context
 		return errors.New("文件路径为空")
 	}
 
-	err := s.AuthForClient(clientName)
+	err := s.refreshSession(clientName)
 	if err != nil {
 		return err
 	}
@@ -700,7 +701,7 @@ func (s *IpfsService) calcDirRecursiveForClient(ctx context.Context, clientName 
 	default:
 	}
 
-	err := s.AuthForClient(clientName)
+	err := s.refreshSession(clientName)
 	if err != nil {
 		return err
 	}
@@ -999,6 +1000,51 @@ func (s *IpfsService) Close() {
 	}
 }
 
+// executeReconnectForClient 为指定客户端执行重连操作（带锁保护）
+func (s *IpfsService) executeReconnectForClient(client *IpfsClientInstance) error {
+	if client == nil {
+		return errors.New("客户端为空")
+	}
+
+	client.mutex.Lock()
+	defer client.mutex.Unlock()
+
+	if err := s.reconnectClientForClient(client); err != nil {
+		logger.IpfsL.Error("IPFS 重连失败", zap.String("client", client.config.Name), zap.Error(err))
+		return err
+	}
+
+	logger.IpfsL.Info("IPFS 重连成功", zap.String("client", client.config.Name))
+	return nil
+}
+
+// reconnectClientForClient 为指定客户端重新连接
+func (s *IpfsService) reconnectClientForClient(client *IpfsClientInstance) error {
+	if client == nil {
+		return errors.New("客户端为空")
+	}
+
+	//	获取服务连接
+	client.client = rpc.InitLApiStubByUrl(fmt.Sprintf("127.0.0.1:%d", client.config.Port))
+
+	//	刷新通行证
+	err := s.refreshPassportForClient(client)
+	if err != nil {
+		logger.IpfsL.Error("IPFS 刷新通行证失败", zap.String("client", client.config.Name), zap.Error(err))
+		return err
+	}
+
+	// 刷新session
+	err = s.refreshSession(client.config.Name)
+	if err != nil {
+		logger.IpfsL.Error("IPFS 重连登录失败", zap.String("client", client.config.Name), zap.Error(err))
+		return err
+	}
+
+	logger.IpfsL.Info("IPFS 客户端重连成功", zap.String("client", client.config.Name))
+	return nil
+}
+
 // startPassportGuardian 启动通行证自动守护程序
 // 定时检查通行证是否即将过期，并自动刷新
 func (s *IpfsService) startPassportGuardian() {
@@ -1012,7 +1058,7 @@ func (s *IpfsService) startPassportGuardianForClient(client *IpfsClientInstance)
 	}
 
 	// 每3分钟检查一次通行证状态
-	ticker := time.NewTicker(time.Minute * 3)
+	ticker := time.NewTicker(time.Minute * 5)
 	defer ticker.Stop()
 
 	logger.IpfsL.Info("通行证自动守护程序已启动", zap.String("client", client.config.Name))
@@ -1034,9 +1080,29 @@ func (s *IpfsService) startPassportGuardianForClient(client *IpfsClientInstance)
 	}
 }
 
-// refreshPassport 刷新通行证
-func (s *IpfsService) refreshPassport() error {
-	return s.refreshPassportForClient(s.clients[s.defaultClientName])
+// startPassportGuardianForClient 为指定客户端启动通行证自动守护程序
+func (s *IpfsService) startSessionGuardianForClient(client *IpfsClientInstance) {
+	if client == nil {
+		return
+	}
+
+	// 每3分钟检查一次通行证状态
+	ticker := time.NewTicker(time.Minute * 5)
+	defer ticker.Stop()
+
+	logger.IpfsL.Info("Session自动守护程序已启动", zap.String("client", client.config.Name))
+
+	for range ticker.C {
+		if client.session_expire_time.Before(time.Now()) {
+			logger.IpfsL.Info("会话即将过期，正在自动刷新...", zap.String("client", client.config.Name))
+			err := s.refreshSession(client.config.Name)
+			if err != nil {
+				logger.IpfsL.Error("自动刷新会话失败", zap.String("client", client.config.Name), zap.Error(err))
+				continue
+			}
+			logger.IpfsL.Info("会话自动刷新成功", zap.String("client", client.config.Name))
+		}
+	}
 }
 
 // refreshPassportForClient 为指定客户端刷新通行证
@@ -1052,21 +1118,12 @@ func (s *IpfsService) refreshPassportForClient(client *IpfsClientInstance) error
 	}
 
 	client.ppt = passport
-	client.ppt_expire_time = time.Now().Add(time.Hour) // 一小时过期
+	client.ppt_expire_time = time.Now().Add(time.Hour * 24 * 7) // 通行证7天过期
 
-	logger.IpfsL.Info("通行证已刷新",
+	logger.IpfsL.Info("IPFS passport refresh success",
 		zap.String("client", client.config.Name),
 		zap.Time("expire_time", client.ppt_expire_time))
 	return nil
-}
-
-// startClientGuardian 启动客户端连接守护程序
-// 定时检测连接状态，发现断开自动重连
-func (s *IpfsService) startClientGuardian() {
-	client := s.clients[s.defaultClientName]
-	if client != nil {
-		s.startClientGuardianForClient(client)
-	}
 }
 
 // startClientGuardianForClient 为指定客户端启动连接守护程序
@@ -1119,61 +1176,6 @@ func (s *IpfsService) startClientGuardianForClient(client *IpfsClientInstance) {
 			s.executeReconnectForClient(client)
 		}
 	}
-}
-
-// executeReconnect 执行重连操作（带锁保护）
-func (s *IpfsService) executeReconnect() {
-	client := s.clients[s.defaultClientName]
-	if client != nil {
-		s.executeReconnectForClient(client)
-	}
-}
-
-// executeReconnectForClient 为指定客户端执行重连操作（带锁保护）
-func (s *IpfsService) executeReconnectForClient(client *IpfsClientInstance) {
-	if client == nil {
-		return
-	}
-
-	client.mutex.Lock()
-	defer client.mutex.Unlock()
-
-	if err := s.reconnectClientForClient(client); err != nil {
-		logger.IpfsL.Error("IPFS 重连失败", zap.String("client", client.config.Name), zap.Error(err))
-	} else {
-		logger.IpfsL.Info("IPFS 重连成功", zap.String("client", client.config.Name))
-	}
-}
-
-// reconnectClient 重新连接客户端
-func (s *IpfsService) reconnectClient() error {
-	return s.reconnectClientForClient(s.clients[s.defaultClientName])
-}
-
-// reconnectClientForClient 为指定客户端重新连接
-func (s *IpfsService) reconnectClientForClient(client *IpfsClientInstance) error {
-	if client == nil {
-		return errors.New("客户端为空")
-	}
-
-	// 获取服务连接
-	client.client = rpc.InitLApiStubByUrl(fmt.Sprintf("127.0.0.1:%d", client.config.Port))
-
-	// 使用通行证登录获取新 session
-	err := s.AuthForClient(client.config.Name)
-	if err != nil {
-		logger.IpfsL.Error("IPFS 重连登录失败", zap.String("client", client.config.Name), zap.Error(err))
-		return err
-	}
-
-	logger.IpfsL.Info("IPFS 客户端重连成功", zap.String("client", client.config.Name))
-	return nil
-}
-
-// TriggerReconnect 触发立即重连（供其他方法调用）
-// 当其他方法检测到连接断开时，可以调用此方法立即触发重连
-func (s *IpfsService) TriggerReconnect() {
-	s.TriggerReconnectForClient(s.defaultClientName)
 }
 
 // TriggerReconnectForClient 触发指定客户端立即重连
@@ -1241,39 +1243,50 @@ func (s *IpfsService) InitClient(config *IpfsClientConfig) error {
 
 	// 创建客户端实例
 	client := &IpfsClientInstance{
-		config:          config,
-		ppt_expire_time: time.Now().Add(time.Hour),
+		config: config,
 	}
 
-	// 获取通行证
-	err := s.refreshPassportForClient(client)
-	if err != nil {
-		return fmt.Errorf("获取通行证失败: %v", err)
-	}
-
-	// 初始化RPC客户端
-	client.client = rpc.InitLApiStubByUrl(fmt.Sprintf("127.0.0.1:%d", config.Port))
-
-	// 先将客户端存储到映射中，以便后续认证时可以找到
 	s.clients[config.Name] = client
 
-	// 登录获取session（此时client已经在s.clients中）
-	err = s.AuthForClient(config.Name)
+	err := s.executeReconnectForClient(client)
 	if err != nil {
-		// 登录失败，从映射中移除
+		logger.IpfsL.Error("初始化客户端失败", zap.String("name", config.Name), zap.Error(err))
 		delete(s.clients, config.Name)
-		return fmt.Errorf("登录失败: %v", err)
+		return fmt.Errorf("初始化客户端失败: %v", err)
 	}
-
-	//	开启自动刷新session的守护程序
-	go s.startPassportGuardianForClient(client)
 
 	// 初始化通道
 	client.guardianStop = make(chan struct{})
 	client.reconnectTrigger = make(chan struct{}, 1)
 
+	//// 获取通行证
+	//err := s.refreshPassportForClient(client)
+	//if err != nil {
+	//	return fmt.Errorf("获取通行证失败: %v", err)
+	//}
+	//
+	//// 初始化RPC客户端
+	//client.client = rpc.InitLApiStubByUrl(fmt.Sprintf("127.0.0.1:%d", config.Port))
+	//
+	//// 先将客户端存储到映射中，以便后续认证时可以找到
+	//s.clients[config.Name] = client
+	//
+	//// 登录获取session（此时client已经在s.clients中）
+	//err = s.refreshSession(config.Name)
+	//if err != nil {
+	//	// 登录失败，从映射中移除
+	//	delete(s.clients, config.Name)
+	//	return fmt.Errorf("登录失败: %v", err)
+	//}
+
 	// 启动守护程序
 	go s.startClientGuardianForClient(client)
+
+	//	开启自动刷新ppt
+	go s.startPassportGuardianForClient(client)
+
+	//	开启自动刷新session
+	go s.startSessionGuardianForClient(client)
 
 	logger.IpfsL.Info("IPFS客户端初始化成功",
 		zap.String("name", config.Name),
@@ -1290,11 +1303,6 @@ func (s *IpfsService) getClient(name string) (*IpfsClientInstance, error) {
 		return nil, fmt.Errorf("客户端不存在: %s", name)
 	}
 	return client, nil
-}
-
-// GetClient 公开方法：获取指定名称的客户端
-func (s *IpfsService) GetClient(name string) (*IpfsClientInstance, error) {
-	return s.getClient(name)
 }
 
 // GetAllClients 获取所有客户端

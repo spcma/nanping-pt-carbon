@@ -47,14 +47,11 @@ func (r *ProjectRoutes) RegisterRoutes(group *gin.RouterGroup, middlewares map[s
 	projectGroup.POST("", r.handler.Create)             // 创建项目
 	projectGroup.PUT("", r.handler.Update)              // 更新项目
 	projectGroup.DELETE("", r.handler.Delete)           // 删除项目
-	projectGroup.GET("/id", r.handler.GetByID)          // 根据ID查询
+	projectGroup.GET("", r.handler.GetByID)             // 根据ID查询
 	projectGroup.GET("/query", r.handler.GetByQuery)    // 条件查询
 	projectGroup.GET("/list", r.handler.GetList)        // 列表
 	projectGroup.GET("/page", r.handler.GetPage)        // 分页
 	projectGroup.PUT("/status", r.handler.ChangeStatus) // 变更状态
-	projectGroup.PUT("/activate", r.handler.Activate)   // 激活项目
-	projectGroup.PUT("/complete", r.handler.Complete)   // 完成项目
-	projectGroup.PUT("/cancel", r.handler.Cancel)       // 取消项目
 
 	// 项目成员路由组
 	memberGroup := group.Group("/project-members")
