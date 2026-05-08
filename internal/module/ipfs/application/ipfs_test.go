@@ -2,8 +2,12 @@ package application
 
 import (
 	"encoding/json"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/dromara/carbon/v2"
 )
 
 func TestIpfsTime(t *testing.T) {
@@ -29,18 +33,14 @@ func TestIpfsTime(t *testing.T) {
 	}
 }
 
-func TestTime(t *testing.T) {
-	port, err := parseDirByPort(4080)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Log(port)
-
-	port, err = parseDirByPort(4800)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	t.Log(port)
+func TestA(t *testing.T) {
+	saveContent := strings.Builder{}
+	saveContent.WriteString(carbon.Now().ToDateString())
+	saveContent.WriteString("\t")
+	saveContent.WriteString(fmt.Sprintf("%25.4f", 2.2222222))
+	saveContent.WriteString("\t")
+	saveContent.WriteString(fmt.Sprintf("%20.4f", baseline))
+	saveContent.WriteString("\t")
+	saveContent.WriteString(fmt.Sprintf("%25.4f", 2.2222222))
+	t.Log(saveContent.String())
 }

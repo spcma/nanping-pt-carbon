@@ -5,6 +5,7 @@ import (
 	ipfs_application "app/internal/module/ipfs/application"
 	"app/internal/module/scheduler"
 	"app/internal/shared/logger"
+	"app/internal/shared/timeutil"
 	"context"
 	"time"
 
@@ -76,6 +77,9 @@ func RegisterTask() {
 		}
 		if val, ok := report["traceCode"].(string); ok {
 			cmd.TraceCode = val
+		}
+		if val, ok := report["collectionDate"].(timeutil.Time); ok {
+			cmd.CollectionDate = val
 		}
 
 		_, err = dayService.Create(ctx, cmd)

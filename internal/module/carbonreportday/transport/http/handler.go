@@ -7,6 +7,7 @@ import (
 	platform_http "app/internal/platform/http"
 	"app/internal/platform/http/response"
 	"app/internal/shared/logger"
+	"app/internal/shared/timeutil"
 	"context"
 
 	"github.com/spf13/cast"
@@ -214,6 +215,9 @@ func (h *CarbonReportDayHandler) ReportDay(c *gin.Context) {
 		}
 		if val, ok := report["traceCode"].(string); ok {
 			cmd.TraceCode = val
+		}
+		if val, ok := report["collectionDate"].(timeutil.Time); ok {
+			cmd.CollectionDate = val
 		}
 
 		_, err = h.appService.Create(ctx, cmd)

@@ -629,21 +629,20 @@ func (s *IpfsService) CalcDir(ctx context.Context, clientName string, rootDir st
 	saveContent := strings.Builder{}
 	saveContent.WriteString(now.ToDateString())
 	saveContent.WriteString("\t")
-	saveContent.WriteString(cast.ToString(totalTurnover))
+	saveContent.WriteString(fmt.Sprintf("%25.6f", totalTurnover))
 	saveContent.WriteString("\t")
-	saveContent.WriteString(cast.ToString(baseline))
+	saveContent.WriteString(fmt.Sprintf("%20.6f", baseline))
 	saveContent.WriteString("\t")
-	saveContent.WriteString(cast.ToString(value))
+	saveContent.WriteString(fmt.Sprintf("%25.6f", value))
 
 	ipfsid, err := s.SaveContentToIpfs(saveContent.String(), saveDir, filename)
 	if err != nil {
 		logger.IpfsL.Error("save content to ipfs failed", zap.Float64("cost", time.Now().Sub(cst).Minutes()), zap.Error(err))
-		return nil, err
 	}
 
 	maps := make(map[string]any)
 	maps["turnover"] = totalTurnover
-	maps["collection_date"] = timeutil.Now(now.StdTime())
+	maps["collectionDate"] = timeutil.Now(now.StdTime())
 	maps["hash"] = statInfo.Hash
 	maps["carbonReduction"] = value
 	maps["baseline"] = baseline
