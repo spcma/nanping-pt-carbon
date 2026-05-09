@@ -201,7 +201,7 @@ func (h *CarbonReportDayHandler) ReportDay(c *gin.Context) {
 
 		cmd := &application.CreateCarbonReportDayCommand{}
 
-		if val, ok := report["totalTurnover"].(float64); ok {
+		if val, ok := report["turnover"].(float64); ok {
 			cmd.Turnover = val
 		}
 		if val, ok := report["baseline"].(float64); ok {

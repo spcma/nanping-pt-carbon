@@ -63,7 +63,7 @@ func RegisterTask() {
 
 		cmd := &application.CreateCarbonReportDayCommand{}
 
-		if val, ok := report["totalTurnover"].(float64); ok {
+		if val, ok := report["turnover"].(float64); ok {
 			cmd.Turnover = val
 		}
 		if val, ok := report["baseline"].(float64); ok {
@@ -138,7 +138,7 @@ func RegisterTask() {
 
 		cmd := &application.CreateCarbonReportDayCommand{}
 
-		if val, ok := report["totalTurnover"].(float64); ok {
+		if val, ok := report["turnover"].(float64); ok {
 			cmd.Turnover = val
 		}
 		if val, ok := report["baseline"].(float64); ok {
@@ -152,6 +152,9 @@ func RegisterTask() {
 		}
 		if val, ok := report["traceCode"].(string); ok {
 			cmd.TraceCode = val
+		}
+		if val, ok := report["collectionDate"].(timeutil.Time); ok {
+			cmd.CollectionDate = val
 		}
 
 		_, err = dayService.Create(ctx, cmd)
