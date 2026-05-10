@@ -313,7 +313,7 @@ func (s *IpfsService) SaveFileToLocal(clientName, filePath, localPath string) er
 // SaveFileToLocalForClient 为指定客户端将 IPFS 文件保存到本地
 func (s *IpfsService) SaveFileToLocalForClient(clientName string, filePath, localPath string) error {
 
-	logger.IpfsL.Info("save file to local", zap.String("client", clientName), zap.String("file", filePath))
+	//logger.IpfsL.Info("save file to local", zap.String("client", clientName), zap.String("file", filePath))
 
 	data, _, err := s.ReadFileFromIpfsForClient(clientName, filePath)
 	if err != nil {

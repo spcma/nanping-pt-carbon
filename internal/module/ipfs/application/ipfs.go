@@ -131,6 +131,13 @@ func (s *IpfsService) refreshSession(clientName ...string) error {
 	// 获取会话通信证, 1h 内没有操作则默认失效
 	loginReply, err := client.client.LoginWithPPT(client.ppt)
 	if err != nil {
+		if strings.Contains(err.Error(), "signature has expired at") {
+			//	签名已过期
+			err = s.refreshPassportForClient(client)
+			if err != nil {
+				return err
+			}
+		}
 		logger.IpfsL.Error("IPFS login failed", zap.String("client", name), zap.Error(err))
 		return err
 	}
@@ -706,7 +713,7 @@ func (s *IpfsService) calcDirRecursiveForClient(ctx context.Context, clientName 
 		return nil
 	}
 
-	logger.IpfsL.Info("正在扫描目录", zap.String("client", clientName), zap.String("dir", dir), zap.Int("depth", depth))
+	//logger.IpfsL.Info("正在扫描目录", zap.String("client", clientName), zap.String("dir", dir), zap.Int("depth", depth))
 
 	client, err := s.getClient(clientName)
 	if err != nil {
@@ -723,10 +730,10 @@ func (s *IpfsService) calcDirRecursiveForClient(ctx context.Context, clientName 
 	var fileTasks []FileTask
 
 	for i, link := range lsLinks {
-
-		logger.IpfsRateL.Info(fmt.Sprintf("正在处理目录，当前进度 %d/%d", i, len(lsLinks)),
-			zap.String("dir", dir),
-			zap.String("date", date))
+		_ = i
+		//logger.IpfsRateL.Info(fmt.Sprintf("正在处理目录，当前进度 %d/%d", i, len(lsLinks)),
+		//	zap.String("dir", dir),
+		//	zap.String("date", date))
 
 		fullPath := path.Join(dir, link.Name)
 
@@ -769,11 +776,11 @@ func (s *IpfsService) calcDirRecursiveForClient(ctx context.Context, clientName 
 
 			// 如果子目录有计算结果，记录到设备结果中
 			if deviceResult, ok := result.DeviceResults[deviceCode]; ok && deviceResult != nil {
-				logger.IpfsL.Info("设备计算完成",
-					zap.String("device_code", deviceCode),
-					zap.Float64("turnover", deviceResult.Turnover),
-					zap.Int("file_count", deviceResult.FileCount),
-				)
+				//logger.IpfsL.Info("设备计算完成",
+				//	zap.String("device_code", deviceCode),
+				//	zap.Float64("turnover", deviceResult.Turnover),
+				//	zap.Int("file_count", deviceResult.FileCount),
+				//)
 			}
 		default:
 			logger.IpfsL.Warn("未知的文件类型", zap.String("dir", dir), zap.String("name", link.Name))
@@ -790,11 +797,11 @@ func (s *IpfsService) calcDirRecursiveForClient(ctx context.Context, clientName 
 
 // processFilesSequential 串行处理文件任务
 func (s *IpfsService) processFilesSequential(ctx context.Context, clientName string, traceCode string, tasks []FileTask, startTime string, endTime string, result *CalcDirResult) {
-	taskCount := len(tasks)
-	logger.IpfsL.Info("开始串行处理文件",
-		zap.Int("totalTasks", taskCount),
-		zap.String("traceCode", traceCode),
-	)
+	//taskCount := len(tasks)
+	//logger.IpfsL.Info("开始串行处理文件",
+	//	zap.Int("totalTasks", taskCount),
+	//	zap.String("traceCode", traceCode),
+	//)
 
 	// 串行处理每个文件任务
 	var processedCount int
@@ -830,16 +837,16 @@ func (s *IpfsService) processFilesSequential(ctx context.Context, clientName str
 		result.DeviceResults[deviceCode].FileCount++
 		result.TotalTurnover += turnover
 
-		logger.IpfsL.Info("文件处理完成",
-			zap.String("file", task.FileName),
-			zap.String("device_code", deviceCode),
-			zap.Float64("turnover", turnover),
-			zap.Int("progress", processedCount),
-			zap.Int("total", taskCount),
-		)
+		//logger.IpfsL.Info("文件处理完成",
+		//	zap.String("file", task.FileName),
+		//	zap.String("device_code", deviceCode),
+		//	zap.Float64("turnover", turnover),
+		//	zap.Int("progress", processedCount),
+		//	zap.Int("total", taskCount),
+		//)
 	}
 
-	logger.IpfsL.Info("串行处理文件完成", zap.Int("processedCount", processedCount), zap.Int("totalTasks", taskCount))
+	//logger.IpfsL.Info("串行处理文件完成", zap.Int("processedCount", processedCount), zap.Int("totalTasks", taskCount))
 }
 
 // extractDeviceCodeFromPath 从路径中提取设备编码
@@ -855,14 +862,14 @@ func (s *IpfsService) extractDeviceCodeFromPath(filePath string) string {
 
 // processGpsFile 处理单个 GPS 文件，返回该文件的周转量
 func (s *IpfsService) processGpsFile(ctx context.Context, clientName string, fullPath string, fileName string, deviceCode string, startTime string, endTime string, traceCode string) (float64, error) {
-	st := time.Now()
+	//st := time.Now()
 	localPath := "./tempfile/" + fileName
 	err := s.SaveFileToLocal(clientName, fullPath, localPath)
 	if err != nil {
 		logger.IpfsL.Error("save file to local failed", zap.String("file", fileName), zap.Error(err))
 		return 0, err
 	}
-	logger.IpfsL.Info("download file done", zap.String("file", fileName), zap.Duration("cost", time.Since(st)))
+	//logger.IpfsL.Info("download file done", zap.String("file", fileName), zap.Duration("cost", time.Since(st)))
 
 	records, err := parseFile(localPath)
 	if err != nil {
@@ -876,19 +883,19 @@ func (s *IpfsService) processGpsFile(ctx context.Context, clientName string, ful
 		logger.IpfsL.Error("remove local file failed", zap.String("file", fileName), zap.Error(err))
 	}
 
-	logger.IpfsL.Info("parse file", zap.String("file", fileName), zap.Int("count", len(records)))
+	//logger.IpfsL.Info("parse file", zap.String("file", fileName), zap.Int("count", len(records)))
 
 	// 计算里程
 	calculator := NewDistanceCalculator()
 	summary := calculator.CalculateSummary(records)
 
-	logger.IpfsL.Info("distance calculation",
-		zap.String("file", fileName),
-		zap.Float64("total_distance_m", summary.TotalDistance),
-		zap.Float64("total_distance_km", summary.TotalDistanceKm),
-		zap.Int("point_count", summary.PointCount),
-		zap.Float64("avg_speed_kmh", summary.AverageSpeed),
-	)
+	//logger.IpfsL.Info("distance calculation",
+	//	zap.String("file", fileName),
+	//	zap.Float64("total_distance_m", summary.TotalDistance),
+	//	zap.Float64("total_distance_km", summary.TotalDistanceKm),
+	//	zap.Int("point_count", summary.PointCount),
+	//	zap.Float64("avg_speed_kmh", summary.AverageSpeed),
+	//)
 
 	//	解析文件名 获取时间戳
 	timestamp := strings.TrimSuffix(strings.TrimPrefix(fileName, "gps_"), ".txt")
@@ -960,7 +967,7 @@ func (s *IpfsService) ReadDirTestForClient(clientName string, path string) error
 		return err
 	}
 
-	logger.IpfsL.Info("ipfs ls done", zap.Int("count", len(lsLinks)))
+	//logger.IpfsL.Info("ipfs ls done", zap.Int("count", len(lsLinks)))
 
 	for _, link := range lsLinks {
 		if link.Type == 0 { // 1 dir 0 file
@@ -1058,7 +1065,7 @@ func (s *IpfsService) startPassportGuardianForClient(client *IpfsClientInstance)
 	logger.IpfsL.Info("通行证自动守护程序已启动", zap.String("client", client.config.Name))
 
 	for range ticker.C {
-		if client.ppt != "" && client.ppt_expire_time.Before(time.Now()) {
+		if client.ppt_expire_time.Before(time.Now()) {
 			logger.IpfsL.Info("通行证即将过期，正在自动刷新...", zap.String("client", client.config.Name))
 
 			// 重新获取通行证
@@ -1112,7 +1119,7 @@ func (s *IpfsService) refreshPassportForClient(client *IpfsClientInstance) error
 	}
 
 	client.ppt = passport
-	client.ppt_expire_time = time.Now().Add(time.Hour * 24 * 7) // 通行证7天过期
+	client.ppt_expire_time = time.Now().Add(time.Hour) // 通行证7天过期
 
 	logger.IpfsL.Info("IPFS passport refresh success",
 		zap.String("client", client.config.Name),
