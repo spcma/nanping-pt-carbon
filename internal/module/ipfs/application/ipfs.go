@@ -945,8 +945,7 @@ func (s *IpfsService) processGpsFile(ctx context.Context, clientName string, ful
 
 	err = db.GetDB(ctx).Model(&carbonreportdetail.CarbonReportDetail{}).Create(detail).Error
 	if err != nil {
-		logger.IpfsL.Error("save carbonreportdetail failed", zap.Error(err))
-		return 0, err
+		logger.IpfsL.Error("save carbonreportdetail failed", zap.Any("detail", detail), zap.Error(err))
 	}
 
 	return deviceTurnover, nil
