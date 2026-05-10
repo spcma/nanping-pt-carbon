@@ -730,10 +730,12 @@ func (s *IpfsService) calcDirRecursiveForClient(ctx context.Context, clientName 
 	var fileTasks []FileTask
 
 	for i, link := range lsLinks {
-		_ = i
-		//logger.IpfsRateL.Info(fmt.Sprintf("正在处理目录，当前进度 %d/%d", i, len(lsLinks)),
-		//	zap.String("dir", dir),
-		//	zap.String("date", date))
+
+		if depth == 0 {
+			logger.IpfsRateL.Info(fmt.Sprintf("正在处理目录，当前进度 %d/%d", i, len(lsLinks)),
+				zap.String("dir", dir),
+				zap.String("date", date))
+		}
 
 		fullPath := path.Join(dir, link.Name)
 
