@@ -140,7 +140,7 @@ func (h *CarbonReportDayHandler) GetByID(c *gin.Context) {
 
 // GetPage 分页查询碳日报
 func (h *CarbonReportDayHandler) GetPage(c *gin.Context) {
-	var query domain.CarbonReportDayPageQuery
+	var query domain.CarbonReportDayLatestPageQuery
 	if err := c.ShouldBindQuery(&query); err != nil {
 		response.BadRequest(c, "")
 		return
@@ -148,9 +148,33 @@ func (h *CarbonReportDayHandler) GetPage(c *gin.Context) {
 
 	query.Fixed()
 
-	res, err := h.appService.GetPage(platform_http.Ctx(c), &query)
+	res, err := h.appService.GetLatestByDatePage(platform_http.Ctx(c), &query)
 	if err != nil {
 		logger.RuntimeL.Error("get carbon report day page failed",
+			zap.Int("page_num", query.PageNum),
+			zap.Int("page_size", query.PageSize),
+			zap.Error(err),
+		)
+		response.InternalError(c, "获取失败")
+		return
+	}
+
+	response.Success(c, res)
+}
+
+// GetLatestByDatePage 按日期分组查询每天最新的记录
+func (h *CarbonReportDayHandler) GetLatestByDatePage(c *gin.Context) {
+	var query domain.CarbonReportDayLatestPageQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		response.BadRequest(c, "")
+		return
+	}
+
+	query.Fixed()
+
+	res, err := h.appService.GetLatestByDatePage(platform_http.Ctx(c), &query)
+	if err != nil {
+		logger.RuntimeL.Error("get latest carbon report day by date page failed",
 			zap.Int("page_num", query.PageNum),
 			zap.Int("page_size", query.PageSize),
 			zap.Error(err),

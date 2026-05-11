@@ -48,7 +48,8 @@ func (r *CarbonReportDayRoutes) RegisterRoutes(group *gin.RouterGroup, middlewar
 		carbonReportDaysGroup.Use(authMiddleware)
 	}
 	{
-		carbonReportDaysGroup.GET("/page", r.handler.GetPage)     // 分页查询
-		carbonReportDaysGroup.GET("/report", r.handler.ReportDay) // 分页查询
+		carbonReportDaysGroup.GET("/page", r.handler.GetPage)                            // 分页查询
+		carbonReportDaysGroup.GET("/latest-by-date-page", r.handler.GetLatestByDatePage) // 按日期分组查询每天最新的记录
+		carbonReportDaysGroup.GET("/report", r.handler.ReportDay)                        // 分页查询
 	}
 }

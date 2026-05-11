@@ -108,3 +108,8 @@ func (s *CarbonReportDayService) GetPage(ctx context.Context, query *domain.Carb
 func (s *CarbonReportDayService) FindByMonth(ctx context.Context, year int, month int) ([]*domain.CarbonReportDay, error) {
 	return s.repo.FindByMonth(ctx, year, month)
 }
+
+// GetLatestByDatePage 按日期分组查询每天最新的记录
+func (s *CarbonReportDayService) GetLatestByDatePage(ctx context.Context, query *domain.CarbonReportDayLatestPageQuery) (*entity.PaginationResult[*domain.CarbonReportDay], error) {
+	return s.repo.FindLatestByDatePage(ctx, query)
+}
