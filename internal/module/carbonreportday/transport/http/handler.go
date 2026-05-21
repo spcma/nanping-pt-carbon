@@ -10,6 +10,7 @@ import (
 	"app/internal/shared/timeutil"
 	"context"
 
+	"github.com/dromara/carbon/v2"
 	"github.com/spf13/cast"
 	"go.uber.org/zap"
 
@@ -254,6 +255,82 @@ func (h *CarbonReportDayHandler) ReportDay(c *gin.Context) {
 			zap.String("rootDir", dto.RootDir),
 			zap.String("date", dto.Date),
 			zap.Any("turnover", report["turnover"]))
+	}()
+
+	response.Success(c, "计算任务已启动，请稍后查看结果")
+}
+
+func (h *CarbonReportDayHandler) ReportPart(c *gin.Context) {
+	startTime := carbon.Parse("2026-01-01 00:00:00", carbon.Shanghai)
+	endTime := startTime.Copy().AddMonths(3)
+
+	count := 0
+
+	go func() {
+		for startTime.StdTime().Before(endTime.StdTime()) {
+			if count > 200 {
+				return
+			}
+			count++
+			ctx := context.Background()
+
+			ipfsService := ipfs_application.Ipfs()
+
+			curDate := startTime.StdTime().Format("2006-01-02")
+
+			port, err2 := ipfsService.ParseDirByPort(4080, startTime.StdTime())
+			if err2 != nil {
+				logger.IpfsL.Error("parseDirByPort failed",
+					zap.Int("port", 4080),
+					zap.Time("date", startTime.StdTime()),
+					zap.Error(err2))
+				return
+			}
+
+			startTime = startTime.AddDay()
+
+			report, err := ipfsService.CalcDir(ctx, "4080", port, curDate)
+			if err != nil {
+				logger.IpfsL.Error("calcDir failed",
+					zap.String("rootDir", port),
+					zap.String("date", curDate),
+					zap.Error(err))
+				continue
+			}
+
+			cmd := &application.CreateCarbonReportDayCommand{}
+
+			if val, ok := report["turnover"].(float64); ok {
+				cmd.Turnover = val
+			}
+			if val, ok := report["baseline"].(float64); ok {
+				cmd.Baseline = val
+			}
+			if val, ok := report["carbonReduce"].(float64); ok {
+				cmd.CarbonReduction = val
+			}
+			if val, ok := report["hash"].(string); ok {
+				cmd.Hash = val
+			}
+			if val, ok := report["traceCode"].(string); ok {
+				cmd.TraceCode = val
+			}
+			if val, ok := report["collectionDate"].(timeutil.Time); ok {
+				cmd.CollectionDate = val
+			}
+
+			_, err = h.appService.Create(ctx, cmd)
+			if err != nil {
+				logger.SchedulerL.Error("碳日报创建失败", zap.Error(err))
+				return
+			}
+
+			logger.IpfsL.Info("calcDir completed",
+				zap.String("rootDir", port),
+				zap.String("date", curDate),
+				zap.Any("turnover", report["turnover"]))
+
+		}
 	}()
 
 	response.Success(c, "计算任务已启动，请稍后查看结果")
