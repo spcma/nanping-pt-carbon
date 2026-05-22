@@ -38,6 +38,7 @@ type CreateCarbonReportDayCommand struct {
 	Hash            string        `json:"hash"`
 	UserID          int64         `json:"userId"`
 	Turnover        float64       `json:"turnover"`
+	Mileage         float64       `json:"mileage"`
 	Baseline        float64       `json:"baseline"`
 	CarbonReduction float64       `json:"carbonReduction"`
 	CollectionDate  timeutil.Time `json:"collection_date"`
@@ -52,7 +53,7 @@ func (s *CarbonReportDayService) Create(ctx context.Context, cmd *CreateCarbonRe
 			CreateTime: timeutil.Now(),
 		},
 		TraceCode:       cmd.TraceCode,
-		Mileage:         0,
+		Mileage:         cmd.Mileage,
 		Turnover:        cmd.Turnover,
 		CollectionDate:  cmd.CollectionDate,
 		Hash:            cmd.Hash,

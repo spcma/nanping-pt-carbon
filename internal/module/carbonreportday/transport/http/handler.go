@@ -229,6 +229,9 @@ func (h *CarbonReportDayHandler) ReportDay(c *gin.Context) {
 		if val, ok := report["turnover"].(float64); ok {
 			cmd.Turnover = val
 		}
+		if val, ok := report["mileage"].(float64); ok {
+			cmd.Mileage = val
+		}
 		if val, ok := report["baseline"].(float64); ok {
 			cmd.Baseline = val
 		}
@@ -261,8 +264,8 @@ func (h *CarbonReportDayHandler) ReportDay(c *gin.Context) {
 }
 
 func (h *CarbonReportDayHandler) ReportPart(c *gin.Context) {
-	startTime := carbon.Parse("2026-01-01 00:00:00", carbon.Shanghai)
-	endTime := startTime.Copy().AddMonths(3)
+	startTime := carbon.Parse("2026-02-17 00:00:00", carbon.Shanghai)
+	endTime := startTime.Copy().AddDays(40)
 
 	count := 0
 
@@ -302,6 +305,9 @@ func (h *CarbonReportDayHandler) ReportPart(c *gin.Context) {
 
 			if val, ok := report["turnover"].(float64); ok {
 				cmd.Turnover = val
+			}
+			if val, ok := report["mileage"].(float64); ok {
+				cmd.Mileage = val
 			}
 			if val, ok := report["baseline"].(float64); ok {
 				cmd.Baseline = val

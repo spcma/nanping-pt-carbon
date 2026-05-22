@@ -621,6 +621,7 @@ func (s *IpfsService) CalcDir(ctx context.Context, clientName string, rootDir st
 	}
 
 	totalTurnover := result.TotalTurnover
+	totalMileage := result.Mileage
 
 	//	XX 日总周转量
 	logger.IpfsL.Info(fmt.Sprintf("%s, 总周转量为：%.4f", date, totalTurnover))
@@ -654,6 +655,7 @@ func (s *IpfsService) CalcDir(ctx context.Context, clientName string, rootDir st
 	maps["carbonReduction"] = value
 	maps["baseline"] = baseline
 	maps["traceCode"] = traceCode
+	maps["mileage"] = totalMileage
 
 	logger.IpfsL.Info("save content to ipfs done", zap.String("ipfs_id", ipfsid), zap.Float64("cost", time.Now().Sub(cst).Minutes()))
 
@@ -663,6 +665,7 @@ func (s *IpfsService) CalcDir(ctx context.Context, clientName string, rootDir st
 // CalcDirResult 计算结果汇总
 type CalcDirResult struct {
 	TotalTurnover float64
+	Mileage       float64
 	DeviceResults map[string]*DeviceCalcResult // deviceCode -> result
 }
 
@@ -821,7 +824,7 @@ func (s *IpfsService) processFilesSequential(ctx context.Context, clientName str
 		}
 
 		// 处理文件
-		turnover, err := s.processGpsFile(ctx, clientName, task.FullPath, task.FileName, task.DeviceCode, startTime, endTime, traceCode)
+		turnover, mileage, err := s.processGpsFile(ctx, clientName, task.FullPath, task.FileName, task.DeviceCode, startTime, endTime, traceCode)
 		processedCount++
 
 		if err != nil {
@@ -838,6 +841,7 @@ func (s *IpfsService) processFilesSequential(ctx context.Context, clientName str
 		result.DeviceResults[deviceCode].Turnover += turnover
 		result.DeviceResults[deviceCode].FileCount++
 		result.TotalTurnover += turnover
+		result.Mileage += mileage
 
 		//logger.IpfsL.Info("文件处理完成",
 		//	zap.String("file", task.FileName),
@@ -863,20 +867,20 @@ func (s *IpfsService) extractDeviceCodeFromPath(filePath string) string {
 }
 
 // processGpsFile 处理单个 GPS 文件，返回该文件的周转量
-func (s *IpfsService) processGpsFile(ctx context.Context, clientName string, fullPath string, fileName string, deviceCode string, startTime string, endTime string, traceCode string) (float64, error) {
+func (s *IpfsService) processGpsFile(ctx context.Context, clientName string, fullPath string, fileName string, deviceCode string, startTime string, endTime string, traceCode string) (float64, float64, error) {
 	//st := time.Now()
 	localPath := "./tempfile/" + fileName
 	err := s.SaveFileToLocal(clientName, fullPath, localPath)
 	if err != nil {
 		logger.IpfsL.Error("save file to local failed", zap.String("file", fileName), zap.Error(err))
-		return 0, err
+		return 0, 0, err
 	}
 	//logger.IpfsL.Info("download file done", zap.String("file", fileName), zap.Duration("cost", time.Since(st)))
 
 	records, err := parseFile(localPath)
 	if err != nil {
 		logger.IpfsL.Error("parse file failed", zap.String("file", fileName), zap.Error(err))
-		return 0, err
+		return 0, 0, err
 	}
 
 	//	删除本地临时文件
@@ -917,7 +921,7 @@ func (s *IpfsService) processGpsFile(ctx context.Context, clientName string, ful
 			zap.String("device_code", deviceCode),
 			zap.Error(err))
 		// 查询失败不中断，只是没有乘客数据
-		return 0, nil
+		return 0, 0, nil
 	}
 
 	detail := &carbonreportdetail.CarbonReportDetail{
@@ -930,6 +934,7 @@ func (s *IpfsService) processGpsFile(ctx context.Context, clientName string, ful
 
 	// 计算周转量
 	var deviceTurnover float64
+	var deviceMileage float64
 	for _, cv := range cvres {
 		t := cv.CollectionTime.ToTime().Format("20060102150405")
 		if t == timestamp {
@@ -939,6 +944,8 @@ func (s *IpfsService) processGpsFile(ctx context.Context, clientName string, ful
 
 			tmpTurnover := cast.ToFloat64(cv.BaiduResult) * summary.TotalDistanceKm // 周转量 = 里程 * 乘客数
 			deviceTurnover += tmpTurnover
+
+			deviceMileage += summary.TotalDistanceKm
 			break
 		}
 	}
@@ -948,7 +955,7 @@ func (s *IpfsService) processGpsFile(ctx context.Context, clientName string, ful
 		logger.IpfsL.Error("save carbonreportdetail failed", zap.Any("detail", detail), zap.Error(err))
 	}
 
-	return deviceTurnover, nil
+	return deviceTurnover, deviceMileage, nil
 }
 
 func (s *IpfsService) ReadDirTest(path string) error {

@@ -66,6 +66,9 @@ func RegisterTask() {
 		if val, ok := report["turnover"].(float64); ok {
 			cmd.Turnover = val
 		}
+		if val, ok := report["mileage"].(float64); ok {
+			cmd.Mileage = val
+		}
 		if val, ok := report["baseline"].(float64); ok {
 			cmd.Baseline = val
 		}
@@ -140,6 +143,9 @@ func RegisterTask() {
 
 		if val, ok := report["turnover"].(float64); ok {
 			cmd.Turnover = val
+		}
+		if val, ok := report["mileage"].(float64); ok {
+			cmd.Mileage = val
 		}
 		if val, ok := report["baseline"].(float64); ok {
 			cmd.Baseline = val
