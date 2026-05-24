@@ -264,8 +264,8 @@ func (h *CarbonReportDayHandler) ReportDay(c *gin.Context) {
 }
 
 func (h *CarbonReportDayHandler) ReportPart(c *gin.Context) {
-	startTime := carbon.Parse("2026-02-17 00:00:00", carbon.Shanghai)
-	endTime := startTime.Copy().AddDays(40)
+	startTime := carbon.Parse("2026-03-29 00:00:00", carbon.Shanghai)
+	endTime := carbon.Parse("2026-04-01 00:00:00", carbon.Shanghai)
 
 	count := 0
 
